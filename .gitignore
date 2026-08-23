@@ -1,0 +1,20 @@
+# التبعيات والمخرجات
+node_modules
+dist
+.output
+*.tsbuildinfo
+
+# أسرار وإعدادات محلية — القالب وحده يُرفَع (.env.example)
+.env
+.env.*
+!.env.example
+*.local
+
+# نظام التشغيل والمحرّر
+.DS_Store
+Thumbs.db
+.vscode
+.idea
+
+# النموذج الأولي الثابت (HTML/CSS/JS) الذي نُقل منه التطبيق — يبقى محلياً للمرجع
+Callcenter

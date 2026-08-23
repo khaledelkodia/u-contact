@@ -1,0 +1,231 @@
+const translations = {
+  ar: {
+    // General
+    "app_title": "نظام كول سنتر المطاعم",
+    "app_subtitle": "نظام كول سنتر المطاعم",
+    "login_title": "Premium POS",
+    "login_subtitle": "نظام كول سنتر المطاعم",
+    "login_button": "تسجيل الدخول",
+    "dashboard": "الرئيسية",
+    "delivery_orders": "طلبات التوصيل",
+    "scheduled_orders": "طلبات مجدولة",
+    "nav_scheduled": "طلبات مجدولة",
+    "reports": "التقارير",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "new_order": "طلب جديد",
+    "create_new_order": "إنشاء طلب جديد",
+    "search_customer": "بحث برقم الموبايل...",
+    "customer_phone_placeholder": "أدخل رقم الهاتف...",
+    "menu_search_placeholder": "بحث في القائمة...",
+    "customer_data": "بيانات العميل",
+    "delivery_orders_tab": "طلبات التوصيل",
+    "order_status_tab": "حالة الطلب",
+    "order_cycle_tab": "دورة الطلب",
+    "delivery_order": "توصيل",
+    "delivery_order_desc": "يوصل إلى عنوان العميل",
+    "pickup_order": "استلام",
+    "pickup_order_desc": "العميل يستلم من الفرع",
+    "write_note": "اكتب ملاحظة",
+    "important_order_notes": "ملاحظات هامة على الطلب:",
+    "choose_items": "اختر أصناف من القائمة",
+    "order_number_label": "رقم الطلب",
+    "cash": "نقدي",
+    "knet": "كي نت",
+    "back_to_categories": "← رجوع للتصنيفات",
+    "add_new_address": "إضافة عنوان جديد",
+    "area_label": "المنطقة",
+    "area_placeholder": "اختر المنطقة",
+    "block_label": "القطعة",
+    "street_label": "الشارع",
+    "building_label": "المبنى",
+    "floor_label": "الطابق",
+    "apartment_label": "الشقة",
+    "customer_notes_label": "ملاحظات",
+    "customer_notes_placeholder": "ملاحظات عن العميل...",
+    "blacklist_label": "في القائمة السوداء",
+    "add_customer": "عميل جديد",
+    "order_history": "سجل الطلبات",
+    "name": "الاسم",
+    "phone": "رقم الموبايل",
+    "address": "العنوان",
+    "save_data": "حفظ البيانات",
+    "menu": "القائمة",
+    "cart": "السلة",
+    "cart_empty": "السلة فارغة",
+    "subtotal": "المجموع الفرعي",
+    "delivery_fee": "رسوم التوصيل",
+    "total": "الإجمالي",
+    "pay_cash": "نقدي",
+    "pay_card": "كي نت",
+    "confirm_order": "تأكيد الطلب",
+    "search": "بحث",
+    "search_invoice": "رقم الفاتورة...",
+    "search_phone": "رقم الموبايل...",
+    "search_status": "ابحث برقم الفاتورة أو التليفون...",
+    "clear_filters": "إعادة تعيين",
+    "all_status": "كل الحالات",
+    "all_branches": "كل الفروع",
+    "order_no": "رقم الطلب",
+    "branch_current": "الفرع",
+    "customer_label": "العميل:",
+    "phone_label": "الرقم:",
+    "address_label": "العنوان:",
+    "branch_label": "الفرع:",
+    "delivery_orders_title": "طلبات التوصيل",
+    "order_status_title": "حالة الطلب",
+    "order_cycle_title": "دورة الطلب",
+    "choose_order_status": "اختر طلب لمتابعة حالته",
+    "status_help": "ابحث برقم الفاتورة أو التليفون أو اضغط على أي طلب من جدول الطلبات",
+    "order_cycle_desc": "تتبع مراحل الطلب من الإنشاء حتى التسليم",
+    "report_title": "التقارير",
+    "reports_dashboard_title": "التقارير ولوحة التحكم",
+    "details": "تفاصيل",
+    "branch": "الفرع",
+    "employee": "الموظف",
+    "invoice": "رقم الفاتورة",
+    "status": "الحالة",
+    "type": "النوع",
+    "notes": "ملاحظات الطلب",
+    "customer_notes": "ملاحظات",
+    "cancel": "إلغاء",
+    "customer": "العميل",
+    "payment_method": "طريقة الدفع",
+    "order_notes_preview_empty": "لا توجد ملاحظات"
+  },
+  en: {
+    // General
+    "app_title": "Restaurant Call Center System",
+    "app_subtitle": "Restaurant Call Center System",
+    "login_title": "Premium POS",
+    "login_subtitle": "Restaurant Call Center System",
+    "login_button": "Login",
+    "dashboard": "Dashboard",
+    "delivery_orders": "Delivery Orders",
+    "scheduled_orders": "Scheduled Orders",
+    "nav_scheduled": "Scheduled Orders",
+    "reports": "Reports",
+    "settings": "Settings",
+    "logout": "Logout",
+    "new_order": "New Order",
+    "create_new_order": "Create New Order",
+    "search_customer": "Search by phone...",
+    "customer_phone_placeholder": "Enter phone number...",
+    "menu_search_placeholder": "Search the menu...",
+    "customer_data": "Customer Data",
+    "delivery_orders_tab": "Delivery Orders",
+    "order_status_tab": "Order Status",
+    "order_cycle_tab": "Order Cycle",
+    "delivery_order": "Delivery",
+    "delivery_order_desc": "Delivered to the customer's address",
+    "pickup_order": "Pickup",
+    "pickup_order_desc": "Customer collects from branch",
+    "write_note": "Write Note",
+    "important_order_notes": "Important order notes:",
+    "choose_items": "Choose items from the menu",
+    "order_number_label": "Order No",
+    "cash": "Cash",
+    "knet": "K-Net",
+    "back_to_categories": "← Back to categories",
+    "add_new_address": "Add New Address",
+    "area_label": "Area",
+    "area_placeholder": "Choose area",
+    "block_label": "Block",
+    "street_label": "Street",
+    "building_label": "Building",
+    "floor_label": "Floor",
+    "apartment_label": "Apartment",
+    "customer_notes_label": "Notes",
+    "customer_notes_placeholder": "Customer notes...",
+    "blacklist_label": "Blacklist",
+    "add_customer": "New Customer",
+    "order_history": "Order History",
+    "name": "Name",
+    "phone": "Phone",
+    "address": "Address",
+    "save_data": "Save Data",
+    "menu": "Menu",
+    "cart": "Cart",
+    "cart_empty": "Cart is empty",
+    "subtotal": "Subtotal",
+    "delivery_fee": "Delivery Fee",
+    "total": "Total",
+    "pay_cash": "Cash",
+    "pay_card": "K-Net",
+    "confirm_order": "Confirm Order",
+    "search": "Search",
+    "search_invoice": "Invoice No...",
+    "search_phone": "Phone...",
+    "search_status": "Search by invoice or phone...",
+    "clear_filters": "Reset",
+    "all_status": "All statuses",
+    "all_branches": "All branches",
+    "order_no": "Order No",
+    "branch_current": "Branch",
+    "customer_label": "Customer:",
+    "phone_label": "Phone:",
+    "address_label": "Address:",
+    "branch_label": "Branch:",
+    "delivery_orders_title": "Delivery Orders",
+    "order_status_title": "Order Status",
+    "order_cycle_title": "Order Cycle",
+    "choose_order_status": "Choose an order to track its status",
+    "status_help": "Search by invoice or phone, or click any order from the table",
+    "order_cycle_desc": "Track the order journey from creation to delivery",
+    "report_title": "Reports",
+    "reports_dashboard_title": "Reports & Dashboard",
+    "details": "Details",
+    "branch": "Branch",
+    "employee": "Employee",
+    "invoice": "Invoice No",
+    "status": "Status",
+    "type": "Type",
+    "notes": "Order Notes",
+    "customer_notes": "Notes",
+    "cancel": "Cancel",
+    "customer": "Customer",
+    "payment_method": "Payment Method",
+    "order_notes_preview_empty": "No notes"
+  }
+};
+
+let currentLang = 'ar';
+
+function toggleLanguage() {
+  currentLang = currentLang === 'ar' ? 'en' : 'ar';
+  
+  // Change dir and lang attributes
+  document.documentElement.dir = currentLang === 'ar' ? 'rtl' : 'ltr';
+  document.documentElement.lang = currentLang;
+
+  // Apply translations
+  document.querySelectorAll('[data-lang]').forEach(el => {
+    const key = el.getAttribute('data-lang');
+    if (translations[currentLang][key]) {
+      // If it's an input with placeholder
+      if (el.tagName === 'INPUT' && el.hasAttribute('placeholder')) {
+        el.setAttribute('placeholder', translations[currentLang][key]);
+      } else {
+        el.textContent = translations[currentLang][key];
+      }
+    }
+  });
+
+  if (typeof window.applyLanguageToApp === 'function') {
+    window.applyLanguageToApp(currentLang);
+  }
+
+  // Toggle button text
+  const langBtn = document.getElementById('lang-toggle-btn');
+  if (langBtn) {
+    langBtn.textContent = currentLang === 'ar' ? 'English' : 'العربية';
+  }
+
+  window.currentLang = currentLang;
+}
+
+window.currentLang = currentLang;
+
+window.addEventListener('DOMContentLoaded', () => {
+  window.currentLang = currentLang;
+});

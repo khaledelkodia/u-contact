@@ -1,0 +1,147 @@
+<script setup lang="ts">
+// شاشة الشكاوى: قائمة الشركة + تفاصيل الشكوى وتايم‑لاين متابعتها.
+// الشكوى نفسها يراها موظف الشركة من داشبورد U‑Serve — نفس السجلّ لا نسخة أخرى.
+import { ref, computed, onMounted, watch } from 'vue'
+import {
+  state, loadComplaintsList, setComplaintsFilter, openComplaintDetail, closeComplaintDetail,
+  addComplaintUpdate, COMPLAINT_STATUSES, complaintStatusLabel, complaintStatusColor,
+  complaintCategoryLabel, canManageComplaints,
+} from '../store'
+import { formatDate } from '../utils'
+
+const rows = computed<any[]>(() => state.complaintsList || [])
+const detail = computed<any>(() => state.openComplaint)
+
+// نموذج المتابعة — يُصفَّر مع كل شكوى تُفتح
+const note = ref('')
+const nextStatus = ref('')
+watch(() => state.openComplaintId, (id) => { note.value = ''; nextStatus.value = '' ; if (!id) return })
+watch(detail, (d) => { if (d && !nextStatus.value) nextStatus.value = d.status })
+
+function submitUpdate() { addComplaintUpdate(note.value, nextStatus.value); note.value = '' }
+
+onMounted(() => { void loadComplaintsList() })
+</script>
+
+<template>
+  <section id="view-complaints" class="view active">
+    <div class="orders-section">
+      <div class="orders-header">
+        <div>
+          <h2 class="orders-title">الشكاوى</h2>
+          <p class="dashboard-subtitle">شكاوى العملاء على الطلبات — ومتابعتها حتى الإغلاق</p>
+        </div>
+        <!-- فلتر الحالة -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn btn-sm" :class="state.complaintsFilter === '' ? 'btn-primary' : 'btn-outline'"
+            @click="setComplaintsFilter('')">الكل</button>
+          <button v-for="s in COMPLAINT_STATUSES" :key="s.id" class="btn btn-sm"
+            :class="state.complaintsFilter === s.id ? 'btn-primary' : 'btn-outline'"
+            @click="setComplaintsFilter(s.id)">{{ s.label }}</button>
+        </div>
+      </div>
+
+      <div class="orders-table-wrapper">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>التاريخ</th><th>رقم الطلب</th><th>العميل</th><th>الفرع</th>
+              <th>النوع</th><th>الحالة</th><th>متابعات</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="state.complaintsLoading"><td colspan="8" style="text-align:center; padding:26px;">جارٍ التحميل…</td></tr>
+            <tr v-else-if="!rows.length"><td colspan="8" style="text-align:center; padding:26px;">لا توجد شكاوى</td></tr>
+            <tr v-for="c in rows" :key="c.id" @click="openComplaintDetail(c.id)" style="cursor:pointer;">
+              <td>{{ formatDate(c.createdAt) }}</td>
+              <td style="font-weight:700;">{{ c.onlineOrderId ? '#' + c.onlineOrderId : '—' }}</td>
+              <td>
+                <div style="font-weight:600;">{{ c.customer?.name || '—' }}</div>
+                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ c.customer?.phone || '' }}</div>
+              </td>
+              <td>{{ c.branch ? (c.branch.nameAr || c.branch.name) : '—' }}</td>
+              <td>{{ complaintCategoryLabel(c.category) }}</td>
+              <td>
+                <span class="availability-chip" :style="{ background: complaintStatusColor(c.status) + '22', color: complaintStatusColor(c.status), fontWeight: 700 }">
+                  {{ complaintStatusLabel(c.status) }}
+                </span>
+              </td>
+              <td>{{ c._count?.updates ?? 0 }}</td>
+              <td><button class="btn btn-sm btn-outline" @click.stop="openComplaintDetail(c.id)">تفاصيل</button></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── تفاصيل الشكوى + المتابعة ── -->
+    <div v-if="state.openComplaintId" class="modal-overlay" @click.self="closeComplaintDetail()">
+      <div class="modal-content" style="max-width:680px;" @click.stop>
+        <div class="modal-header">
+          <h3 class="modal-title">
+            شكوى #{{ state.openComplaintId }}
+            <span v-if="detail" class="availability-chip" :style="{ background: complaintStatusColor(detail.status) + '22', color: complaintStatusColor(detail.status), marginInlineStart: '8px' }">
+              {{ complaintStatusLabel(detail.status) }}
+            </span>
+          </h3>
+          <button class="modal-close" @click="closeComplaintDetail()">×</button>
+        </div>
+
+        <div class="modal-body" style="max-height:62vh; overflow-y:auto;">
+          <p v-if="!detail" style="text-align:center; padding:24px; color:var(--text-muted);">جارٍ التحميل…</p>
+          <template v-else>
+            <!-- البيانات -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; padding:12px; border-radius:8px; background:var(--bg); border:1px solid var(--border); font-size:13px;">
+              <div><span style="color:var(--text-secondary);">العميل:</span> <strong>{{ detail.customer?.name || '—' }}</strong></div>
+              <div dir="ltr" style="text-align:end;"><strong>{{ detail.customer?.phone || '' }}</strong></div>
+              <div><span style="color:var(--text-secondary);">النوع:</span> <strong>{{ complaintCategoryLabel(detail.category) }}</strong></div>
+              <div><span style="color:var(--text-secondary);">الفرع:</span> <strong>{{ detail.branch ? (detail.branch.nameAr || detail.branch.name) : '—' }}</strong></div>
+              <div v-if="detail.onlineOrder" style="grid-column:1 / -1;">
+                <span style="color:var(--text-secondary);">الطلب:</span> <strong>#{{ detail.onlineOrder.id }}</strong>
+              </div>
+            </div>
+
+            <div style="margin-top:12px; padding:12px; border-radius:8px; background:var(--danger-light, #fef2f2); border:1px solid var(--danger, #ef4444); font-size:13px; line-height:1.8;">
+              {{ detail.description }}
+            </div>
+
+            <!-- تايم‑لاين المتابعة -->
+            <h4 style="margin:16px 0 8px; font-size:13px; font-weight:800;">المتابعة</h4>
+            <p v-if="!detail.updates?.length" style="font-size:12px; color:var(--text-muted);">لا توجد متابعات بعد</p>
+            <div v-for="u in detail.updates" :key="u.id"
+              style="padding:8px 12px; border-inline-start:3px solid var(--primary); background:var(--bg); border-radius:6px; margin-bottom:6px; font-size:12px;">
+              <div style="color:var(--text-muted); font-size:11px;">{{ formatDate(u.createdAt) }}</div>
+              <div v-if="u.statusTo" style="font-weight:700;">
+                الحالة: {{ complaintStatusLabel(u.statusFrom) }} ← {{ complaintStatusLabel(u.statusTo) }}
+              </div>
+              <div v-if="u.note" style="line-height:1.7;">{{ u.note }}</div>
+            </div>
+
+            <!-- إضافة متابعة -->
+            <template v-if="canManageComplaints()">
+              <h4 style="margin:16px 0 8px; font-size:13px; font-weight:800;">إضافة متابعة</h4>
+              <div class="form-group" style="margin-bottom:8px;">
+                <label style="font-weight:700;">الحالة</label>
+                <select v-model="nextStatus" style="width:100%; padding:9px; border:1px solid var(--border); border-radius:6px; font-family:inherit;">
+                  <option v-for="s in COMPLAINT_STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label style="font-weight:700;">ملاحظة / إجراء</label>
+                <textarea v-model="note" placeholder="اكتب ما تمّ..." rows="3"
+                  style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; resize:vertical; font-family:inherit;"></textarea>
+              </div>
+            </template>
+          </template>
+        </div>
+
+        <div class="modal-footer" style="justify-content:space-between;">
+          <button class="btn btn-secondary" @click="closeComplaintDetail()">إغلاق</button>
+          <button v-if="detail && canManageComplaints()" class="btn btn-primary" :disabled="state.complaintBusy" @click="submitUpdate()">
+            {{ state.complaintBusy ? 'جارٍ الحفظ…' : 'حفظ المتابعة' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+</template>
