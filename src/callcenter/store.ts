@@ -314,8 +314,11 @@ function mapCloudOrder(r: any): any {
     : mapPosStatus(r.posStatus, r.driverStatus)
   return {
     id: r.id,
-    dailyNo: r.posOrderId || r.id,
-    invoiceNo: String(r.posOrderId || r.id),
+    // أرقام الفرع الظاهرة أولاً: اليومي والعالمي كما يراهما المطعم. `posOrderId`
+    // معرّف صفٍّ داخليّ — عرضُه كان يعطي العميل رقماً لا يجده الفرع. ويبقى ارتداداً
+    // للطلبات القديمة التي نزلت قبل أن يُرسَل الرقمان، ثم معرّف الكلاود لما لم ينزل بعد.
+    dailyNo: r.posDailyNumber ?? r.posOrderId ?? r.id,
+    invoiceNo: String(r.posOrderNumber ?? r.posOrderId ?? r.id),
     employeeName: r.agentName || '—',
     type, status,
     customerName: r.customerName, customerPhone: r.customerPhone,

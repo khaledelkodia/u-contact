@@ -122,7 +122,23 @@ function initBusinessDate() {
   state.businessDate = saved || todayISO()
   if (!saved) localStorage.setItem(BUSINESS_DATE_KEY, state.businessDate)
 }
-const businessDateLabel = computed(() => state.businessDate ? new Date(state.businessDate + 'T00:00:00').toLocaleDateString('ar-KW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) : '--')
+/**
+ * يوم العمل المعروض = **يوم الكول‑سنتر المفتوح على الخادم** لا تاريخ الجهاز.
+ *
+ * كان يُقرأ من `state.businessDate` وهو محليّ بحت (localStorage أو تاريخ اليوم)، فيعرض
+ * الهيدر «اليوم» بينما الأوردرات تُختَم بيومٍ مفتوحٍ قد يسبقه بأيام — وهو الرقم الذي
+ * يقارنه حارسُ الكونكتور بيوم الفرع ليقرّر هل ينزل الأوردر. عرضُ تاريخٍ غير الذي يعمل
+ * به النظام يجعل الوكيل يظن اليومَين متطابقين وهما ليسا كذلك.
+ */
+const openDayISO = computed<string | null>(() => {
+  const d = (state.onlineDay as any)?.businessDate
+  return d ? String(d).slice(0, 10) : null
+})
+const fmtDay = (iso: string) => new Date(iso + 'T00:00:00').toLocaleDateString('ar-KW', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+const businessDateLabel = computed(() => {
+  if (state.live) return openDayISO.value ? fmtDay(openDayISO.value) : 'لم يُفتح يوم'
+  return state.businessDate ? fmtDay(state.businessDate) : '--'
+})
 
 // ── الوضع الليلي (body.dark-mode) ──
 const dark = ref(false)
