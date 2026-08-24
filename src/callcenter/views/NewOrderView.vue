@@ -5,7 +5,7 @@ import {
   toggleBranchOverride, closeBranchOverrideMenu, selectBranchOverride, resetBranchOverride,
   getAutoBranchId, infoBranchName, infoAddress, customerTodayCount, resolvedBranchStatus,
 } from '../store'
-import { t } from '../lang'
+import { t, tx } from '../lang'
 import { icon } from '../icons'
 import CustomerTab from '../components/CustomerTab.vue'
 import MenuTab from '../components/MenuTab.vue'
@@ -60,9 +60,9 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
           <div class="info-item">
             <span class="info-label">{{ t('customer_label') }}</span>
             <span class="info-value" id="info-name" :class="{ 'info-name-today': todayCount > 0 }">{{ state.currentCustomer?.name || '-' }}</span>
-            <span class="info-customer-today" :class="{ hidden: todayCount === 0 }" id="info-customer-today" title="هذا العميل لديه طلب في يوم العمل الحالي">
+            <span class="info-customer-today" :class="{ hidden: todayCount === 0 }" id="info-customer-today" :title="tx('هذا العميل لديه طلب في يوم العمل الحالي', 'This customer already has an order in the current business day')">
               <span class="today-dot"></span>
-              <span class="today-text">طلب اليوم</span>
+              <span class="today-text">{{ tx('طلب اليوم', 'Today’s order') }}</span>
               <span class="today-count" id="info-customer-today-count">{{ todayCount }}</span>
             </span>
           </div>
@@ -77,33 +77,33 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
           <div class="info-item info-item-branch">
             <span class="info-label">{{ t('branch_label') }}</span>
             <span class="info-value info-branch-badge" id="info-branch">{{ infoBranchName() }}</span>
-            <span class="info-branch-override-tag" :class="{ hidden: !state.branchOverrideId }" id="info-branch-override-tag" title="الفرع تم تغييره يدوياً">يدوي</span>
+            <span class="info-branch-override-tag" :class="{ hidden: !state.branchOverrideId }" id="info-branch-override-tag" :title="tx('الفرع تم تغييره يدوياً', 'Branch was changed manually')">{{ tx('يدوي', 'Manual') }}</span>
             <div class="branch-override-wrap" ref="wrapRoot">
-              <button type="button" class="btn-change-branch" :class="{ open: state.branchMenuOpen }" id="btn-change-branch" @click="toggleBranchOverride()" title="تغيير الفرع المسؤول عن الطلب">
+              <button type="button" class="btn-change-branch" :class="{ open: state.branchMenuOpen }" id="btn-change-branch" @click="toggleBranchOverride()" :title="tx('تغيير الفرع المسؤول عن الطلب', 'Change the branch handling this order')">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                <span>تغيير الفرع</span>
+                <span>{{ tx('تغيير الفرع', 'Change branch') }}</span>
               </button>
               <div class="branch-override-menu" :class="{ hidden: !state.branchMenuOpen }" id="branch-override-menu">
-                <div class="branch-override-title">اختر الفرع الذي سينفذ الطلب</div>
+                <div class="branch-override-title">{{ tx('اختر الفرع الذي سينفذ الطلب', 'Choose the branch that will fulfil the order') }}</div>
                 <div class="branch-override-list" id="branch-override-list">
                   <button v-for="b in state.branches" :key="b.id" type="button" class="branch-override-option" :class="{ active: b.id === overrideActiveId }" @click="selectBranchOverride(b.id)">
                     <span>
-                      {{ b.name }}<span v-if="b.id === autoBranchId" style="opacity:0.7; font-weight:500; font-size:11px;"> (تلقائي)</span>
+                      {{ b.name }}<span v-if="b.id === autoBranchId" style="opacity:0.7; font-weight:500; font-size:11px;"> ({{ tx('تلقائي', 'auto') }})</span>
                       <!-- حالة الفرع بجوار اسمه: الاختيار اليدوي بلا معرفة الحالة يوقف الأوردر صامتاً -->
                       <span v-if="b.ready === false" :title="b.holdMessage || ''"
-                            style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#b45309;">● واقف</span>
-                      <span v-else-if="b.online" style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#059669;">● متصل</span>
+                            style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#b45309;">● {{ tx('واقف', 'On hold') }}</span>
+                      <span v-else-if="b.online" style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#059669;">● {{ tx('متصل', 'Online') }}</span>
                     </span>
                     <span v-if="b.id === overrideActiveId" class="check" v-html="icon('check', { size: 14 })"></span>
                   </button>
                 </div>
-                <button type="button" class="branch-override-reset" :class="{ hidden: !state.branchOverrideId }" id="branch-override-reset" @click="resetBranchOverride()">↺ رجوع للفرع التلقائي</button>
+                <button type="button" class="branch-override-reset" :class="{ hidden: !state.branchOverrideId }" id="branch-override-reset" @click="resetBranchOverride()">↺ {{ tx('رجوع للفرع التلقائي', 'Back to the automatic branch') }}</button>
               </div>
             </div>
           </div>
           <div class="info-item info-item-alert" :class="{ hidden: !state.currentCustomer?.isBlacklisted }" id="blacklist-alert">
             <span class="blacklist-alert-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg></span>
-            <span class="blacklist-alert-text">العميل في القائمة السوداء</span>
+            <span class="blacklist-alert-text">{{ tx('العميل في القائمة السوداء', 'Customer is blacklisted') }}</span>
           </div>
         </div>
 
@@ -118,7 +118,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
         </div>
         <div v-else-if="branchStatus" class="branch-hold-bar is-ready">
           <span class="bh-icon">✓</span>
-          <span>الفرع متصل ويومه مطابق — الأوردر ينزل فوراً.</span>
+          <span>{{ tx('الفرع متصل ويومه مطابق — الأوردر ينزل فوراً.', 'Branch is online and on the same business day — the order goes through immediately.') }}</span>
           <span class="bh-meta">{{ branchStatus.name }}</span>
         </div>
 

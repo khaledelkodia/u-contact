@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { state, setOrderType, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
-import { t } from '../lang'
+import { t, tx } from '../lang'
 import { icon } from '../icons'
 
 // ── كومبو المنطقة (searchable-select) ──
@@ -124,34 +124,34 @@ function addressLine(addr: any): string {
     </div>
     <form id="customer-form" class="customer-form" @submit.prevent>
       <div class="form-group">
-        <label for="cust-name">الاسم</label>
-        <input type="text" id="cust-name" placeholder="اسم العميل" v-model="state.form.name">
+        <label for="cust-name">{{ tx('الاسم', 'Name') }}</label>
+        <input type="text" id="cust-name" :placeholder="tx('اسم العميل', 'Customer name')" v-model="state.form.name">
       </div>
       <div class="form-group">
-        <label for="cust-phone">رقم الموبايل <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
-        <input type="text" id="cust-phone" placeholder="رقم الموبايل" maxlength="15" v-model="state.form.phone">
+        <label for="cust-phone">{{ tx('رقم الموبايل', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
+        <input type="text" id="cust-phone" :placeholder="tx('رقم الموبايل', 'Mobile no.')" maxlength="15" v-model="state.form.phone">
       </div>
       <div class="form-group">
-        <label for="cust-phone2">رقم آخر</label>
-        <input type="text" id="cust-phone2" placeholder="رقم إضافي (اختياري)" maxlength="15" v-model="state.form.phone2">
+        <label for="cust-phone2">{{ tx('رقم آخر', 'Another number') }}</label>
+        <input type="text" id="cust-phone2" :placeholder="tx('رقم إضافي (اختياري)', 'Additional number (optional)')" maxlength="15" v-model="state.form.phone2">
       </div>
       <div class="form-group" id="pickup-branch-group" v-show="state.orderType === 'pickup'" style="grid-column: 1 / -1;">
-        <label for="cust-pickup-branch">فرع الاستلام</label>
+        <label for="cust-pickup-branch">{{ tx('فرع الاستلام', 'Pickup branch') }}</label>
         <select id="cust-pickup-branch" v-model="state.form.pickupBranch">
-          <option value="">اختر فرع الاستلام</option>
+          <option value="">{{ tx('اختر فرع الاستلام', 'Choose a pickup branch') }}</option>
           <option v-for="b in state.branches" :key="b.id" :value="b.id">{{ b.name }}</option>
         </select>
       </div>
       <div class="form-group full-width" id="address-selector-group" v-show="showAddressSelector" style="grid-column: 1 / -1;">
-        <label>عناوين العميل المسجلة (اضغط للتحديد أو التعديل)</label>
+        <label>{{ tx('عناوين العميل المسجلة (اضغط للتحديد أو التعديل)', 'Saved customer addresses (click to select or edit)') }}</label>
         <div id="customer-addresses-list" class="customer-addresses-list">
           <div v-for="(addr, idx) in (state.currentCustomer?.addresses || [])" :key="idx" class="address-card" :class="{ selected: idx === state.selectedAddressIndex }" @click="selectAddress(idx)">
             <div class="address-card-header">
-              <span class="address-card-title">عنوان #{{ idx + 1 }}</span>
-              <span v-if="idx === state.selectedAddressIndex" class="address-card-check"><span v-html="icon('check', { size: 12 })"></span> نشط</span>
+              <span class="address-card-title">{{ tx('عنوان', 'Address') }} #{{ idx + 1 }}</span>
+              <span v-if="idx === state.selectedAddressIndex" class="address-card-check"><span v-html="icon('check', { size: 12 })"></span> {{ tx('نشط', 'Active') }}</span>
             </div>
             <div class="address-card-details">{{ addressLine(addr) }}</div>
-            <button type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" title="حذف العنوان" v-html="icon('trash', { size: 14 })"></button>
+            <button type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" :title="tx('حذف العنوان', 'Delete address')" v-html="icon('trash', { size: 14 })"></button>
           </div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-add-new-address" @click="selectNewAddressState()" style="margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; width: auto; align-self: flex-start; background: var(--bg); color: var(--text-primary); border: 1.5px dashed var(--border);">
@@ -161,36 +161,36 @@ function addressLine(addr: any): string {
       </div>
       <!-- ── العنوان الحقيقي (contact API): مدينة ← حيّ يُشتقّ منهما الفرع والرسوم ── -->
       <div class="form-group" v-show="isDelivery && state.live">
-        <label for="cust-region">المدينة</label>
+        <label for="cust-region">{{ tx('المدينة', 'City') }}</label>
         <select id="cust-region" :value="state.form.regionId ?? ''" @change="selectRegion(($event.target as HTMLSelectElement).value)">
-          <option value="">اختر المدينة</option>
+          <option value="">{{ tx('اختر المدينة', 'Choose a city') }}</option>
           <option v-for="r in state.regions" :key="r.id" :value="r.id">{{ r.name }}</option>
         </select>
       </div>
       <!-- الحيّ: يتقدّم على المدينة في اشتقاق الفرع والرسوم، وإلزاميّ لمدينة غير مربوطة -->
       <div class="form-group" v-show="isDelivery && state.live && sections.length">
-        <label for="cust-section">الحيّ <span v-if="sectionRequired()" style="color:var(--danger);">*</span></label>
+        <label for="cust-section">{{ tx('الحيّ', 'District') }} <span v-if="sectionRequired()" style="color:var(--danger);">*</span></label>
         <select id="cust-section" :value="state.form.sectionId ?? ''" @change="selectSection(($event.target as HTMLSelectElement).value)">
-          <option value="">{{ sectionRequired() ? 'اختر الحيّ (إلزامي)' : 'كل المدينة' }}</option>
+          <option value="">{{ sectionRequired() ? tx('اختر الحيّ (إلزامي)', 'Choose a district (required)') : tx('كل المدينة', 'Whole city') }}</option>
           <option v-for="sec in sections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
         </select>
       </div>
       <!-- الفرع المشتق ورسومه — أو تحذير صريح بدل أوردر يُحتجَز بصمت -->
       <div class="form-group full-width" v-if="placeInfo" style="grid-column: 1 / -1;">
         <div v-if="placeInfo.ok" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 12px; border-radius:8px; background:var(--success-light, #ecfdf5); border:1px solid var(--success, #10b981); font-size:13px;">
-          <span style="font-weight:700; color:var(--success, #047857);">الفرع: {{ placeInfo.branch }}</span>
+          <span style="font-weight:700; color:var(--success, #047857);">{{ tx('الفرع:', 'Branch:') }} {{ placeInfo.branch }}</span>
           <span style="color:var(--text-secondary);">·</span>
           <span style="font-weight:700;">
-            {{ placeInfo.isFree ? 'توصيل مجاني' : (placeInfo.fee > 0 ? `رسوم التوصيل: ${formatCurrency(placeInfo.fee)}` : 'رسوم مفتوحة — يحدّدها الفرع') }}
+            {{ placeInfo.isFree ? tx('توصيل مجاني', 'Free delivery') : (placeInfo.fee > 0 ? `${tx('رسوم التوصيل:', 'Delivery fee:')} ${formatCurrency(placeInfo.fee)}` : tx('رسوم مفتوحة — يحدّدها الفرع', 'Open fee — set by the branch')) }}
           </span>
         </div>
         <div v-else style="display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius:8px; background:var(--danger-light, #fef2f2); border:1px solid var(--danger, #ef4444); font-size:13px; font-weight:700; color:var(--danger, #b91c1c);">
-          {{ sectionRequired() && !state.form.sectionId ? 'اختر الحيّ — الفرع بيتحدد منه' : 'مفيش فرع بيخدم المكان ده — اختر مكان تاني أو حدّد الفرع يدوياً' }}
+          {{ sectionRequired() && !state.form.sectionId ? tx('اختر الحيّ — الفرع بيتحدد منه', 'Choose the district — the branch is derived from it') : tx('مفيش فرع بيخدم المكان ده — اختر مكان تاني أو حدّد الفرع يدوياً', 'No branch serves this location — pick another place or set the branch manually') }}
         </div>
       </div>
       <div class="form-group full-width" v-show="isDelivery && state.live" style="grid-column: 1 / -1;">
-        <label for="cust-address-text">العنوان بالتفصيل</label>
-        <textarea id="cust-address-text" placeholder="اكتب العنوان بالتفصيل (المبنى، الشارع، علامة مميزة...)" rows="3" v-model="state.form.addressText"></textarea>
+        <label for="cust-address-text">{{ tx('العنوان بالتفصيل', 'Full address') }}</label>
+        <textarea id="cust-address-text" :placeholder="tx('اكتب العنوان بالتفصيل (المبنى، الشارع، علامة مميزة...)', 'Write the full address (building, street, landmark…)')" rows="3" v-model="state.form.addressText"></textarea>
       </div>
 
       <!-- ── العنوان التجريبي (المووك): منطقة من الفروع + حقول تفصيلية ── -->
@@ -198,13 +198,13 @@ function addressLine(addr: any): string {
         <label for="cust-area">{{ t('area_label') }}</label>
         <div class="searchable-select" :class="{ open: comboOpen }" id="area-combo" ref="comboRoot">
           <button type="button" class="searchable-select-trigger" id="area-combo-trigger" @click="toggleAreaCombo()">
-            <span class="searchable-select-value" :class="{ placeholder: !state.form.area }" id="area-combo-value">{{ state.form.area || 'اختر المنطقة' }}</span>
+            <span class="searchable-select-value" :class="{ placeholder: !state.form.area }" id="area-combo-value">{{ state.form.area || tx('اختر المنطقة', 'Choose an area') }}</span>
             <svg class="searchable-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
           <div class="searchable-select-popup" :class="{ hidden: !comboOpen }" id="area-combo-popup">
             <div class="searchable-select-search">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="text" id="area-combo-search" placeholder="ابحث عن منطقة..." autocomplete="off" v-model="comboSearch">
+              <input type="text" id="area-combo-search" :placeholder="tx('ابحث عن منطقة...', 'Search for an area…')" autocomplete="off" v-model="comboSearch">
             </div>
             <div class="searchable-select-list" id="area-combo-list">
               <button v-for="opt in comboList" :key="opt.name" type="button" class="searchable-select-option" :class="{ selected: opt.name === state.form.area }" @click="selectAreaCombo(opt.name)">
@@ -212,29 +212,29 @@ function addressLine(addr: any): string {
                 <span class="opt-branch">{{ opt.branchName }}</span>
               </button>
             </div>
-            <div class="searchable-select-empty" :class="{ hidden: comboList.length !== 0 }" id="area-combo-empty">لا توجد منطقة بهذا الاسم</div>
+            <div class="searchable-select-empty" :class="{ hidden: comboList.length !== 0 }" id="area-combo-empty">{{ tx('لا توجد منطقة بهذا الاسم', 'No area with that name') }}</div>
           </div>
         </div>
       </div>
       <div class="form-group" v-show="isDelivery">
         <label for="cust-block">{{ t('block_label') }}</label>
-        <input type="text" id="cust-block" placeholder="رقم القطعة" v-model="state.form.block">
+        <input type="text" id="cust-block" :placeholder="tx('رقم القطعة', 'Block no.')" v-model="state.form.block">
       </div>
       <div class="form-group" v-show="isDelivery">
         <label for="cust-street">{{ t('street_label') }}</label>
-        <input type="text" id="cust-street" placeholder="رقم أو اسم الشارع" v-model="state.form.street">
+        <input type="text" id="cust-street" :placeholder="tx('رقم أو اسم الشارع', 'Street no. or name')" v-model="state.form.street">
       </div>
       <div class="form-group" v-show="isDelivery">
         <label for="cust-building">{{ t('building_label') }}</label>
-        <input type="text" id="cust-building" placeholder="رقم المبنى" v-model="state.form.building">
+        <input type="text" id="cust-building" :placeholder="tx('رقم المبنى', 'Building no.')" v-model="state.form.building">
       </div>
       <div class="form-group" v-show="isDelivery">
         <label for="cust-floor">{{ t('floor_label') }}</label>
-        <input type="text" id="cust-floor" placeholder="الطابق" v-model="state.form.floor">
+        <input type="text" id="cust-floor" :placeholder="tx('الطابق', 'Floor')" v-model="state.form.floor">
       </div>
       <div class="form-group" v-show="isDelivery">
         <label for="cust-apartment">{{ t('apartment_label') }}</label>
-        <input type="text" id="cust-apartment" placeholder="رقم الشقة" v-model="state.form.apartment">
+        <input type="text" id="cust-apartment" :placeholder="tx('رقم الشقة', 'Apartment no.')" v-model="state.form.apartment">
       </div>
       <div class="form-group full-width">
         <label for="cust-notes">{{ t('customer_notes_label') }}</label>

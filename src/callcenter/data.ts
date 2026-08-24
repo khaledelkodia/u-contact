@@ -239,36 +239,36 @@ const EXTRAS = [
 // أنواع الشكوى — الخادم يشترط `category` غير فارغ. القيمة المخزَّنة هي `id`
 // (ثابتة عبر اللغات) والعرض بـ`label`.
 const COMPLAINT_CATEGORIES = [
-  { id: 'late',          label: 'تأخير في التوصيل' },
-  { id: 'missing_items', label: 'أصناف ناقصة' },
-  { id: 'wrong_items',   label: 'أصناف خاطئة' },
-  { id: 'quality',       label: 'جودة الطعام' },
-  { id: 'driver',        label: 'سلوك السائق' },
-  { id: 'price',         label: 'خطأ في السعر أو الفاتورة' },
-  { id: 'other',         label: 'أخرى' },
+  { id: 'late',          label: 'تأخير في التوصيل',        labelEn: 'Late delivery' },
+  { id: 'missing_items', label: 'أصناف ناقصة',             labelEn: 'Missing items' },
+  { id: 'wrong_items',   label: 'أصناف خاطئة',             labelEn: 'Wrong items' },
+  { id: 'quality',       label: 'جودة الطعام',             labelEn: 'Food quality' },
+  { id: 'driver',        label: 'سلوك السائق',             labelEn: 'Driver behaviour' },
+  { id: 'price',         label: 'خطأ في السعر أو الفاتورة', labelEn: 'Price or invoice error' },
+  { id: 'other',         label: 'أخرى',                    labelEn: 'Other' },
 ]
 
 const CANCELLATION_REASONS = [
-  { id: 'late',         label: 'الطلب متأخر',           icon: 'fa-solid fa-clock' },
-  { id: 'taste',        label: 'مشكلة في الطعم',         icon: 'fa-solid fa-utensils' },
-  { id: 'wrong_items',  label: 'أصناف خاطئة في الطلب',   icon: 'fa-solid fa-circle-exclamation' },
-  { id: 'missing_items',label: 'أصناف ناقصة',            icon: 'fa-solid fa-rectangle-list' },
-  { id: 'customer',     label: 'رغبة العميل',            icon: 'fa-solid fa-user' },
-  { id: 'wrong_address',label: 'عنوان خاطئ / غير دقيق',  icon: 'fa-solid fa-location-dot' },
-  { id: 'unavailable',  label: 'صنف غير متوفر',          icon: 'fa-solid fa-ban' },
-  { id: 'duplicate',    label: 'طلب مكرر',               icon: 'fa-solid fa-copy' },
-  { id: 'no_driver',    label: 'لا يوجد سائق متاح',      icon: 'fa-solid fa-motorcycle' },
-  { id: 'other',        label: 'سبب آخر',                icon: 'fa-solid fa-pen' }
+  { id: 'late',         label: 'الطلب متأخر',           labelEn: 'Order is late',            icon: 'fa-solid fa-clock' },
+  { id: 'taste',        label: 'مشكلة في الطعم',         labelEn: 'Taste problem',            icon: 'fa-solid fa-utensils' },
+  { id: 'wrong_items',  label: 'أصناف خاطئة في الطلب',   labelEn: 'Wrong items in the order',  icon: 'fa-solid fa-circle-exclamation' },
+  { id: 'missing_items',label: 'أصناف ناقصة',            labelEn: 'Missing items',            icon: 'fa-solid fa-rectangle-list' },
+  { id: 'customer',     label: 'رغبة العميل',            labelEn: 'Customer request',         icon: 'fa-solid fa-user' },
+  { id: 'wrong_address',label: 'عنوان خاطئ / غير دقيق',  labelEn: 'Wrong / unclear address',  icon: 'fa-solid fa-location-dot' },
+  { id: 'unavailable',  label: 'صنف غير متوفر',          labelEn: 'Item unavailable',         icon: 'fa-solid fa-ban' },
+  { id: 'duplicate',    label: 'طلب مكرر',               labelEn: 'Duplicate order',          icon: 'fa-solid fa-copy' },
+  { id: 'no_driver',    label: 'لا يوجد سائق متاح',      labelEn: 'No driver available',      icon: 'fa-solid fa-motorcycle' },
+  { id: 'other',        label: 'سبب آخر',                labelEn: 'Another reason',           icon: 'fa-solid fa-pen' }
 ];
 
 const ORDER_STATUSES = [
-  { id: 'sent', name: 'لم يصل الفرع', color: '#94a3b8', icon: 'badge-new' },
-  { id: 'new', name: 'جديد', color: '#3b82f6', icon: 'badge-new' },
-  { id: 'preparing', name: 'جاري التحضير', color: '#f59e0b', icon: 'chef-hat' },
-  { id: 'ready', name: 'جاهز', color: '#8b5cf6', icon: 'check-circle' },
-  { id: 'onway', name: 'في الطريق', color: '#06b6d4', icon: 'bike' },
-  { id: 'delivered', name: 'تم التسليم', color: '#22c55e', icon: 'package' },
-  { id: 'cancelled', name: 'ملغي', color: '#ef4444', icon: 'x-circle' }
+  { id: 'sent', name: 'لم يصل الفرع', nameEn: 'Not at branch yet', color: '#94a3b8', icon: 'badge-new' },
+  { id: 'new', name: 'جديد', nameEn: 'New', color: '#3b82f6', icon: 'badge-new' },
+  { id: 'preparing', name: 'جاري التحضير', nameEn: 'Preparing', color: '#f59e0b', icon: 'chef-hat' },
+  { id: 'ready', name: 'جاهز', nameEn: 'Ready', color: '#8b5cf6', icon: 'check-circle' },
+  { id: 'onway', name: 'في الطريق', nameEn: 'On the way', color: '#06b6d4', icon: 'bike' },
+  { id: 'delivered', name: 'تم التسليم', nameEn: 'Delivered', color: '#22c55e', icon: 'package' },
+  { id: 'cancelled', name: 'ملغي', nameEn: 'Cancelled', color: '#ef4444', icon: 'x-circle' }
 ];
 
 // ========== مصادر الطلب (channels) وطرق الدفع المتاحة لكل مصدر ==========
@@ -313,8 +313,8 @@ const PAYMENT_CHANNELS = [
 
 // ========== أنواع الطلب ==========
 const ORDER_TYPES = [
-  { id: 'delivery', name: 'توصيل', icon: 'bike' },
-  { id: 'pickup', name: 'استلام من الفرع', icon: 'store' }
+  { id: 'delivery', name: 'توصيل', nameEn: 'Delivery', icon: 'bike' },
+  { id: 'pickup', name: 'استلام من الفرع', nameEn: 'Branch pickup', icon: 'store' }
 ];
 
 // ========== عملاء تجريبيين ==========

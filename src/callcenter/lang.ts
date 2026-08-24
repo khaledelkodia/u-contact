@@ -95,6 +95,10 @@ const translations = {
   },
   en: {
     // General
+    "home": "Home",
+    "call_center": "Call Center",
+    "complaints": "Complaints",
+    "users": "Users",
     "app_title": "Restaurant Call Center System",
     "app_subtitle": "Restaurant Call Center System",
     "login_title": "U-Contact",
@@ -222,6 +226,28 @@ export function setLang(l: 'ar' | 'en') {
   applyDir()
 }
 export function toggleLang() { setLang(lang.value === 'ar' ? 'en' : 'ar') }
+
+/**
+ * ترجمةٌ سطرية: النصّان حيث يُستعملان، بلا مفتاحٍ يُخترع ولا قاموسٍ يُصان.
+ * هذا نمط بقية U‑Contact (`src/i18n.ts`) — و`t(key)` أعلاه يبقى لما هو مترجَمٌ
+ * فعلاً في `translations`. المئات من نصوص هذه الشاشة كانت عربيةً ثابتة في
+ * القوالب: تُعرض عربيةً ولو اختار المستخدم الإنجليزية.
+ */
+export function tx(ar: string, en: string) { return lang.value === 'ar' ? ar : en }
+
+/**
+ * اسم عنصرٍ من قوائم الثوابت (حالات الطلب، أسباب الإلغاء، أنواع الشكاوى، طرق الدفع…):
+ * العربيّ هو الحقل الأساسي (`name`/`label`) والإنجليزيّ حقلٌ موازٍ (`nameEn`/`labelEn`).
+ * غيابُ الموازي يرتدّ إلى العربي — أفضل من فراغٍ في الشاشة.
+ */
+export const nameOf = (o: any): string => {
+  if (!o) return ''
+  const ar = o.name ?? o.label ?? ''
+  return lang.value === 'ar' ? ar : (o.nameEn ?? o.labelEn ?? ar)
+}
+
+/** رمز اللغة لدوالّ `toLocale*` — التواريخ كانت `ar-KW` دائماً. */
+export const locale = () => (lang.value === 'ar' ? 'ar-KW' : 'en-GB')
 // نفس آلية data-lang الأصلية: t(key) بيرجّع النص باللغة الحالية (fallback: عربي ثم المفتاح)
 export function t(key: string): string {
   const tr = translations as any

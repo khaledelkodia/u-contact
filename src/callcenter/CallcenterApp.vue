@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
 import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast } from './store'
-import { t, lang, toggleLang, applyDir } from './lang'
+import { t, tx, lang, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
 
@@ -255,12 +255,12 @@ onBeforeUnmount(() => {
         </div>
         <form class="login-form" @submit.prevent="submitLogin">
           <div class="form-group">
-            <label>اسم المستخدم</label>
-            <input type="text" v-model="username" placeholder="أدخل اسم المستخدم" autocomplete="username" />
+            <label>{{ tx('اسم المستخدم', 'Username') }}</label>
+            <input type="text" v-model="username" :placeholder="tx('أدخل اسم المستخدم', 'Enter username')" autocomplete="username" />
           </div>
           <div class="form-group">
-            <label>كلمة المرور</label>
-            <input type="password" v-model="password" placeholder="أدخل كلمة المرور" autocomplete="current-password" />
+            <label>{{ tx('كلمة المرور', 'Password') }}</label>
+            <input type="password" v-model="password" :placeholder="tx('أدخل كلمة المرور', 'Enter password')" autocomplete="current-password" />
           </div>
           <div v-if="loginError" class="login-error">{{ loginError }}</div>
           <button type="submit" class="login-btn">{{ t('login_button') }}</button>
@@ -285,15 +285,15 @@ onBeforeUnmount(() => {
       <!-- مبدّل الشركة/الفرنشايز — يظهر فقط للوكيل متعدّد الشركات أو الفروع -->
       <div v-if="session.companies.length > 1 || session.franchises.length > 1" class="cc-switch">
         <label v-if="session.companies.length > 1">
-          <span>{{ lang === 'ar' ? 'الشركة' : 'Company' }}</span>
+          <span>{{ tx('الشركة', 'Company') }}</span>
           <select :value="cur?.id || ''" @change="pickCompany">
             <option v-for="c in session.companies" :key="c.id" :value="c.id">{{ coName(c) }}</option>
           </select>
         </label>
         <label v-if="session.franchises.length > 1">
-          <span>{{ lang === 'ar' ? 'الفرنشايز' : 'Franchise' }}</span>
+          <span>{{ tx('الفرنشايز', 'Franchise') }}</span>
           <select :value="curFr?.id || ''" @change="pickFranchise">
-            <option value="" disabled>{{ lang === 'ar' ? 'اختر الفرع' : 'Select branch' }}</option>
+            <option value="" disabled>{{ tx('اختر الفرع', 'Select branch') }}</option>
             <option v-for="f in session.franchises" :key="f.id" :value="f.id">{{ coName(f) }}</option>
           </select>
         </label>
@@ -320,7 +320,7 @@ onBeforeUnmount(() => {
         <button class="sidebar-logout" style="background:var(--surface); color:var(--text-primary);" @click="toggleLang()">{{ lang === 'ar' ? 'English' : 'العربية' }}</button>
         <button class="sidebar-logout" @click="logout">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          <span>تسجيل الخروج</span>
+          <span>{{ tx('تسجيل الخروج', 'Sign out') }}</span>
         </button>
       </div>
     </aside>
@@ -335,35 +335,35 @@ onBeforeUnmount(() => {
       </div>
       <div class="header-center">
         <span v-if="isCallcenterView" class="header-clock" dir="ltr"
-              :title="clockZone ? `توقيت ${clockZone}` : 'توقيت جهازك'">{{ clock }}</span>
+              :title="clockZone ? tx(`توقيت ${clockZone}`, `${clockZone} time`) : tx('توقيت جهازك', 'Your device clock')">{{ clock }}</span>
         <!-- اسم بلد الشركة بجوار الساعة: يوضّح أنها ساعة الشركة لا ساعة الوكيل -->
         <span v-if="isCallcenterView && clockZone" class="header-clock-zone">{{ clockZone }}</span>
         <!-- ساعة الجهاز منحرفة عن الخادم: الساعة المعروضة مصحَّحة، لكن الوكيل يجب أن يعلم -->
         <span v-if="isCallcenterView && clockOff()" class="header-clock-warn"
-              title="ساعة جهازك غير مضبوطة — الساعة المعروضة مأخوذة من الخادم">⚠ ساعة الجهاز</span>
+              :title="tx('ساعة جهازك غير مضبوطة — الساعة المعروضة مأخوذة من الخادم', 'Your device clock is off — the time shown comes from the server')">⚠ {{ tx('ساعة الجهاز', 'Device clock') }}</span>
         <span v-if="isCallcenterView" class="header-business-date">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span class="bd-label">يوم العمل:</span>
+          <span class="bd-label">{{ tx('يوم العمل:', 'Business day:') }}</span>
           <span class="bd-value">{{ businessDateLabel }}</span>
         </span>
         <span v-if="isCallcenterView" class="header-divider" aria-hidden="true"></span>
         <!-- يوم العمل مقفول → زر فتح (يظهر لمن يملك صلاحية الفتح) -->
         <button v-if="isCallcenterView && state.live && state.onlineDay === null && can('callcenter.open')" class="header-eod-btn" style="background:var(--success,#16a34a); color:#fff;" :disabled="state.dayLoading" @click="openBusinessDay()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
-          <span class="eod-label">{{ state.dayLoading ? 'جارٍ الفتح…' : 'افتح اليوم' }}</span>
+          <span class="eod-label">{{ state.dayLoading ? tx('جارٍ الفتح…', 'Opening…') : tx('افتح اليوم', 'Open day') }}</span>
         </button>
         <!-- يوم مقفول ومفيش صلاحية فتح → تنبيه -->
         <span v-else-if="isCallcenterView && state.live && state.onlineDay === null" class="header-business-date" style="color:var(--danger,#dc2626);">
-          <span class="bd-value">اليوم مقفول — لا يمكن ضرب أوردر</span>
+          <span class="bd-value">{{ tx('اليوم مقفول — لا يمكن ضرب أوردر', 'Day is closed — orders cannot be placed') }}</span>
         </span>
         <button v-if="canEod && isCallcenterView" class="header-eod-btn">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/></svg>
-          <span class="eod-label">إنهاء اليوم</span>
+          <span class="eod-label">{{ tx('إنهاء اليوم', 'End of day') }}</span>
           <span class="eod-badge">EOD</span>
         </button>
       </div>
       <div class="header-left">
-        <button class="notification-btn" title="تبديل الوضع الليلي" @click="toggleTheme">
+        <button class="notification-btn" :title="tx('تبديل الوضع الليلي', 'Toggle dark mode')" @click="toggleTheme">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
         </button>
       </div>

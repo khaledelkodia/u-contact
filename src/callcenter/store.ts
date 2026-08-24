@@ -4,6 +4,7 @@ import {
   ORDER_STATUSES, PAYMENT_CHANNELS, PAYMENT_METHODS, CANCELLATION_REASONS, COMPLAINT_CATEGORIES,
 } from './data'
 import { todayISO } from './utils'
+import { tx, nameOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBusinessDay, contactOpenDay, contactOrders, contactStoppedItems,
@@ -180,7 +181,7 @@ export async function loadLiveData() {
       if (!catMap.has(cid)) {
         catMap.set(cid, {
           id: cid,
-          name: p.categoryId != null ? (p.categoryNameAr || p.categoryNameEn || 'تصنيف') : 'غير مصنّف',
+          name: p.categoryId != null ? (p.categoryNameAr || p.categoryNameEn || tx('تصنيف', 'Category')) : tx('غير مصنّف', 'Uncategorised'),
           nameEn: p.categoryNameEn || p.categoryNameAr || '',
           icon: '', color: '#6b7280', imageUrl: '',
           sort: p.categoryId != null ? p.categorySort : 9999,
@@ -217,7 +218,7 @@ export async function loadLiveData() {
     void loadCcStoppedItems()  // وأصناف أوقفها الكول‑سنتر لنفسه (مشتركة بين الوكلاء)
   } catch {
     // فشل التحميل → نبقى على المووك بدون كسر الشاشة
-    showToast('تعذّر تحميل بيانات الشركة — سيتم استخدام بيانات تجريبية', 'warning')
+    showToast(tx('تعذّر تحميل بيانات الشركة — سيتم استخدام بيانات تجريبية', 'Could not load company data — demo data will be used'), 'warning')
   }
 }
 
@@ -239,9 +240,9 @@ export async function openBusinessDay() {
     const day = await contactOpenDay()
     state.onlineDay = day || null
     if (day?.businessDate) state.businessDate = String(day.businessDate).slice(0, 10)
-    showToast('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'success')
+    showToast(tx('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'Business day opened — you can place orders now'), 'success')
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر فتح يوم العمل (تحتاج صلاحية فتح اليوم)', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر فتح يوم العمل (تحتاج صلاحية فتح اليوم)', 'Could not open the business day (you need the open-day permission)'), 'error')
   } finally { state.dayLoading = false }
 }
 
@@ -273,34 +274,34 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     out.push({ type, status: type, at, by, note })
   }
 
-  push('created', r.createdAt, r.agentName || 'الكول‑سنتر', 'إنشاء الطلب من الكول‑سنتر')
+  push('created', r.createdAt, r.agentName || tx('الكول‑سنتر', 'Call center'), tx('إنشاء الطلب من الكول‑سنتر', 'Order created from the call center'))
 
   // نزول الفرع: لا توقيت مستقلّ له في الحمولة — نذكره بلا وقت مضلِّل حين يتأكّد
   if (r.posOrderId) {
-    out.push({ type: 'branch', status: 'branch', at: r.posStatusAt || null, by: 'الفرع',
-      note: `نزل الفرع — رقم الطلب هناك #${r.posOrderId}` })
+    out.push({ type: 'branch', status: 'branch', at: r.posStatusAt || null, by: tx('الفرع', 'Branch'),
+      note: tx(`نزل الفرع — رقم الطلب هناك #${r.posOrderId}`, `Reached the branch — order no. there #${r.posOrderId}`) })
   } else if (r.holdReason === 'no_branch') {
-    out.push({ type: 'held', status: 'held', at: null, by: '—', note: 'محتجَز: لا فرع يخدم المنطقة — يحتاج تعييناً يدوياً' })
+    out.push({ type: 'held', status: 'held', at: null, by: '—', note: tx('محتجَز: لا فرع يخدم المنطقة — يحتاج تعييناً يدوياً', 'On hold: no branch serves this area — needs manual assignment') })
   }
 
   // حالة الفرع الأخيرة (المرآة التي يرفعها الكونكتور)
   if (r.posStatus && r.posStatusAt) {
-    push('status', r.posStatusAt, 'الفرع', `حالة الفرع: ${statusLabel}`)
+    push('status', r.posStatusAt, tx('الفرع', 'Branch'), tx(`حالة الفرع: ${statusLabel}`, `Branch status: ${statusLabel}`))
   }
 
   // السائق — يعيّنه الفرع، والكول‑سنتر يعرضه فقط
   if (r.driverName) {
-    const dl = r.driverStatus === 'on_way' ? 'خرج للتوصيل'
-      : r.driverStatus === 'delivered' ? 'سلّم الطلب'
-      : r.driverStatus === 'assigned' ? 'تم تحميله' : (r.driverStatus || '')
-    push('driver', r.driverAt, 'الفرع', `السائق: ${r.driverName}${dl ? ' — ' + dl : ''}`)
+    const dl = r.driverStatus === 'on_way' ? tx('خرج للتوصيل', 'Out for delivery')
+      : r.driverStatus === 'delivered' ? tx('سلّم الطلب', 'Delivered the order')
+      : r.driverStatus === 'assigned' ? tx('تم تحميله', 'Picked up') : (r.driverStatus || '')
+    push('driver', r.driverAt, tx('الفرع', 'Branch'), tx(`السائق: ${r.driverName}${dl ? ' — ' + dl : ''}`, `Driver: ${r.driverName}${dl ? ' — ' + dl : ''}`))
   }
 
-  push('delivered', r.deliveredAt, 'الفرع', 'تم تسليم الطلب للعميل')
+  push('delivered', r.deliveredAt, tx('الفرع', 'Branch'), tx('تم تسليم الطلب للعميل', 'Order delivered to the customer'))
 
   if (r.status === 'cancelled' || r.posStatus === 'cancelled') {
     out.push({ type: 'cancelled', status: 'cancelled', at: r.posStatusAt || null,
-      by: r.posStatus === 'cancelled' ? 'الفرع' : 'الكول‑سنتر', note: 'تم إلغاء الطلب' })
+      by: r.posStatus === 'cancelled' ? 'الفرع' : 'الكول‑سنتر', note: tx('تم إلغاء الطلب', 'Order cancelled') })
   }
 
   // الأقدم أولاً؛ ما لا وقت له يبقى في موضعه المنطقي بلا إزاحة
@@ -325,13 +326,13 @@ function mapCloudOrder(r: any): any {
     employeeName: r.agentName || '—',
     type, status,
     customerName: r.customerName, customerPhone: r.customerPhone,
-    branchId: r.branchId, branchName: r.branchName || (r.holdReason === 'no_branch' ? 'بانتظار تعيين فرع' : '—'),
+    branchId: r.branchId, branchName: r.branchName || (r.holdReason === 'no_branch' ? tx('بانتظار تعيين فرع', 'Awaiting branch assignment') : '—'),
     subtotal: Number(r.subtotal) || 0, deliveryFee: Number(r.deliveryFee) || 0, total: Number(r.total) || 0,
     driverId: r.driverName ? -1 : null, driverName: r.driverName || null, driverPhone: '',
     // حجز: موعده يظهر في شاشة «الطلبات المجدولة»
     hasComplaint: !!state.complaintsByOrder[r.id], scheduledDate: r.reservationTime || null,
     // سجلّ العمليات من الخادم — يُعاد بناؤه مع كل تحديث لحظي فيبقى مطابقاً للواقع
-    statusHistory: buildTimeline(r, ORDER_STATUSES.find((x: any) => x.id === status)?.name || status),
+    statusHistory: buildTimeline(r, nameOf(ORDER_STATUSES.find((x: any) => x.id === status)) || status),
     prepLeadMinutes: r.prepLeadMinutes ?? null,
     posReservationId: r.posReservationId ?? null,
     businessDate: r.businessDate ? String(r.businessDate).slice(0, 10) : null,
@@ -370,10 +371,10 @@ export async function loadComplaints() {
 
 // ── شاشة الشكاوى: قائمة + تفاصيل + متابعة ───────────────────────────────────
 export const COMPLAINT_STATUSES = [
-  { id: 'open',        label: 'مفتوحة',      color: '#dc2626' },
-  { id: 'in_progress', label: 'قيد المعالجة', color: '#d97706' },
-  { id: 'resolved',    label: 'تم حلّها',     color: '#16a34a' },
-  { id: 'closed',      label: 'مغلقة',       color: '#64748b' },
+  { id: 'open',        label: 'مفتوحة',      labelEn: 'Open',        color: '#dc2626' },
+  { id: 'in_progress', label: 'قيد المعالجة', labelEn: 'In progress', color: '#d97706' },
+  { id: 'resolved',    label: 'تم حلّها',     labelEn: 'Resolved',    color: '#16a34a' },
+  { id: 'closed',      label: 'مغلقة',       labelEn: 'Closed',      color: '#64748b' },
 ]
 export function complaintStatusLabel(id: string): string {
   return COMPLAINT_STATUSES.find((s) => s.id === id)?.label || id
@@ -382,7 +383,7 @@ export function complaintStatusColor(id: string): string {
   return COMPLAINT_STATUSES.find((s) => s.id === id)?.color || '#64748b'
 }
 export function complaintCategoryLabel(id: string): string {
-  return COMPLAINT_CATEGORIES.find((c: any) => c.id === id)?.label || id
+  return nameOf(COMPLAINT_CATEGORIES.find((c: any) => c.id === id)) || id
 }
 
 export function setComplaintsFilter(v: string) { state.complaintsFilter = v; void loadComplaintsList() }
@@ -397,7 +398,7 @@ export async function loadComplaintsList() {
     state.complaintsList = Array.isArray(rows) ? rows : []
   } catch {
     state.complaintsList = []
-    showToast('تعذّر تحميل الشكاوى', 'error')
+    showToast(tx('تعذّر تحميل الشكاوى', 'Could not load complaints'), 'error')
   } finally {
     state.complaintsLoading = false
   }
@@ -409,7 +410,7 @@ export async function openComplaintDetail(id: number) {
   try {
     state.openComplaint = await contactComplaint(id)
   } catch {
-    showToast('تعذّر تحميل تفاصيل الشكوى', 'error')
+    showToast(tx('تعذّر تحميل تفاصيل الشكوى', 'Could not load the complaint details'), 'error')
     state.openComplaintId = null
   }
 }
@@ -422,20 +423,20 @@ export function closeComplaintDetail() { state.openComplaintId = null; state.ope
 export async function addComplaintUpdate(note: string, status: string) {
   const id = state.openComplaintId
   if (!id) return
-  if (!canManageComplaints()) { showToast('لا تملك صلاحية متابعة الشكاوى', 'warning'); return }
+  if (!canManageComplaints()) { showToast(tx('لا تملك صلاحية متابعة الشكاوى', 'You do not have permission to follow up on complaints'), 'warning'); return }
   const n = (note || '').trim()
   const changed = status && status !== state.openComplaint?.status ? status : ''
-  if (!n && !changed) { showToast('اكتب ملاحظة أو غيّر الحالة', 'warning'); return }
+  if (!n && !changed) { showToast(tx('اكتب ملاحظة أو غيّر الحالة', 'Write a note or change the status'), 'warning'); return }
   state.complaintBusy = true
   try {
     const body: any = {}
     if (n) body.note = n
     if (changed) body.status = changed
     state.openComplaint = await contactComplaintUpdate(id, body)
-    showToast('تم تسجيل المتابعة', 'success')
+    showToast(tx('تم تسجيل المتابعة', 'Follow-up recorded'), 'success')
     await loadComplaintsList()
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر تسجيل المتابعة', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر تسجيل المتابعة', 'Could not record the follow-up'), 'error')
   } finally {
     state.complaintBusy = false
   }
@@ -555,15 +556,15 @@ export function applyBranchPresence(branchId: number, online: boolean) {
   const was = b.online
   b.online = online
   if (online && b.hold === 'offline') { b.hold = null; b.ready = true; b.holdMessage = null }
-  else if (!online && b.ready) { b.hold = 'offline'; b.ready = false; b.holdMessage = 'الفرع غير متصل الآن — الأوردر محفوظ وسينزل تلقائياً أول ما يرجع الاتصال.' }
+  else if (!online && b.ready) { b.hold = 'offline'; b.ready = false; b.holdMessage = tx('الفرع غير متصل الآن — الأوردر محفوظ وسينزل تلقائياً أول ما يرجع الاتصال.', 'The branch is offline right now — the order is saved and will go through automatically when it reconnects.') }
   if (was === online) return                       // لا تغيّر فعلي ⇒ لا إزعاج
   if (!online) return                              // الانقطاع يظهر في الشريط بلا إشعار
   // كم أوردر كان واقفاً على هذا الفرع؟ («sent» = لم يصل الفرع بعد)
   const waiting = (state.orders || []).filter((o: any) => o.branchId === branchId && o.status === 'sent').length
   showToast(
     waiting > 0
-      ? `${b.name} رجع أونلاين — ${waiting} أوردر واقف هينزل عليه دلوقتي`
-      : `${b.name} رجع أونلاين`,
+      ? tx(`${b.name} رجع أونلاين — ${waiting} أوردر واقف هينزل عليه دلوقتي`, `${b.name} is back online — ${waiting} held order(s) will go through now`)
+      : tx(`${b.name} رجع أونلاين`, `${b.name} is back online`),
     'success', waiting > 0 ? 9000 : 4000,
   )
 }
@@ -665,17 +666,17 @@ export function infoAddress(): string {
     if (sec) parts.push(sec.name)
   }
   if (f.area) parts.push(f.area)
-  if (f.block) parts.push(`ق ${f.block}`)
-  if (f.street) parts.push(`ش ${f.street}`)
-  if (f.building) parts.push(`مبنى ${f.building}`)
-  if (f.floor) parts.push(`ط ${f.floor}`)
-  if (f.apartment) parts.push(`شقة ${f.apartment}`)
+  if (f.block) parts.push(tx(`ق ${f.block}`, `Block ${f.block}`))
+  if (f.street) parts.push(tx(`ش ${f.street}`, `St. ${f.street}`))
+  if (f.building) parts.push(tx(`مبنى ${f.building}`, `Bldg ${f.building}`))
+  if (f.floor) parts.push(tx(`ط ${f.floor}`, `Floor ${f.floor}`))
+  if (f.apartment) parts.push(tx(`شقة ${f.apartment}`, `Apt ${f.apartment}`))
   return parts.length > 0 ? parts.join('، ') : '-'
 }
 
 export function onAreaChange() {
   const b = branchByArea(state.form.area)
-  if (b) showToast(`تم تحديد ${b.name} تلقائياً بناءً على المنطقة`, 'info')
+  if (b) showToast(tx(`تم تحديد ${b.name} تلقائياً بناءً على المنطقة`, `${b.name} was selected automatically based on the area`), 'info')
 }
 
 // ── فلاج "طلب اليوم" (نقلاً عن updateCustomerTodayBadge) ──
@@ -704,7 +705,7 @@ export function selectBranchOverride(branchId: number) {
   } else {
     state.branchOverrideId = branchId
     const b = state.branches.find((x: any) => x.id === branchId)
-    if (b) showToast(`تم تحويل الطلب إلى ${b.name}`, 'success')
+    if (b) showToast(tx(`تم تحويل الطلب إلى ${b.name}`, `Order moved to ${b.name}`), 'success')
   }
   state.branchMenuOpen = false
 }
@@ -712,7 +713,7 @@ export function selectBranchOverride(branchId: number) {
 export function resetBranchOverride() {
   state.branchOverrideId = null
   state.branchMenuOpen = false
-  showToast('تم الرجوع للفرع التلقائي', 'info')
+  showToast(tx('تم الرجوع للفرع التلقائي', 'Back to the automatic branch'), 'info')
 }
 
 // ==========================================
@@ -859,7 +860,7 @@ export function loadCustomerData(customer: any) {
 export async function searchCustomer() {
   const phone = (state.phoneSearch || '').trim()
   if (!phone) {
-    showToast('الرجاء إدخال رقم الهاتف للبحث', 'warning')
+    showToast(tx('الرجاء إدخال رقم الهاتف للبحث', 'Enter a phone number to search'), 'warning')
     return
   }
 
@@ -870,10 +871,10 @@ export async function searchCustomer() {
       if (list && list.length > 0) {
         clearCartSilently()
         loadLiveCustomer(list[0])
-        showToast('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'success')
+        showToast(tx('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'Customer found — review the details then pick the menu'), 'success')
         state.activeTab = 'customer-data'
       } else {
-        showToast('العميل غير موجود. يرجى إضافة بياناته.', 'info')
+        showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
         clearCustomerData()
         clearCartSilently()
         state.form.phone = phone
@@ -889,10 +890,10 @@ export async function searchCustomer() {
   if (customer) {
     if (!state.currentCustomer || state.currentCustomer.id !== customer.id) clearCartSilently()
     loadCustomerData(customer)
-    showToast('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'success')
+    showToast(tx('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'Customer found — review the details then pick the menu'), 'success')
     state.activeTab = 'customer-data'
   } else {
-    showToast('العميل غير موجود. يرجى إضافة بياناته.', 'info')
+    showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
     clearCustomerData()
     clearCartSilently()
     state.form.phone = phone
@@ -912,12 +913,12 @@ export function selectAddress(idx: number) {
 export function selectNewAddressState() {
   state.selectedAddressIndex = -1
   clearAddressFields()
-  showToast('يمكنك الآن كتابة تفاصيل العنوان الجديد بالأسفل وضغط حفظ البيانات ليضاف للعميل', 'info')
+  showToast(tx('يمكنك الآن كتابة تفاصيل العنوان الجديد بالأسفل وضغط حفظ البيانات ليضاف للعميل', 'You can now type the new address below and press save to add it to the customer'), 'info')
 }
 
 export function deleteAddress(idx: number, event?: Event) {
   if (event) event.stopPropagation()
-  if (!confirm('هل أنت متأكد من حذف هذا العنوان من سجل العميل؟')) return
+  if (!confirm(tx('هل أنت متأكد من حذف هذا العنوان من سجل العميل؟', 'Are you sure you want to delete this address from the customer record?'))) return
 
   const customer = state.currentCustomer
   if (!customer || !customer.addresses) return
@@ -939,7 +940,7 @@ export function deleteAddress(idx: number, event?: Event) {
     clearAddressFields()
   }
 
-  showToast('تم حذف العنوان بنجاح', 'success')
+  showToast(tx('تم حذف العنوان بنجاح', 'Address deleted'), 'success')
 }
 
 export function showNewCustomerForm() {
@@ -974,10 +975,10 @@ export function cancelCustomerForm() {
 async function saveCustomerLive() {
   const name = state.form.name.trim()
   const phone = state.form.phone.trim()
-  if (!name || !phone) { showToast('يرجى تعبئة الاسم ورقم الموبايل', 'error'); return }
+  if (!name || !phone) { showToast(tx('يرجى تعبئة الاسم ورقم الموبايل', 'Please fill in the name and mobile number'), 'error'); return }
   const isDelivery = state.orderType === 'delivery'
-  if (isDelivery && !state.form.regionId) { showToast('يرجى اختيار المدينة', 'error'); return }
-  if (isDelivery && sectionRequired() && !state.form.sectionId) { showToast('يرجى اختيار الحيّ', 'error'); return }
+  if (isDelivery && !state.form.regionId) { showToast(tx('يرجى اختيار المدينة', 'Please choose a city'), 'error'); return }
+  if (isDelivery && sectionRequired() && !state.form.sectionId) { showToast(tx('يرجى اختيار الحيّ', 'Please choose a district'), 'error'); return }
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
   try {
@@ -989,9 +990,9 @@ async function saveCustomerLive() {
       block: state.form.block || null, street: state.form.street || null,
       building: state.form.building || null, floor: state.form.floor || null, apartment: state.form.apartment || null,
     })
-    showToast('تم حفظ بيانات العميل بنجاح', 'success')
+    showToast(tx('تم حفظ بيانات العميل بنجاح', 'Customer saved'), 'success')
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر حفظ العميل', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر حفظ العميل', 'Could not save the customer'), 'error')
   }
 }
 
@@ -1002,11 +1003,11 @@ export function saveCustomer() {
   const area = state.form.area
 
   if (!name || !phone) {
-    showToast('يرجى تعبئة الحقول الأساسية: الاسم ورقم الموبايل', 'error')
+    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم ورقم الموبايل', 'Please fill in the required fields: name and mobile number'), 'error')
     return
   }
   if (state.orderType === 'delivery' && !area) {
-    showToast('يرجى تعبئة الحقول الأساسية: الاسم، رقم الموبايل، والمنطقة', 'error')
+    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم، رقم الموبايل، والمنطقة', 'Please fill in the required fields: name, mobile number and area'), 'error')
     return
   }
 
@@ -1046,7 +1047,7 @@ export function saveCustomer() {
 
     const index = state.customers.findIndex((c: any) => c.id === state.currentCustomer.id)
     if (index !== -1) state.customers[index] = customerData
-    showToast('تم تحديث بيانات العميل بنجاح', 'success')
+    showToast(tx('تم تحديث بيانات العميل بنجاح', 'Customer updated'), 'success')
   } else {
     customerData.id = Date.now()
     customerData.createdAt = new Date().toISOString()
@@ -1057,7 +1058,7 @@ export function saveCustomer() {
       state.selectedAddressIndex = -1
     }
     state.customers.push(customerData)
-    showToast('تم إضافة العميل بنجاح', 'success')
+    showToast(tx('تم إضافة العميل بنجاح', 'Customer added'), 'success')
   }
 
   loadCustomerData(customerData)
@@ -1131,8 +1132,8 @@ export function isItemDisabledForOrder(itemId: number): boolean {
 /** سبب الإيقاف — رسالة أدقّ من «موقوف» المجرّدة. */
 export function itemStopReason(itemId: number): string {
   const bid = menuBranchId()
-  if (bid && (state.posStoppedItems[bid] || []).includes(itemId)) return 'الصنف موقوف من مطبخ الفرع'
-  return 'الصنف موقوف للكول‑سنتر في فرع الطلب'
+  if (bid && (state.posStoppedItems[bid] || []).includes(itemId)) return tx('الصنف موقوف من مطبخ الفرع', 'The item is stopped by the branch kitchen')
+  return tx('الصنف موقوف للكول‑سنتر في فرع الطلب', 'The item is stopped for the call center at the order’s branch')
 }
 // أصناف مطبخ الـPOS الموقوفة (لكل فرع) من الكلاود
 export async function loadStoppedItems() {
@@ -1214,7 +1215,7 @@ export function closeItemModal() { state.itemModalOpen = false; state.editingCar
 export function confirmItemModal() {
   const item = state.selectedMenuItem
   if (!item) return
-  if (!itemModalValid()) { showToast('حدّد سعر الصنف أولاً', 'warning'); return }
+  if (!itemModalValid()) { showToast(tx('حدّد سعر الصنف أولاً', 'Set the item price first'), 'warning'); return }
   addToCart(item, {
     qty: state.itemModalQty, size: state.selectedSize, extras: state.selectedExtras, note: state.itemModalNote,
     openPrice: item.isOpenPrice ? (parseFloat(state.itemModalOpenPrice) || 0) : undefined,
@@ -1259,7 +1260,7 @@ export function addToCart(item: any, opts: any = {}) {
       logPendingEvent({ type: 'item_edited', itemName: item.name, note: `تعديل ${item.name}` })
     }
     state.editingCartItemId = null
-    showToast(`تم تعديل ${item.name}`, 'success')
+    showToast(tx(`تم تعديل ${item.name}`, `${item.name} updated`), 'success')
     return
   }
 
@@ -1293,7 +1294,7 @@ export function addToCart(item: any, opts: any = {}) {
     logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: qty, note: `إضافة ${qty} × ${item.name}` })
   }
   // `silent`: إعادة الطلب تضيف عدة أصناف دفعةً واحدة — توست لكل صنف يغرق الشاشة
-  if (!opts.silent) showToast(`تم إضافة ${item.name} للسلة`, 'success')
+  if (!opts.silent) showToast(tx(`تم إضافة ${item.name} للسلة`, `${item.name} added to the cart`), 'success')
 }
 
 export function updateCartItemQty(cartItemId: string, change: number) {
@@ -1312,7 +1313,7 @@ export function updateCartItemQty(cartItemId: string, change: number) {
 
 export function clearCart() {
   if (state.cart.length === 0) return
-  if (confirm('هل أنت متأكد من مسح جميع الأصناف من السلة؟')) {
+  if (confirm(tx('هل أنت متأكد من مسح جميع الأصناف من السلة؟', 'Are you sure you want to clear all items from the cart?'))) {
     const itemsCount = state.cart.length
     state.cart = []
     state.orderNotes = ''
@@ -1368,28 +1369,28 @@ export function checkout() {
 
 // بناء ContactOrderInput وإرساله (cash on delivery حالياً)
 export async function submitOrder() {
-  if (state.live && state.onlineDay === null) { showToast('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر', 'warning'); return }
-  if (state.cart.length === 0) { showToast('السلة فارغة', 'warning'); return }
+  if (state.live && state.onlineDay === null) { showToast(tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر', 'Open the call-center business day before placing an order'), 'warning'); return }
+  if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   const phone = (state.form.phone || '').trim()
   const name = (state.form.name || '').trim()
-  if (!phone || !name) { showToast('يرجى إدخال اسم العميل ورقم الموبايل', 'warning'); return }
+  if (!phone || !name) { showToast(tx('يرجى إدخال اسم العميل ورقم الموبايل', 'Enter the customer name and mobile number'), 'warning'); return }
 
   const isDelivery = state.orderType === 'delivery'
-  if (isDelivery && !state.form.regionId) { showToast('يرجى اختيار المدينة', 'warning'); return }
+  if (isDelivery && !state.form.regionId) { showToast(tx('يرجى اختيار المدينة', 'Please choose a city'), 'warning'); return }
   if (isDelivery && sectionRequired() && !state.form.sectionId) {
-    showToast('اختر الحيّ — المدينة دي مش مربوطة بفرع، الفرع بيتحدد من الحيّ', 'warning'); return
+    showToast(tx('اختر الحيّ — المدينة دي مش مربوطة بفرع، الفرع بيتحدد من الحيّ', 'Choose the district — this city is not linked to a branch; the branch is derived from the district'), 'warning'); return
   }
   // بلا فرع الطلب يُنشأ «محتجزاً» في الكلاود ولا ينزل أي فرع، ولا يعرف الوكيل ولا
   // العميل. نمنعه هنا بدل أن يضيع بصمت.
   if (isDelivery && !getResolvedOrderBranchId()) {
-    showToast('مفيش فرع بيخدم المنطقة دي — اختر منطقة تانية أو حدّد الفرع يدوياً', 'error'); return
+    showToast(tx('مفيش فرع بيخدم المنطقة دي — اختر منطقة تانية أو حدّد الفرع يدوياً', 'No branch serves this area — pick another area or set the branch manually'), 'error'); return
   }
-  if (!state.paymentMethod) { showToast('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'warning'); return }
+  if (!state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'Choose a payment method (press the payment button under the cart)'), 'warning'); return }
   // منع إرسال أوردر فيه صنف موقوف لفرع الطلب (محلي أو مطبخ POS)
   {
     const bid = getResolvedOrderBranchId()
     const bad = state.cart.filter((i: any) => isItemStoppedForBranch(bid, i.itemId))
-    if (bad.length) { showToast(`الطلب فيه أصناف موقوفة لهذا الفرع: ${bad.map((i: any) => i.name).join('، ')}`, 'error'); return }
+    if (bad.length) { showToast(tx(`الطلب فيه أصناف موقوفة لهذا الفرع: ${bad.map((i: any) => i.name).join('، ')}`, `The order contains items stopped for this branch: ${bad.map((i: any) => i.name).join(', ')}`), 'error'); return }
   }
 
   const region = currentArea()
@@ -1400,8 +1401,8 @@ export async function submitOrder() {
   // حجز: لازم موعد مستقبلي — الطلب ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده
   if (state.isReservation) {
     const rt = state.reservationTime ? new Date(state.reservationTime) : null
-    if (!rt || isNaN(rt.getTime())) { showToast('حدّد موعد الحجز', 'warning'); return }
-    if (rt.getTime() <= Date.now()) { showToast('موعد الحجز لازم يكون في المستقبل', 'warning'); return }
+    if (!rt || isNaN(rt.getTime())) { showToast(tx('حدّد موعد الحجز', 'Set the reservation time'), 'warning'); return }
+    if (rt.getTime() <= Date.now()) { showToast(tx('موعد الحجز لازم يكون في المستقبل', 'The reservation time must be in the future'), 'warning'); return }
   }
 
   const body: ContactOrderInput = {
@@ -1443,7 +1444,7 @@ export async function submitOrder() {
 
   try {
     await contactCreateOrder(body)
-    showToast(state.isReservation ? 'تم إنشاء الحجز ونزوله للفرع' : 'تم إنشاء الأوردر بنجاح', 'success')
+    showToast(state.isReservation ? tx('تم إنشاء الحجز ونزوله للفرع', 'Reservation created and sent to the branch') : tx('تم إنشاء الأوردر بنجاح', 'Order created'), 'success')
     clearCartSilently()
     clearCustomerData()
     resetPaymentSelection()
@@ -1453,7 +1454,7 @@ export async function submitOrder() {
     await loadOrders()   // حدّث القائمة قبل التنقّل عشان يظهر الأوردر الجديد
     state.activeView = 'orders'
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'فشل إنشاء الأوردر', 'error')
+    showToast(err?.response?.data?.message || tx('فشل إنشاء الأوردر', 'Could not create the order'), 'error')
   }
 }
 
@@ -1461,7 +1462,7 @@ export async function submitOrder() {
 // ORDER NOTES (نقلاً عن updateOrderNotesPreview)
 // ==========================================
 export function orderNotesPreview(): string {
-  return state.orderNotes ? state.orderNotes : 'لا توجد ملاحظات'
+  return state.orderNotes ? state.orderNotes : tx('لا توجد ملاحظات', 'No notes')
 }
 
 export function openOrderNotesModal() { state.notesModalOpen = true }
@@ -1469,7 +1470,7 @@ export function closeOrderNotesModal() { state.notesModalOpen = false }
 export function saveOrderNotes(text: string) {
   state.orderNotes = (text || '').trim()
   state.notesModalOpen = false
-  showToast(state.orderNotes ? 'تم حفظ ملاحظات الطلب' : 'تم مسح ملاحظات الطلب', 'success')
+  showToast(state.orderNotes ? tx('تم حفظ ملاحظات الطلب', 'Order notes saved') : tx('تم مسح ملاحظات الطلب', 'Order notes cleared'), 'success')
 }
 
 // صلاحية مستقلّة: تغيير الرسوم قرار ماليّ لا يلزم أن يملكه كل من يأخذ الأوردر
@@ -1489,7 +1490,7 @@ export function deliveryFeeIsOpen(): boolean {
   return Number(link?.fee || 0) === 0 && !link?.isFree
 }
 export function openDeliveryFeeModal() {
-  if (!canChangeDeliveryFee()) { showToast('لا تملك صلاحية تغيير رسوم التوصيل', 'warning'); return }
+  if (!canChangeDeliveryFee()) { showToast(tx('لا تملك صلاحية تغيير رسوم التوصيل', 'You do not have permission to change the delivery fee'), 'warning'); return }
   state.feeModalOpen = true
 }
 export function closeDeliveryFeeModal() { state.feeModalOpen = false }
@@ -1497,15 +1498,15 @@ export function closeDeliveryFeeModal() { state.feeModalOpen = false }
 export function derivedDeliveryFee(): number { return Number(state.deliveryFee || 0) }
 export function applyDeliveryFeeOverride(value: any) {
   const v = parseFloat(String(value))
-  if (isNaN(v) || v < 0) { showToast('أدخل رسوماً صحيحة', 'warning'); return }
+  if (isNaN(v) || v < 0) { showToast(tx('أدخل رسوماً صحيحة', 'Enter a valid fee'), 'warning'); return }
   state.deliveryFeeOverride = v
   state.feeModalOpen = false
-  showToast(`تم ضبط رسوم التوصيل على ${v}`, 'success')
+  showToast(tx(`تم ضبط رسوم التوصيل على ${v}`, `Delivery fee set to ${v}`), 'success')
 }
 export function resetDeliveryFeeOverride() {
   state.deliveryFeeOverride = null
   state.feeModalOpen = false
-  showToast('رجعت الرسوم للقيمة الافتراضية للمنطقة', 'info')
+  showToast(tx('رجعت الرسوم للقيمة الافتراضية للمنطقة', 'Fee restored to the area default'), 'info')
 }
 
 // ── مودال الدفع (المصدر + الطريقة) ──
@@ -1518,7 +1519,7 @@ export function setPaymentChannel(id: string) {
 export function setPaymentMethod(id: string) { state.paymentMethod = id }
 export function resetPaymentSelection() { state.paymentChannel = null; state.paymentMethod = null }
 export function confirmPaymentSelection() {
-  if (!state.paymentChannel || !state.paymentMethod) { showToast('اختر المصدر وطريقة الدفع', 'warning'); return }
+  if (!state.paymentChannel || !state.paymentMethod) { showToast(tx('اختر المصدر وطريقة الدفع', 'Choose the source and the payment method'), 'warning'); return }
   state.paymentModalOpen = false
 }
 
@@ -1527,7 +1528,7 @@ export function closeHistoryModal() { state.historyModalOpen = false }
 
 export async function showOrderHistory() {
   const phone = (state.form.phone || state.currentCustomer?.phone || '').trim()
-  if (!phone) { showToast('ابحث عن العميل بالتليفون أولاً لرؤية سجل طلباته', 'warning'); return }
+  if (!phone) { showToast(tx('ابحث عن العميل بالتليفون أولاً لرؤية سجل طلباته', 'Search for the customer by phone first to see their order history'), 'warning'); return }
   state.historyModalOpen = true
   if (!state.live) {
     // المووك: نفلتر القائمة الحالية بالعميل
@@ -1541,7 +1542,7 @@ export async function showOrderHistory() {
     state.historyOrders = Array.isArray(rows) ? rows.map(mapCloudOrder) : []
   } catch {
     state.historyOrders = []
-    showToast('تعذّر تحميل سجل الطلبات', 'error')
+    showToast(tx('تعذّر تحميل سجل الطلبات', 'Could not load the order history'), 'error')
   } finally {
     state.historyLoading = false
   }
@@ -1567,7 +1568,7 @@ export async function reorderItems(orderId: number) {
       const o = state.orders.find((x: any) => x.id === orderId)
       items = Array.isArray(o?.items) ? o.items : []
     }
-    if (!items.length) { showToast('الطلب ده مفيهوش أصناف', 'warning'); return }
+    if (!items.length) { showToast(tx('الطلب ده مفيهوش أصناف', 'This order has no items'), 'warning'); return }
 
     const branchId = getResolvedOrderBranchId()
     const missing: string[] = []
@@ -1576,7 +1577,7 @@ export async function reorderItems(orderId: number) {
     let added = 0
 
     for (const it of items) {
-      const oldName = it.productName || it.name || 'صنف'
+      const oldName = it.productName || it.name || tx('صنف', 'item')
       const pid = it.productId ?? it.itemId ?? null
       const menuItem = pid != null ? state.menuItems.find((m: any) => m.id === pid) : null
       if (!menuItem) { missing.push(oldName); continue }
@@ -1609,15 +1610,15 @@ export async function reorderItems(orderId: number) {
 
     // تنبيه واحد مجمَّع بدل سيل من التوستات
     const notes: string[] = []
-    if (added) notes.push(`تمت إضافة ${added} صنف`)
-    if (priced.length) notes.push(`تغيّر السعر: ${priced.join(' · ')}`)
-    if (stopped.length) notes.push(`موقوف حالياً ولم يُضَف: ${stopped.join('، ')}`)
-    if (missing.length) notes.push(`لم يعد في المنيو: ${missing.join('، ')}`)
+    if (added) notes.push(tx(`تمت إضافة ${added} صنف`, `${added} item(s) added`))
+    if (priced.length) notes.push(tx(`تغيّر السعر: ${priced.join(' · ')}`, `Price changed: ${priced.join(' · ')}`))
+    if (stopped.length) notes.push(tx(`موقوف حالياً ولم يُضَف: ${stopped.join('، ')}`, `Currently stopped and not added: ${stopped.join(', ')}`))
+    if (missing.length) notes.push(tx(`لم يعد في المنيو: ${missing.join('، ')}`, `No longer on the menu: ${missing.join(', ')}`))
     const hasProblem = priced.length || stopped.length || missing.length
-    showToast(notes.join(' — ') || 'لا شيء لإضافته', hasProblem ? 'warning' : 'success')
+    showToast(notes.join(' — ') || tx('لا شيء لإضافته', 'Nothing to add'), hasProblem ? 'warning' : 'success')
     if (added) { state.historyModalOpen = false; state.activeTab = 'menu' }
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر إعادة الطلب', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر إعادة الطلب', 'Could not reorder'), 'error')
   } finally {
     state.reorderBusy = false
   }
@@ -1627,19 +1628,19 @@ export async function reorderItems(orderId: number) {
 // ORDER SUBMISSION (reviewOrder — تحقق + stub للمودال)
 // ==========================================
 export function reviewOrder() {
-  if (state.cart.length === 0) { showToast('السلة فارغة', 'warning'); return }
-  if (!state.currentCustomer) { showToast('يرجى إضافة بيانات العميل أولاً', 'warning'); return }
-  if (!state.paymentChannel) { showToast('يرجى تحديد مصدر الطلب أولاً (الفون / طلبات / كاري / ...)', 'warning'); return }
-  if (!state.paymentMethod) { showToast('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'warning'); return }
+  if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
+  if (!state.currentCustomer) { showToast(tx('يرجى إضافة بيانات العميل أولاً', 'Add the customer details first'), 'warning'); return }
+  if (!state.paymentChannel) { showToast(tx('يرجى تحديد مصدر الطلب أولاً (الفون / طلبات / كاري / ...)', 'Choose the order source first (Phone / Talabat / Carriage / …)'), 'warning'); return }
+  if (!state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
 
   const orderBranchId = getResolvedOrderBranchId()
   const disabledItems = orderBranchId ? (state.disabledBranchItems[orderBranchId] || []) : []
   const invalidCartItems = state.cart.filter((item: any) => disabledItems.includes(item.itemId))
   if (invalidCartItems.length > 0) {
     const branch = state.branches.find((b: any) => b.id === orderBranchId)
-    const branchName = branch ? branch.name : 'الفرع المحدد'
+    const branchName = branch ? branch.name : tx('الفرع المحدد', 'the selected branch')
     const itemNames = invalidCartItems.map((i: any) => i.name).join('، ')
-    showToast(`الطلب يحتوي على أصناف غير متوفرة في ${branchName}: (${itemNames})`, 'error')
+    showToast(tx(`الطلب يحتوي على أصناف غير متوفرة في ${branchName}: (${itemNames})`, `The order contains items unavailable at ${branchName}: (${itemNames})`), 'error')
     return
   }
 
@@ -1652,18 +1653,18 @@ export function closeReviewModal() { state.reviewModalOpen = false }
  * فلا يراجع الوكيل طلباً سيُرفَض. تُرجع أول مانع أو null.
  */
 function liveReviewBlocker(): string | null {
-  if (state.onlineDay === null) return 'افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر'
-  if (state.cart.length === 0) return 'السلة فارغة'
-  if (!(state.form.phone || '').trim() || !(state.form.name || '').trim()) return 'يرجى إدخال اسم العميل ورقم الموبايل'
+  if (state.onlineDay === null) return tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر', 'Open the call-center business day before placing an order')
+  if (state.cart.length === 0) return tx('السلة فارغة', 'The cart is empty')
+  if (!(state.form.phone || '').trim() || !(state.form.name || '').trim()) return tx('يرجى إدخال اسم العميل ورقم الموبايل', 'Enter the customer name and mobile number')
   if (state.orderType === 'delivery') {
-    if (!state.form.regionId) return 'يرجى اختيار المدينة'
-    if (sectionRequired() && !state.form.sectionId) return 'اختر الحيّ — الفرع بيتحدد منه'
-    if (!getResolvedOrderBranchId()) return 'مفيش فرع بيخدم المنطقة دي'
+    if (!state.form.regionId) return tx('يرجى اختيار المدينة', 'Please choose a city')
+    if (sectionRequired() && !state.form.sectionId) return tx('اختر الحيّ — الفرع بيتحدد منه', 'Choose the district — the branch is derived from it')
+    if (!getResolvedOrderBranchId()) return tx('مفيش فرع بيخدم المنطقة دي', 'No branch serves this area')
   }
-  if (!state.paymentMethod) return 'يرجى تحديد طريقة الدفع'
+  if (!state.paymentMethod) return tx('يرجى تحديد طريقة الدفع', 'Choose a payment method')
   const bid = getResolvedOrderBranchId()
   const bad = state.cart.filter((i: any) => isItemStoppedForBranch(bid, i.itemId))
-  if (bad.length) return `الطلب فيه أصناف موقوفة: ${bad.map((i: any) => i.name).join('، ')}`
+  if (bad.length) return tx(`الطلب فيه أصناف موقوفة: ${bad.map((i: any) => i.name).join('، ')}`, `The order contains stopped items: ${bad.map((i: any) => i.name).join(', ')}`)
   return null
 }
 
@@ -1697,7 +1698,7 @@ export function reviewSummary(): any {
 export function confirmReview() {
   state.reviewModalOpen = false
   if (state.live) { void submitOrder(); return }
-  showToast('تم تأكيد الطلب (بيانات تجريبية)', 'success')
+  showToast(tx('تم تأكيد الطلب (بيانات تجريبية)', 'Order confirmed (demo data)'), 'success')
 }
 
 // ==========================================
@@ -1844,19 +1845,19 @@ export function canManageItemAvailability(): boolean {
  * لأن القيمة التفاعلية لم تتغيّر أصلاً، فيظن المستخدم أن الإيقاف تمّ.
  */
 export function toggleBranchItemAvailability(branchId: number | string, itemId: number, isAvailable: boolean): boolean {
-  if (!canManageItemAvailability()) { showToast('لا تملك صلاحية إيقاف/تشغيل الأصناف', 'warning'); return false }
+  if (!canManageItemAvailability()) { showToast(tx('لا تملك صلاحية إيقاف/تشغيل الأصناف', 'You do not have permission to stop or resume items'), 'warning'); return false }
   const bid = parseInt(String(branchId))
   // الصنف الموقوف من مطبخ الفرع يرجع بإيقافه هناك — لا يملك الكول‑سنتر تشغيله
   if (isAvailable && (state.posStoppedItems[bid] || []).includes(itemId)) {
-    showToast('الصنف موقوف من مطبخ الفرع — تشغيله يكون من الفرع', 'warning'); return false
+    showToast(tx('الصنف موقوف من مطبخ الفرع — تشغيله يكون من الفرع', 'The item is stopped by the branch kitchen — it can only be resumed at the branch'), 'warning'); return false
   }
   if (!state.disabledBranchItems[bid]) state.disabledBranchItems[bid] = []
   const index = state.disabledBranchItems[bid].indexOf(itemId)
 
   const item = state.menuItems.find((i: any) => i.id === itemId)
   const branch = state.branches.find((b: any) => b.id === bid)
-  const itemName = item ? item.name : 'الصنف'
-  const branchName = branch ? branch.name : 'الفرع'
+  const itemName = item ? item.name : tx('الصنف', 'the item')
+  const branchName = branch ? branch.name : tx('الفرع', 'the branch')
 
   if (isAvailable) {
     if (index > -1) state.disabledBranchItems[bid].splice(index, 1)
@@ -1873,24 +1874,24 @@ export function toggleBranchItemAvailability(branchId: number | string, itemId: 
       // مزامنة فيبدو كأن الإيقاف «رجع لوحده».
       .then(async () => {
         const ok = await loadCcStoppedItems()
-        if (!ok) { showToast('تعذّر التأكّد من الحفظ — حدّث الصفحة وراجع الحالة', 'warning'); return }
+        if (!ok) { showToast(tx('تعذّر التأكّد من الحفظ — حدّث الصفحة وراجع الحالة', 'Could not confirm the save — refresh the page and check the state'), 'warning'); return }
         const saved = (state.disabledBranchItems[bid] || []).includes(itemId)
-        if (saved === isAvailable) { showToast('لم يُحفظ التغيير على الخادم — حاول ثانية', 'error'); return }
+        if (saved === isAvailable) { showToast(tx('لم يُحفظ التغيير على الخادم — حاول ثانية', 'The change was not saved on the server — try again'), 'error'); return }
         showToast(
-          isAvailable ? `تم تنشيط وإتاحة ${itemName} في ${branchName}` : `تم إيقاف ${itemName} في ${branchName} — للكول‑سنتر فقط`,
+          isAvailable ? tx(`تم تنشيط وإتاحة ${itemName} في ${branchName}`, `${itemName} resumed at ${branchName}`) : tx(`تم إيقاف ${itemName} في ${branchName} — للكول‑سنتر فقط`, `${itemName} stopped at ${branchName} — call center only`),
           isAvailable ? 'success' : 'warning')
       })
       .catch((err: any) => {
         const arr = state.disabledBranchItems[bid] || []
         const i = arr.indexOf(itemId)
         if (isAvailable) { if (i === -1) arr.push(itemId) } else if (i > -1) arr.splice(i, 1)
-        showToast(err?.response?.data?.message || 'تعذّر حفظ الإيقاف', 'error')
+        showToast(err?.response?.data?.message || tx('تعذّر حفظ الإيقاف', 'Could not save the stop'), 'error')
       })
     return true   // قُبل التبديل محلياً؛ نتيجة الخادم تُعالَج أعلاه
   }
 
   showToast(
-    isAvailable ? `تم تنشيط وإتاحة ${itemName} في ${branchName}` : `تم تعطيل وإيقاف ${itemName} في ${branchName}`,
+    isAvailable ? tx(`تم تنشيط وإتاحة ${itemName} في ${branchName}`, `${itemName} resumed at ${branchName}`) : tx(`تم تعطيل وإيقاف ${itemName} في ${branchName}`, `${itemName} disabled and stopped at ${branchName}`),
     isAvailable ? 'success' : 'warning')
   saveDisabledItems()
   return true
@@ -1943,7 +1944,7 @@ export function advanceOrderStatus(orderId: number) {
     by: state.currentUser ? state.currentUser.name : 'موظف',
     note: `تغيير الحالة من "${statusObjOld ? statusObjOld.name : prevStatus}" إلى "${statusObjNew ? statusObjNew.name : newStatus}"`,
   })
-  showToast(`تم تحديث حالة الطلب #${order.invoiceNo} إلى: ${statusObjNew ? statusObjNew.name : newStatus}`, 'success')
+  showToast(tx(`تم تحديث حالة الطلب #${order.invoiceNo} إلى: ${statusObjNew ? statusObjNew.name : newStatus}`, `Order #${order.invoiceNo} status updated to: ${statusObjNew ? statusObjNew.name : newStatus}`), 'success')
 }
 
 // ==========================================
@@ -1953,7 +1954,7 @@ export function openAssignDriverModal(orderId: number) {
   const order = state.orders.find((o: any) => o.id === orderId)
   if (!order) return
   if (order.type !== 'delivery') {
-    showToast('تعيين السائق متاح لطلبات التوصيل فقط', 'warning')
+    showToast(tx('تعيين السائق متاح لطلبات التوصيل فقط', 'Assigning a driver is only available for delivery orders'), 'warning')
     return
   }
   state.driverSearch = ''
@@ -2013,14 +2014,14 @@ export function selectDriverForOrder(orderId: number, driverId: number) {
     })
   }
 
-  showToast(`تم تعيين السائق ${driver.name} للطلب #${order.invoiceNo}`, 'success')
+  showToast(tx(`تم تعيين السائق ${driver.name} للطلب #${order.invoiceNo}`, `Driver ${driver.name} assigned to order #${order.invoiceNo}`), 'success')
   closeDriverModal()
 }
 
 export function unassignDriverFromOrder(orderId: number) {
   const order = state.orders.find((o: any) => o.id === orderId)
   if (!order) return
-  if (!confirm('هل تريد إلغاء تعيين السائق من هذا الطلب؟')) return
+  if (!confirm(tx('هل تريد إلغاء تعيين السائق من هذا الطلب؟', 'Do you want to unassign the driver from this order?'))) return
 
   const prevDriverName = order.driverName
   const nowIso = new Date().toISOString()
@@ -2039,7 +2040,7 @@ export function unassignDriverFromOrder(orderId: number) {
     note: `تم إلغاء تعيين السائق ${prevDriverName || ''}`,
   })
 
-  showToast('تم إلغاء تعيين السائق', 'info')
+  showToast(tx('تم إلغاء تعيين السائق', 'Driver unassigned'), 'info')
   closeDriverModal()
 }
 
@@ -2063,8 +2064,8 @@ export function canCancelThisOrder(order: any): boolean {
 export function openCancelModal(orderId: number) {
   const order = state.orders.find((o: any) => o.id === orderId)
   if (!order) return
-  if (!canCancelOrder()) { showToast('لا تملك صلاحية إلغاء الطلبات', 'warning'); return }
-  if (!canCancelThisOrder(order)) { showToast('الطلب نزل الفرع بالفعل — الإلغاء يكون من الفرع', 'warning'); return }
+  if (!canCancelOrder()) { showToast(tx('لا تملك صلاحية إلغاء الطلبات', 'You do not have permission to cancel orders'), 'warning'); return }
+  if (!canCancelThisOrder(order)) { showToast(tx('الطلب نزل الفرع بالفعل — الإلغاء يكون من الفرع', 'The order already reached the branch — cancel it from the branch'), 'warning'); return }
   state.cancelModalOrderId = orderId
 }
 export function closeCancelModal() { state.cancelModalOrderId = null }
@@ -2079,18 +2080,18 @@ async function confirmCancelOrderLive(orderId: number, reason: any) {
   try {
     await contactCancelOrder(orderId)
     applyLocalCancel(orderId, reason)
-    showToast('تم إلغاء الطلب', 'success')
+    showToast(tx('تم إلغاء الطلب', 'Order cancelled'), 'success')
     closeCancelModal()
     await loadOrders()
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر إلغاء الطلب', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر إلغاء الطلب', 'Could not cancel the order'), 'error')
   }
 }
 
 export function confirmCancelOrder(orderId: number, reason: any) {
   if (state.live) {
-    if (!canCancelOrder()) { showToast('لا تملك صلاحية إلغاء الطلبات', 'warning'); return }
-    if (!reason) { showToast('اختر سبب الإلغاء', 'warning'); return }
+    if (!canCancelOrder()) { showToast(tx('لا تملك صلاحية إلغاء الطلبات', 'You do not have permission to cancel orders'), 'warning'); return }
+    if (!reason) { showToast(tx('اختر سبب الإلغاء', 'Choose a cancellation reason'), 'warning'); return }
     void confirmCancelOrderLive(orderId, reason)
     return
   }
@@ -2121,7 +2122,7 @@ function applyLocalCancel(orderId: number, reason: any) {
     note: baseNote + reasonNote,
   })
 
-  showToast(`تم تحديث حالة الطلب #${order.invoiceNo} إلى: ${statusObjNew ? statusObjNew.name : 'ملغي'}`, 'success')
+  showToast(tx(`تم تحديث حالة الطلب #${order.invoiceNo} إلى: ${statusObjNew ? statusObjNew.name : 'ملغي'}`, `Order #${order.invoiceNo} status updated to: ${statusObjNew ? statusObjNew.name : 'Cancelled'}`), 'success')
   closeCancelModal()
 }
 
@@ -2138,44 +2139,44 @@ export function closeTxnModal() { state.txnModalOrderId = null }
 export function getTransactionMeta(entry: any): any {
   switch (entry.type) {
     case 'item_added':
-      return { icon: 'shopping-cart', title: `إضافة صنف: ${entry.itemName || ''}`, bg: 'rgba(59, 130, 246, 0.12)', color: '#1d4ed8' }
+      return { icon: 'shopping-cart', title: tx(`إضافة صنف: ${entry.itemName || ''}`, `Item added: ${entry.itemName || ''}`), bg: 'rgba(59, 130, 246, 0.12)', color: '#1d4ed8' }
     case 'item_qty_up':
-      return { icon: 'plus', title: `زيادة كمية: ${entry.itemName || ''}`, bg: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
+      return { icon: 'plus', title: tx(`زيادة كمية: ${entry.itemName || ''}`, `Qty increased: ${entry.itemName || ''}`), bg: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
     case 'item_qty_down':
-      return { icon: 'minus', title: `تقليل كمية: ${entry.itemName || ''}`, bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
+      return { icon: 'minus', title: tx(`تقليل كمية: ${entry.itemName || ''}`, `Qty decreased: ${entry.itemName || ''}`), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
     case 'item_removed':
-      return { icon: 'trash', title: `حذف صنف: ${entry.itemName || ''}`, bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
+      return { icon: 'trash', title: tx(`حذف صنف: ${entry.itemName || ''}`, `Item removed: ${entry.itemName || ''}`), bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
     case 'item_edited':
-      return { icon: 'edit', title: `تعديل صنف: ${entry.itemName || ''}`, bg: 'rgba(139, 92, 246, 0.14)', color: '#6d28d9' }
+      return { icon: 'edit', title: tx(`تعديل صنف: ${entry.itemName || ''}`, `Item edited: ${entry.itemName || ''}`), bg: 'rgba(139, 92, 246, 0.14)', color: '#6d28d9' }
     case 'cart_cleared':
-      return { icon: 'broom', title: 'تفريغ السلة', bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
+      return { icon: 'broom', title: tx('تفريغ السلة', 'Cart cleared'), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
     case 'driver_assigned':
-      return { icon: 'bike', title: `تحميل على السائق: ${entry.driverName || ''}`, bg: 'rgba(6, 182, 212, 0.14)', color: '#0e7490' }
+      return { icon: 'bike', title: tx(`تحميل على السائق: ${entry.driverName || ''}`, `Handed to driver: ${entry.driverName || ''}`), bg: 'rgba(6, 182, 212, 0.14)', color: '#0e7490' }
     case 'driver_unassigned':
-      return { icon: 'ban', title: 'إلغاء تعيين السائق', bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
+      return { icon: 'ban', title: tx('إلغاء تعيين السائق', 'Driver unassigned'), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
     case 'created':
-      return { icon: 'check-circle', title: 'تأكيد الطلب', bg: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' }
+      return { icon: 'check-circle', title: tx('تأكيد الطلب', 'Order confirmed'), bg: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' }
     // أنواع السجلّ القادم من الكلاود (buildTimeline)
     case 'branch':
-      return { icon: 'store', title: 'نزل الفرع', bg: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' }
+      return { icon: 'store', title: tx('نزل الفرع', 'Reached the branch'), bg: 'rgba(37, 99, 235, 0.14)', color: '#1d4ed8' }
     case 'held':
-      return { icon: 'alert-triangle', title: 'محتجَز — بانتظار تعيين فرع', bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
+      return { icon: 'alert-triangle', title: tx('محتجَز — بانتظار تعيين فرع', 'On hold — awaiting branch assignment'), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
     case 'driver':
-      return { icon: 'bike', title: 'السائق', bg: 'rgba(6, 182, 212, 0.14)', color: '#0e7490' }
+      return { icon: 'bike', title: tx('السائق', 'Driver'), bg: 'rgba(6, 182, 212, 0.14)', color: '#0e7490' }
     case 'delivered':
-      return { icon: 'check-circle', title: 'تم التسليم', bg: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
+      return { icon: 'check-circle', title: tx('تم التسليم', 'Delivered'), bg: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
     case 'edited':
-      return { icon: 'edit', title: 'تعديل الطلب', bg: 'rgba(139, 92, 246, 0.14)', color: '#6d28d9' }
+      return { icon: 'edit', title: tx('تعديل الطلب', 'Order edited'), bg: 'rgba(139, 92, 246, 0.14)', color: '#6d28d9' }
     case 'complaint':
-      return { icon: 'alert-triangle', title: 'تقديم شكوى', bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
+      return { icon: 'alert-triangle', title: tx('تقديم شكوى', 'Complaint filed'), bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
     case 'cancelled':
-      return { icon: 'x-circle', title: 'إلغاء الطلب', bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
+      return { icon: 'x-circle', title: tx('إلغاء الطلب', 'Order cancelled'), bg: 'rgba(239, 68, 68, 0.13)', color: '#b91c1c' }
     case 'status':
     default: {
       const statusObj = ORDER_STATUSES.find((s: any) => s.id === entry.status)
       return {
         icon: statusObj ? statusObj.icon : 'history',
-        title: statusObj ? `الحالة: ${statusObj.name}` : 'تحديث الحالة',
+        title: statusObj ? tx(`الحالة: ${nameOf(statusObj)}`, `Status: ${nameOf(statusObj)}`) : tx('تحديث الحالة', 'Status update'),
         bg: 'rgba(16, 185, 129, 0.12)',
         color: '#047857',
       }
@@ -2242,21 +2243,21 @@ async function submitComplaintLive(orderId: number, text: string, category: stri
     })
     state.complaintsByOrder[orderId] = (state.complaintsByOrder[orderId] || 0) + 1
     if (order) order.hasComplaint = true
-    showToast('تم تسجيل الشكوى بنجاح', 'success')
+    showToast(tx('تم تسجيل الشكوى بنجاح', 'Complaint recorded'), 'success')
     closeComplaintModal()
   } catch (err: any) {
-    showToast(err?.response?.data?.message || 'تعذّر تسجيل الشكوى', 'error')
+    showToast(err?.response?.data?.message || tx('تعذّر تسجيل الشكوى', 'Could not record the complaint'), 'error')
   }
 }
 
 export function submitComplaint(orderId: number, text: string, category: string = 'other') {
   const t = (text || '').trim()
   if (!t) {
-    showToast('الرجاء كتابة تفاصيل الشكوى', 'warning')
+    showToast(tx('الرجاء كتابة تفاصيل الشكوى', 'Please write the complaint details'), 'warning')
     return
   }
   if (state.live) {
-    if (!canManageComplaints()) { showToast('لا تملك صلاحية تقديم الشكاوى', 'warning'); return }
+    if (!canManageComplaints()) { showToast(tx('لا تملك صلاحية تقديم الشكاوى', 'You do not have permission to file complaints'), 'warning'); return }
     void submitComplaintLive(orderId, t, category)
     return
   }
@@ -2276,6 +2277,6 @@ export function submitComplaint(orderId: number, text: string, category: string 
     note: 'تم تقديم شكوى: ' + t,
   })
 
-  showToast('تم تسجيل الشكوى بنجاح', 'success')
+  showToast(tx('تم تسجيل الشكوى بنجاح', 'Complaint recorded'), 'success')
   closeComplaintModal()
 }

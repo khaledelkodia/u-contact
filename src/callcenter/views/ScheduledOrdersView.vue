@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { tx } from '../lang'
 import { state, scheduledOrdersList, viewOrderDetail } from '../store'
 import { icon } from '../icons'
 import { formatCurrency, formatDate } from '../utils'
@@ -20,24 +21,24 @@ function typeCell(order: any): string {
     <div class="orders-section">
       <div class="orders-header">
         <div>
-          <h2 class="orders-title">الطلبات المجدولة</h2>
+          <h2 class="orders-title">{{ tx('الطلبات المجدولة', 'Scheduled orders') }}</h2>
         </div>
       </div>
       <div class="orders-table-wrapper">
         <table class="orders-table">
           <thead>
             <tr>
-              <th>تاريخ الجدولة</th>
-              <th>رقم الفاتورة</th>
-              <th>العميل</th>
-              <th>الفرع</th>
-              <th>النوع</th>
-              <th>الإجمالي</th>
-              <th>إجراءات</th>
+              <th>{{ tx('تاريخ الجدولة', 'Scheduled for') }}</th>
+              <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
+              <th>{{ tx('العميل', 'Customer') }}</th>
+              <th>{{ tx('الفرع', 'Branch') }}</th>
+              <th>{{ tx('النوع', 'Type') }}</th>
+              <th>{{ tx('الإجمالي', 'Total') }}</th>
+              <th>{{ tx('إجراءات', 'Actions') }}</th>
             </tr>
           </thead>
           <tbody id="scheduled-orders-table-body">
-            <tr v-if="orders.length === 0"><td colspan="7" style="text-align:center; padding:30px;">لا توجد طلبات مجدولة</td></tr>
+            <tr v-if="orders.length === 0"><td colspan="7" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات مجدولة', 'No scheduled orders') }}</td></tr>
             <tr v-for="order in orders" :key="order.id" @click="viewOrderDetail(order.id, 'scheduled')">
               <td style="font-weight:700; color:var(--primary);">{{ formatDate(order.scheduledDate) }}</td>
               <td style="font-weight:700;">#{{ order.invoiceNo }}</td>
@@ -49,7 +50,7 @@ function typeCell(order: any): string {
               <td><span v-html="typeCell(order)"></span></td>
               <td style="font-weight:700;">{{ formatCurrency(order.total) }}</td>
               <td>
-                <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'scheduled')">تفاصيل</button>
+                <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'scheduled')">{{ tx('تفاصيل', 'Details') }}</button>
               </td>
             </tr>
           </tbody>

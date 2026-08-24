@@ -9,12 +9,13 @@ import {
 import { icon } from '../icons'
 import { ORDER_STATUSES, COMPLAINT_CATEGORIES } from '../data'
 import { formatCurrency, formatTransactionTime } from '../utils'
+import { tx, nameOf } from '../lang'
 
 // نقلاً عن getStatusBadge (يُستخدم في ملخّص الحركات)
 function statusBadge(status: string): string {
   const s = ORDER_STATUSES.find((x: any) => x.id === status)
   if (!s) return `<span class="status-badge">غير معروف</span>`
-  return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${s.name}</span>`
+  return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
 }
 
 // ── الطلبات المرتبطة بكل مودال ──
@@ -63,48 +64,48 @@ function doSubmitComplaint() {
   <div v-if="cancelOrder" class="modal-overlay" @click.self="closeCancelModal()">
     <div class="modal-content">
       <div class="modal-header cc-header">
-        <h3 class="modal-title">إلغاء الطلب</h3>
+        <h3 class="modal-title">{{ tx('إلغاء الطلب', 'Cancel order') }}</h3>
         <button class="modal-close" type="button" @click="closeCancelModal()">×</button>
       </div>
       <div class="modal-body cc-body" style="text-align:start;">
         <div class="cc-icon cc-icon-danger" style="margin: 4px auto 14px;"><i class="fa-solid fa-circle-xmark"></i></div>
         <div class="cancel-confirm-body">
-          <p class="cancel-confirm-text" style="text-align:center;">هل أنت متأكد من إلغاء هذا الطلب؟</p>
+          <p class="cancel-confirm-text" style="text-align:center;">{{ tx('هل أنت متأكد من إلغاء هذا الطلب؟', 'Are you sure you want to cancel this order?') }}</p>
           <div class="cancel-confirm-order">
             <div class="cancel-confirm-row">
-              <span class="cancel-confirm-label">رقم الفاتورة</span>
+              <span class="cancel-confirm-label">{{ tx('رقم الفاتورة', 'Invoice no.') }}</span>
               <span class="cancel-confirm-value">#{{ cancelOrder.invoiceNo }}</span>
             </div>
             <div class="cancel-confirm-row">
-              <span class="cancel-confirm-label">العميل</span>
+              <span class="cancel-confirm-label">{{ tx('العميل', 'Customer') }}</span>
               <span class="cancel-confirm-value">{{ cancelOrder.customerName }}</span>
             </div>
             <div class="cancel-confirm-row">
-              <span class="cancel-confirm-label">الإجمالي</span>
+              <span class="cancel-confirm-label">{{ tx('الإجمالي', 'Total') }}</span>
               <span class="cancel-confirm-value">{{ formatCurrency(cancelOrder.total) }}</span>
             </div>
           </div>
 
-          <div class="cancel-reason-step-label">اختر سبب الإلغاء</div>
+          <div class="cancel-reason-step-label">{{ tx('اختر سبب الإلغاء', 'Choose a cancellation reason') }}</div>
           <div class="cancel-reasons-grid" id="cancel-reasons-grid">
             <button v-for="r in cancellationReasons" :key="r.id" type="button" class="cancel-reason-option" :class="{ selected: selectedReason && selectedReason.id === r.id }" @click="pickReason(r)">
               <span class="cancel-reason-icon"><i :class="r.icon"></i></span>
-              <span class="cancel-reason-label">{{ r.label }}</span>
+              <span class="cancel-reason-label">{{ nameOf(r) }}</span>
               <span class="cancel-reason-check"><i class="fa-solid fa-check"></i></span>
             </button>
           </div>
 
           <div class="cancel-other-wrap" :class="{ hidden: !(selectedReason && selectedReason.id === 'other') }" id="cancel-other-wrap">
-            <label class="cancel-other-label" for="cancel-other-note">اكتب السبب بالتفصيل</label>
-            <textarea id="cancel-other-note" placeholder="مثال: تأخر التوصيل لأكثر من ساعة..." rows="3" v-model="otherNote"></textarea>
+            <label class="cancel-other-label" for="cancel-other-note">{{ tx('اكتب السبب بالتفصيل', 'Write the reason in detail') }}</label>
+            <textarea id="cancel-other-note" :placeholder="tx('مثال: تأخر التوصيل لأكثر من ساعة...', 'e.g. delivery was over an hour late…')" rows="3" v-model="otherNote"></textarea>
           </div>
 
-          <div class="cancel-confirm-note"><i class="fa-solid fa-circle-info"></i> لا يمكن التراجع عن هذه العملية</div>
+          <div class="cancel-confirm-note"><i class="fa-solid fa-circle-info"></i> {{ tx('لا يمكن التراجع عن هذه العملية', 'This action cannot be undone') }}</div>
         </div>
       </div>
       <div class="modal-footer cc-footer">
-        <button class="btn btn-secondary cc-btn" type="button" @click="closeCancelModal()">تراجع</button>
-        <button class="btn btn-danger cc-btn cc-btn-primary" id="cancel-confirm-btn" type="button" :disabled="!canConfirmCancel" @click="doConfirmCancel()">نعم، ألغِ الطلب</button>
+        <button class="btn btn-secondary cc-btn" type="button" @click="closeCancelModal()">{{ tx('تراجع', 'Back') }}</button>
+        <button class="btn btn-danger cc-btn cc-btn-primary" id="cancel-confirm-btn" type="button" :disabled="!canConfirmCancel" @click="doConfirmCancel()">{{ tx('نعم، ألغِ الطلب', 'Yes, cancel the order') }}</button>
       </div>
     </div>
   </div>
@@ -113,26 +114,26 @@ function doSubmitComplaint() {
   <div v-if="txnOrder" class="modal-overlay" @click.self="closeTxnModal()">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">سجل العمليات على الطلب #{{ txnOrder.invoiceNo }}</h3>
+        <h3 class="modal-title">{{ tx('سجل العمليات على الطلب', 'Activity log for order') }} #{{ txnOrder.invoiceNo }}</h3>
         <button class="modal-close" @click="closeTxnModal()">×</button>
       </div>
       <div class="modal-body" style="padding:0;">
         <div class="txn-summary">
           <div class="txn-summary-item">
-            <span class="txn-summary-label">العميل</span>
+            <span class="txn-summary-label">{{ tx('العميل', 'Customer') }}</span>
             <span class="txn-summary-value">{{ txnOrder.customerName }}</span>
           </div>
           <div class="txn-summary-item">
-            <span class="txn-summary-label">الحالة الحالية</span>
+            <span class="txn-summary-label">{{ tx('الحالة الحالية', 'Current status') }}</span>
             <span class="txn-summary-value" v-html="statusBadge(txnOrder.status)"></span>
           </div>
           <div class="txn-summary-item">
-            <span class="txn-summary-label">عدد العمليات</span>
+            <span class="txn-summary-label">{{ tx('عدد العمليات', 'Entries') }}</span>
             <span class="txn-summary-value" style="font-weight:800; color:var(--primary);">{{ txns.length }}</span>
           </div>
         </div>
         <div class="txn-timeline">
-          <div v-if="txns.length === 0" style="padding:20px; text-align:center; color:var(--text-muted);">لا توجد عمليات مسجلة</div>
+          <div v-if="txns.length === 0" style="padding:20px; text-align:center; color:var(--text-muted);">{{ tx('لا توجد عمليات مسجلة', 'No activity recorded') }}</div>
           <div v-for="(entry, idx) in txns" :key="idx" class="txn-item" :class="{ 'txn-item-latest': idx === 0 }">
             <div class="txn-icon" :style="{ background: getTransactionMeta(entry).bg, color: getTransactionMeta(entry).color }">
               <span v-html="icon(getTransactionMeta(entry).icon, { size: 18 })"></span>
@@ -149,7 +150,7 @@ function doSubmitComplaint() {
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-primary" @click="closeTxnModal()">إغلاق</button>
+        <button class="btn btn-primary" @click="closeTxnModal()">{{ tx('إغلاق', 'Close') }}</button>
       </div>
     </div>
   </div>
@@ -158,24 +159,24 @@ function doSubmitComplaint() {
   <div v-if="complaintOrder" class="modal-overlay" @click.self="closeComplaintModal()">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 class="modal-title">تقديم شكوى على الطلب #{{ complaintOrder.invoiceNo }}</h3>
+        <h3 class="modal-title">{{ tx('تقديم شكوى على الطلب', 'File a complaint for order') }} #{{ complaintOrder.invoiceNo }}</h3>
         <button class="modal-close" @click="closeComplaintModal()">×</button>
       </div>
       <div class="modal-body">
         <div class="form-group" style="margin-bottom:12px;">
-          <label style="font-weight:700;">نوع الشكوى</label>
+          <label style="font-weight:700;">{{ tx('نوع الشكوى', 'Complaint type') }}</label>
           <select v-model="complaintCategory" style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit;">
-            <option v-for="c in COMPLAINT_CATEGORIES" :key="c.id" :value="c.id">{{ c.label }}</option>
+            <option v-for="c in COMPLAINT_CATEGORIES" :key="c.id" :value="c.id">{{ nameOf(c) }}</option>
           </select>
         </div>
         <div class="form-group">
-          <label style="font-weight:700;">تفاصيل الشكوى</label>
-          <textarea id="complaint-text" placeholder="اكتب تفاصيل الشكوى هنا..." style="width:100%; min-height:100px; padding:10px; border:1px solid var(--border); border-radius:6px; resize:vertical; font-family:inherit;" v-model="complaintText"></textarea>
+          <label style="font-weight:700;">{{ tx('تفاصيل الشكوى', 'Complaint details') }}</label>
+          <textarea id="complaint-text" :placeholder="tx('اكتب تفاصيل الشكوى هنا...', 'Write the complaint details here…')" style="width:100%; min-height:100px; padding:10px; border:1px solid var(--border); border-radius:6px; resize:vertical; font-family:inherit;" v-model="complaintText"></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" @click="closeComplaintModal()">إلغاء</button>
-        <button class="btn btn-danger" @click="doSubmitComplaint()">حفظ الشكوى</button>
+        <button class="btn btn-secondary" @click="closeComplaintModal()">{{ tx('إلغاء', 'Cancel') }}</button>
+        <button class="btn btn-danger" @click="doSubmitComplaint()">{{ tx('حفظ الشكوى', 'Save complaint') }}</button>
       </div>
     </div>
   </div>

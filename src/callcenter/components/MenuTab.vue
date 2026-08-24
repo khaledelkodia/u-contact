@@ -117,7 +117,7 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
       <div class="menu-items-header">
         <h3 class="menu-items-title" id="menu-items-title">{{ itemsTitle }}</h3>
         <button class="menu-items-back menu-items-back-floating" @click="showAllCategories()">
-          <span class="menu-items-back-icon">←</span>
+          <span class="menu-items-back-icon">{{ isEn ? '←' : '→' }}</span>
           <span>{{ t('back_to_categories') }}</span>
         </button>
       </div>

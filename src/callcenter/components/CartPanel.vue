@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, orderNotesPreview } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
+import { tx } from '../lang'
 import { t } from '../lang'
 
 const disabledItems = computed<any[]>(() => {
@@ -37,7 +38,7 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
         <span class="cart-header-label">{{ t('order_number_label') }}</span>
         <span class="cart-order-no" id="cart-order-no">#1027935</span>
       </div>
-      <button class="cart-delete-btn" @click="clearCart()" title="مسح السلة"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></button>
+      <button class="cart-delete-btn" @click="clearCart()" :title="tx('مسح السلة', 'Clear cart')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></button>
     </div>
 
     <div id="cart-items" class="cart-items">
@@ -53,7 +54,7 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
         </div>
         <div v-if="itemDetails(item)" class="cart-item-details" v-html="itemDetails(item)"></div>
         <div class="cart-item-bottom">
-          <button class="cart-item-edit" @click="openItemModal(item.itemId, item.cartItemId)">تعديل</button>
+          <button class="cart-item-edit" @click="openItemModal(item.itemId, item.cartItemId)">{{ tx('تعديل', 'Edit') }}</button>
           <div class="qty-control">
             <button class="qty-btn" @click="updateCartItemQty(item.cartItemId, -1)">-</button>
             <div class="qty-value">{{ item.quantity }}</div>
@@ -67,10 +68,10 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
          الملاحظات لا تبويب بيانات العميل (وهو تبويبٌ لا يُفتَح افتراضياً). -->
     <div class="cart-tag">
       <label class="cart-notes-label" for="order-tag">
-        رقم الطلب الخارجي
-        <span style="font-weight:400; opacity:.75;">طلبات · جاهز · كاريدج</span>
+        {{ tx('رقم الطلب الخارجي', 'External order no.') }}
+        <span style="font-weight:400; opacity:.75;">{{ tx('طلبات · جاهز · كاريدج', 'Talabat · Jahez · Carriage') }}</span>
       </label>
-      <input type="text" id="order-tag" class="cart-tag-input" placeholder="اختياري — رقم الطلب على المنصّة"
+      <input type="text" id="order-tag" class="cart-tag-input" :placeholder="tx('اختياري — رقم الطلب على المنصّة', 'Optional — order no. on the platform')"
         maxlength="64" dir="ltr" v-model="state.orderTag">
     </div>
 
@@ -84,13 +85,13 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
     <div class="cart-reservation">
       <label class="cart-res-toggle">
         <input type="checkbox" v-model="state.isReservation">
-        <span>حجز / طلب مجدول</span>
+        <span>{{ tx('حجز / طلب مجدول', 'Reservation / scheduled order') }}</span>
       </label>
       <div v-if="state.isReservation" class="cart-res-fields">
-        <label class="cart-res-lbl">موعد الاستلام</label>
+        <label class="cart-res-lbl">{{ tx('موعد الاستلام', 'Pickup time') }}</label>
         <input type="datetime-local" v-model="state.reservationTime" class="cart-res-input">
-        <label class="cart-res-lbl">يبدأ التحضير قبل الموعد بـ (دقيقة)</label>
-        <input type="number" min="0" placeholder="افتراضي الفرع" v-model="state.prepLeadMinutes" class="cart-res-input">
+        <label class="cart-res-lbl">{{ tx('يبدأ التحضير قبل الموعد بـ (دقيقة)', 'Start preparing before the time by (minutes)') }}</label>
+        <input type="number" min="0" :placeholder="tx('افتراضي الفرع', 'Branch default')" v-model="state.prepLeadMinutes" class="cart-res-input">
       </div>
     </div>
 
@@ -102,10 +103,10 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
       <div class="summary-row summary-row-delivery">
         <span class="summary-row-label">
           <span>{{ t('delivery_fee') }}</span>
-          <button v-if="state.orderType === 'delivery'" type="button" class="btn-edit-fee" id="btn-edit-delivery-fee" @click="openDeliveryFeeModal()" title="تعديل رسوم التوصيل لهذا الطلب">
+          <button v-if="state.orderType === 'delivery'" type="button" class="btn-edit-fee" id="btn-edit-delivery-fee" @click="openDeliveryFeeModal()" :title="tx('تعديل رسوم التوصيل لهذا الطلب', 'Edit the delivery fee for this order')">
             <i class="fa-solid fa-pen-to-square"></i>
           </button>
-          <span v-if="state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined" class="fee-override-tag" id="fee-override-tag" title="تم تعديل الرسوم يدوياً لهذا الطلب">يدوي</span>
+          <span v-if="state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined" class="fee-override-tag" id="fee-override-tag" :title="tx('تم تعديل الرسوم يدوياً لهذا الطلب', 'Fee was changed manually for this order')">{{ tx('يدوي', 'Manual') }}</span>
         </span>
         <span id="cart-delivery-fee">{{ formatCurrency(getAppliedDeliveryFee()) }}</span>
       </div>
@@ -125,14 +126,14 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
               <i v-else :class="selectedChannel.icon" :style="{ color: selectedChannel.color || 'currentColor' }"></i>
               {{ ' ' + selectedChannel.name }}
             </template>
-            <template v-else>طريقة الدفع</template>
+            <template v-else>{{ tx('طريقة الدفع', 'Payment method') }}</template>
           </span>
           <span class="bpp-sub" id="bpp-sub">
             <template v-if="paymentSelected && selectedMethod">
               <i :class="selectedMethod.icon" :style="{ color: selectedMethod.color || 'currentColor' }"></i>
               {{ ' ' + selectedMethod.name }}
             </template>
-            <template v-else>اضغط للاختيار</template>
+            <template v-else>{{ tx('اضغط للاختيار', 'Click to choose') }}</template>
           </span>
         </span>
         <span class="bpp-chevron">
@@ -141,7 +142,7 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
       </button>
 
       <button class="btn-submit-order" id="btn-submit-order" @click="checkout()" :disabled="!canSubmitOrder()">
-        <span>{{ state.isReservation ? 'تأكيد الحجز' : t('confirm_order') }}</span>
+        <span>{{ state.isReservation ? tx('تأكيد الحجز', 'Confirm reservation') : t('confirm_order') }}</span>
       </button>
     </div>
   </div>
