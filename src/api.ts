@@ -259,7 +259,15 @@ export interface ContactSection { id: number; name: string; nameEn: string | nul
 // «المنطقة» في هذه الواجهة = **المدينة** (Area). `areaLinked` = المدينة نفسها مربوطة
 // بفرع؛ لو false فالفرع يأتي من الحيّ وحده ويصير اختياره إلزامياً.
 export interface ContactRegion { id: number; name: string; nameEn: string | null; areaLinked: boolean; branchId: number | null; fee: number; isFree: boolean; sections: ContactSection[] }
-export interface ContactOrderItemInput { productId?: number | null; productName: string; quantity: number; unitPrice: number; notes?: string | null }
+export interface ContactOrderModifierInput { id?: number | null; name: string; nameEn?: string | null; price?: number; groupId?: number | null }
+export interface ContactOrderItemInput {
+  productId?: number | null; productName: string; productNameEn?: string | null
+  // الحجم (variant) والإضافات — الخادم يخزّنهما في `OnlineOrderItem` ويمرّرهما للفرع
+  variantId?: number | null; variantName?: string | null
+  quantity: number; unitPrice: number
+  modifiers?: ContactOrderModifierInput[]
+  notes?: string | null
+}
 export interface ContactOrderInput {
   customerPhone: string; customerName: string
   // `areaId`/`sectionId` هما ما يشتقّ منهما الخادم الفرع والرسوم (الحيّ ثم المدينة).

@@ -2,7 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { listAgents, createAgent, updateAgent, setAgentPassword, setAgentCompanies, listCompanies } from '../../api'
 import { t, isAr } from '../../i18n'
-import { PERMS, permLabel } from '../../perms'
+import { PERMS, PERM_GROUPS, permsOfGroup, permLabel } from '../../perms'
 import { adminMeta } from '../../adminMeta'
 import Icon from '../../components/Icon.vue'
 
@@ -133,6 +133,36 @@ function toggleAllPerms(cid: number) {
   form.links[cid] = allPerms(cid) ? [] : PERMS.map((p) => p.key)
 }
 
+// ── مجموعات الصلاحيات ────────────────────────────────────────────────────────
+// ثلاث عشرة حبّةً متلاصقة كتلةٌ تُمسح بالعين ولا تُقرأ، فيُمنح المفتاح الخطأ لأن
+// «إلغاء أوردر» جاور «فتح اليوم» بلا رابط. المجموعات للعرض وحده — ما يُحفظ مفاتيحُ
+// مسطّحة كما كانت، والباك‑إند لا يعرف إلا المفاتيح.
+const GROUPS = PERM_GROUPS.map((g) => ({ ...g, perms: permsOfGroup(g.key) }))
+const groupLabel = (g: any) => (isAr() ? g.ar : g.en)
+/** كم صلاحيةً من هذه المجموعة ممنوحة لهذه الشركة؟ */
+function groupCount(cid: number, g: any): number {
+  const arr = form.links[cid] || []
+  return g.perms.filter((x: any) => arr.includes(x.key)).length
+}
+/** المجموعة كلّها أو لا شيء منها — بضغطةٍ على عنوانها. */
+function toggleGroup(cid: number, g: any) {
+  const arr = form.links[cid]; if (!arr) return
+  const keys = g.perms.map((x: any) => x.key)
+  form.links[cid] = groupCount(cid, g) === keys.length
+    ? arr.filter((k: string) => !keys.includes(k))
+    : [...new Set([...arr, ...keys])]
+}
+
+// ── تصفية قائمة الشركات ──────────────────────────────────────────────────────
+// تظهر حين تطول القائمة وحدها: خانةُ بحثٍ فوق ثلاث شركات زينةٌ لا أداة.
+const coQ = ref('')
+const shownCompanies = computed<any[]>(() => {
+  const q = coQ.value.trim().toLowerCase()
+  if (!q) return companies.value
+  return companies.value.filter((c: any) => (String(c.name || '') + ' ' + String(c.nameAr || '')).toLowerCase().includes(q))
+})
+const linkedCount = computed(() => Object.keys(form.links).length)
+
 async function save() {
   saving.value = true; err.value = ''
   try {
@@ -241,28 +271,53 @@ async function save() {
     </div>
 
     <div v-if="show" class="modal-bg" @mousedown.self="show = false">
-      <div class="modal" style="max-width:620px;">
+      <div class="modal modal-wide">
         <div class="m-head">
           <Icon :name="editingId == null ? 'plus' : 'edit'" style="width:19px;height:19px;color:var(--primary);" />
           <h3>{{ editingId == null ? t('وكيل جديد', 'New agent') : t('تعديل الوكيل', 'Edit agent') }}</h3>
           <span style="flex:1;"></span>
           <button class="btn icon ghost sm" @click="show = false"><Icon name="x" /></button>
         </div>
-        <div class="m-body">
-          <div class="field"><label>{{ t('الاسم', 'Name') }}</label><input class="input" v-model="form.name" /></div>
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
-            <div class="field" v-if="editingId == null"><label>{{ t('البريد الإلكتروني', 'Email') }}</label><input class="input" v-model="form.email" type="email" /></div>
-            <div class="field"><label>{{ t('التليفون', 'Phone') }}</label><input class="input" v-model="form.phone" /></div>
-            <div class="field"><label>{{ editingId == null ? t('كلمة المرور', 'Password') : t('كلمة مرور جديدة (اختياري)', 'New password (optional)') }}</label><input class="input" v-model="form.password" type="password" autocomplete="new-password" /></div>
-            <div class="field" v-if="editingId != null"><label>{{ t('الحالة', 'Status') }}</label><select v-model="form.isActive"><option :value="true">{{ t('مفعّل', 'Active') }}</option><option :value="false">{{ t('موقوف', 'Suspended') }}</option></select></div>
-          </div>
 
-          <div class="field">
-            <label>{{ t('الشركات والصلاحيات', 'Companies & permissions') }}</label>
-            <div style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto;">
-              <div v-for="c in companies" :key="c.id" class="card" style="padding:12px 14px; border-radius:12px;">
-                <label style="display:flex; align-items:center; gap:9px; cursor:pointer; margin:0;">
-                  <input type="checkbox" :checked="linked(c.id)" @change="toggleCompany(c.id)" style="width:16px; height:16px;" />
+        <!-- عمودان: الهوية قصيرةٌ ثابتة، والصلاحيات هي ما يطول ويحتاج المساحة.
+             كانا عموداً واحداً في مودالٍ بعرض 620px، فانحشرت ثلاث عشرة حبّةً وحقولُ
+             الفرنشايز في صندوقٍ داخليّ ارتفاعه 280px يُمرَّر داخل مودالٍ يُمرَّر هو
+             الآخر — تمريران متداخلان على شاشةٍ واحدة. -->
+        <div class="m-body agent-grid">
+          <!-- ── الهوية ── -->
+          <section class="ag-col">
+            <div class="ag-legend">{{ t('بيانات الوكيل', 'Agent details') }}</div>
+            <div class="field"><label>{{ t('الاسم', 'Name') }}</label><input class="input" v-model="form.name" /></div>
+            <div class="field" v-if="editingId == null"><label>{{ t('البريد الإلكتروني', 'Email') }}</label><input class="input" v-model="form.email" type="email" placeholder="name@company.com" /></div>
+            <div class="field"><label>{{ t('التليفون', 'Phone') }}</label><input class="input" v-model="form.phone" dir="ltr" /></div>
+            <div class="field"><label>{{ editingId == null ? t('كلمة المرور', 'Password') : t('كلمة مرور جديدة (اختياري)', 'New password (optional)') }}</label><input class="input" v-model="form.password" type="password" autocomplete="new-password" placeholder="••••••••" /></div>
+            <div class="field" v-if="editingId != null"><label>{{ t('الحالة', 'Status') }}</label><select v-model="form.isActive"><option :value="true">{{ t('مفعّل', 'Active') }}</option><option :value="false">{{ t('موقوف', 'Suspended') }}</option></select></div>
+          </section>
+
+          <!-- ── الشركات والصلاحيات ── -->
+          <section class="ag-col ag-col-perm">
+            <div class="ag-legend">
+              <span>{{ t('الشركات والصلاحيات', 'Companies & permissions') }}</span>
+              <!-- وكيلٌ بلا شركة لا يدخل شيئاً — يُقال قبل الحفظ لا بعده -->
+              <span class="ag-legend-n" :class="{ warn: !linkedCount }">
+                {{ linkedCount
+                  ? t(`${linkedCount} مربوطة`, `${linkedCount} linked`)
+                  : t('لم تُربَط شركة', 'No company linked') }}
+              </span>
+            </div>
+
+            <div v-if="companies.length > 3" class="ag-search">
+              <Icon name="search" />
+              <input class="input" v-model="coQ" :placeholder="t('ابحث عن شركة…', 'Search company…')" />
+            </div>
+
+            <div class="ag-colist">
+              <div v-if="!shownCompanies.length" class="muted" style="padding:18px; text-align:center; font-size:13px;">
+                {{ companies.length ? t('لا شركة بهذا الاسم', 'No company with that name') : t('لا توجد شركات', 'No companies') }}
+              </div>
+              <div v-for="c in shownCompanies" :key="c.id" class="ag-co" :class="{ on: linked(c.id) }">
+                <label class="ag-co-head">
+                  <input type="checkbox" :checked="linked(c.id)" @change="toggleCompany(c.id)" />
                   <span class="t-strong">{{ coName(c) }}</span>
                   <!-- شركة بلا فرع مفعّل: الوكيل يدخل ويضرب أوردراً يبقى في الكلاود
                        بلا أن يسحبه فرع. نقولها هنا قبل الربط لا بعد أول طلب ضائع. -->
@@ -270,36 +325,45 @@ async function save() {
                     style="background:var(--rose-soft); color:var(--rose); margin-inline-start:auto;">
                     <Icon name="alert" />{{ t('الكول‑سنتر غير مفعّل', 'Call center not enabled') }}
                   </span>
+                  <span v-else-if="linked(c.id)" class="ag-co-n" :class="{ warn: !form.links[c.id].length }">
+                    {{ form.links[c.id].length
+                      ? form.links[c.id].length + ' / ' + PERMS.length
+                      : t('بلا صلاحية', 'No permissions') }}
+                  </span>
                 </label>
-                <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)"
-                  style="margin:7px 0 0; padding-inline-start:25px; font-size:12px; color:var(--rose);">
+
+                <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)" class="ag-warn">
                   {{ t('لا فرع في هذه الشركة مفعّل عليه الكول‑سنتر — أي أوردر يضربه الوكيل لن ينزل أي فرع. فعّله من داشبورد U‑Serve › الشركة › الفروع.',
                         'No branch in this company has the call center enabled — orders this agent takes will never reach a branch. Enable it from the U-Serve dashboard › company › branches.') }}
                 </p>
-                <div v-if="linked(c.id)" style="margin-top:10px; padding-inline-start:25px;">
-                  <div style="display:flex; align-items:center; gap:8px; margin:0 0 7px;">
+
+                <div v-if="linked(c.id)" class="ag-co-body">
+                  <div class="ag-row">
                     <label style="margin:0;">{{ t('الصلاحيات', 'Permissions') }}</label>
-                    <!-- العدّاد يقول ما تقوله الحبّات مجتمعةً بنظرة: مربوطٌ بلا صلاحية
-                         **لا يستطيع شيئاً** — تُقال هنا لا تُترك تُستنتج من حبّاتٍ كلّها مطفأة. -->
-                    <span class="muted" style="font-size:12px;" :style="!form.links[c.id].length ? 'color:var(--amber);' : ''">
-                      {{ form.links[c.id].length
-                        ? t(`${form.links[c.id].length} من ${PERMS.length}`, `${form.links[c.id].length} of ${PERMS.length}`)
-                        : t('بلا صلاحية', 'No permissions') }}
-                    </span>
                     <button type="button" class="btn ghost sm" style="margin-inline-start:auto;" @click="toggleAllPerms(c.id)">
                       <Icon :name="allPerms(c.id) ? 'x' : 'check'" />
                       {{ allPerms(c.id) ? t('إلغاء التحديد', 'Clear all') : t('تحديد الكل', 'Select all') }}
                     </button>
                   </div>
-                  <div class="pills">
-                    <div v-for="p in PERMS" :key="p.key" class="pill" :class="{ on: form.links[c.id].includes(p.key) }" @click="togglePerm(c.id, p.key)">
-                      <Icon v-if="form.links[c.id].includes(p.key)" name="check" />{{ permLabel(p.key, isAr()) }}
+
+                  <!-- مجموعاتٌ لا كتلةً واحدة: عنوان المجموعة يمنحها كلَّها أو يسحبها -->
+                  <div v-for="g in GROUPS" :key="g.key" class="ag-group">
+                    <button type="button" class="ag-group-head" @click="toggleGroup(c.id, g)">
+                      <span>{{ groupLabel(g) }}</span>
+                      <span class="ag-group-n" :class="{ full: groupCount(c.id, g) === g.perms.length }">
+                        {{ groupCount(c.id, g) }}/{{ g.perms.length }}
+                      </span>
+                    </button>
+                    <div class="pills">
+                      <div v-for="p in g.perms" :key="p.key" class="pill" :class="{ on: form.links[c.id].includes(p.key) }" @click="togglePerm(c.id, p.key)">
+                        <Icon v-if="form.links[c.id].includes(p.key)" name="check" />{{ permLabel(p.key, isAr()) }}
+                      </div>
                     </div>
                   </div>
 
                   <!-- نطاق الفرنشايز: لا يظهر لشركةٍ بلا فرنشايزات — لا معنى لقيدٍ على لا شيء -->
                   <template v-if="coFranchises(c.id).length">
-                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 7px;">
+                    <div class="ag-row" style="margin-top:14px;">
                       <label style="margin:0;">{{ t('نطاق الفرنشايز', 'Franchise scope') }}</label>
                       <span class="muted" style="font-size:12px;">
                         {{ scopeOf(c.id).length ? t('مقيَّد', 'Restricted') : t('كل الفرنشايزات', 'All franchises') }}
@@ -320,9 +384,9 @@ async function save() {
                 </div>
               </div>
             </div>
-          </div>
 
-          <div v-if="err" class="err"><Icon name="alert" /> {{ err }}</div>
+            <div v-if="err" class="err"><Icon name="alert" /> {{ err }}</div>
+          </section>
         </div>
         <div class="m-foot">
           <button class="btn ghost" @click="show = false">{{ t('إلغاء', 'Cancel') }}</button>

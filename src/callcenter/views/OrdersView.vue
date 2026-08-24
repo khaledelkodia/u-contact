@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, allOrdersFiltered, clearAllOrderFilters, viewOrderDetail } from '../store'
+import { state, allOrdersFiltered, clearAllOrderFilters, viewOrderDetail, canViewOrderTotals } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency } from '../utils'
@@ -8,11 +8,15 @@ import { tx, nameOf } from '../lang'
 import OrderDetail from '../components/OrderDetail.vue'
 
 const orders = computed<any[]>(() => allOrdersFiltered())
+// القيمة النهائية عمودٌ بصلاحية مستقلّة: من يتابع الحالات ليس بالضرورة من يرى الأرقام
+const showTotals = computed(() => canViewOrderTotals())
+// عدد الأعمدة يتغيّر بالصلاحية — صفّ «لا توجد طلبات» يمتدّ عليها كلّها
+const colCount = computed(() => (showTotals.value ? 12 : 11))
 
 // نقلاً عن getStatusBadge
 function statusBadge(status: string): string {
   const s = ORDER_STATUSES.find((x: any) => x.id === status)
-  if (!s) return `<span class="status-badge">غير معروف</span>`
+  if (!s) return `<span class="status-badge">${tx('غير معروف', 'Unknown')}</span>`
   return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
 }
 // نقلاً عن getDriverCellHtml
@@ -21,12 +25,13 @@ function driverCell(order: any): string {
   if (order.driverId && order.driverName) {
     return `<div class="driver-cell"><span class="driver-cell-name">${icon('bike', { size: 14 })} ${order.driverName}</span><span class="driver-cell-phone" dir="ltr">${order.driverPhone || ''}</span></div>`
   }
-  return '<span class="driver-cell-empty">لم يُعين بعد</span>'
+  // نصٌّ داخل HTML مبنيّ بالسلاسل — لا تراه مسوحُ القوالب فبقي عربياً
+  return `<span class="driver-cell-empty">${tx('لم يُعين بعد', 'Not assigned yet')}</span>`
 }
 // نقلاً عن typeCell (توصيل/استلام)
 function typeCell(order: any): string {
   const typeIconName = order.type === 'delivery' ? 'bike' : 'store'
-  const typeName = order.type === 'delivery' ? 'توصيل' : 'استلام'
+  const typeName = order.type === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')
   return `<span style="display:inline-flex; align-items:center; gap:6px;">${icon(typeIconName, { size: 16 })} ${typeName}</span>`
 }
 </script>
@@ -79,14 +84,16 @@ function typeCell(order: any): string {
               <th>{{ tx('الفرع', 'Branch') }}</th>
               <th>{{ tx('الموظف', 'Agent') }}</th>
               <th>{{ tx('النوع', 'Type') }}</th>
-              <th>{{ tx('الإجمالي', 'Total') }}</th>
+              <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
+              <th>{{ tx('المجموع', 'Subtotal') }}</th>
+              <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
               <th>{{ tx('الحالة', 'Status') }}</th>
               <th>{{ tx('السائق', 'Driver') }}</th>
               <th>{{ tx('إجراءات', 'Actions') }}</th>
             </tr>
           </thead>
           <tbody id="all-orders-table-body">
-            <tr v-if="orders.length === 0"><td colspan="10" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
+            <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
             <tr v-for="order in orders" :key="order.id" :class="{ 'order-row-cancelled': order.status === 'cancelled' }" @click="viewOrderDetail(order.id, 'all')">
               <td style="font-weight:700;">{{ order.dailyNo }}</td>
               <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
@@ -99,7 +106,12 @@ function typeCell(order: any): string {
               <td>{{ order.branchName }}</td>
               <td>{{ order.employeeName }}</td>
               <td><span v-html="typeCell(order)"></span></td>
-              <td style="font-weight:700;">{{ formatCurrency(order.total) }}</td>
+              <td>
+                <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+                <span v-else style="color:var(--text-muted);">—</span>
+              </td>
+              <td>{{ formatCurrency(order.subtotal) }}</td>
+              <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
               <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
               <td><span v-html="driverCell(order)"></span></td>
               <td>

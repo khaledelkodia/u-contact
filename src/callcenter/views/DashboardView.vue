@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state } from '../store'
+import { state, startNewOrder } from '../store'
 import { lang } from '../lang'
 import { formatCurrency } from '../utils'
 import { session, currentCompany, currentFranchise } from '../../api'
@@ -12,7 +12,7 @@ const coName = (c: any) => (ar.value ? (c?.nameAr || c?.name) : (c?.name || c?.n
 const can = (p: string) => !!cur.value?.permissions?.includes(p)
 const canOrders = computed(() => can('callcenter.view') || can('callcenter.create') || can('callcenter.edit'))
 
-function go(v: string) { state.activeView = v }
+function go(v: string) { if (v === 'new-order') { startNewOrder(); return } state.activeView = v }
 
 // ── ملخص التقارير (من أوردرات الفرع) ──
 const orders = computed<any[]>(() => state.orders || [])

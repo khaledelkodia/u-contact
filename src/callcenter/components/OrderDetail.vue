@@ -17,12 +17,25 @@ function statusBadge(status: string): string {
   return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
 }
 // تفاصيل الصنف (حجم + إضافات) — نقلاً عن detailsStr
+/**
+ * وصف السطر: الحجم والإضافات — بلغة الواجهة.
+ * السلّة تخزّن الاسمين (`sizeAr`/`sizeEn` و`modifiers`)، فلا يتجمّد الوصف على لغة
+ * لحظة الاختيار. `extras` (أسماء عربية) تبقى ارتداداً لسطرٍ أُضيف قبل التغيير.
+ */
+function sizeLabel(item: any): string {
+  return nameOf({ nameAr: item.sizeAr ?? item.size, nameEn: item.sizeEn })
+}
+function extrasLabel(item: any): string {
+  const mods = Array.isArray(item.modifiers) && item.modifiers.length ? item.modifiers : null
+  if (mods) return mods.map((m: any) => nameOf(m)).join(tx('، ', ', '))
+  return Array.isArray(item.extras) ? item.extras.join(tx('، ', ', ')) : ''
+}
+
 function itemDetails(item: any): string {
-  let detailsStr = item.size ? `حجم ${item.size}` : ''
-  if (item.extras && item.extras.length > 0) {
-    detailsStr += detailsStr ? ' + ' : ''
-    detailsStr += item.extras.join('، ')
-  }
+  const sz = sizeLabel(item)
+  let detailsStr = sz ? tx('حجم ', 'Size ') + sz : ''
+  const ex = extrasLabel(item)
+  if (ex) { detailsStr += detailsStr ? ' + ' : ''; detailsStr += ex }
   return detailsStr
 }
 </script>
@@ -82,6 +95,11 @@ function itemDetails(item: any): string {
         <label>{{ tx('الرقم اليومي', 'Daily no.') }}</label>
         <span style="font-size:18px; font-weight:800; color:var(--primary);">{{ order.dailyNo }}</span>
       </div>
+      <!-- رقم المنصّة الخارجية: يُبحث به ويُقارَن بما يقوله العميل -->
+      <div v-if="order.orderTag" class="order-detail-field">
+        <label>{{ tx('رقم الطلب الخارجي', 'External order no.') }}</label>
+        <span class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+      </div>
       <div v-if="order.type === 'delivery'" class="order-detail-field order-detail-field-driver">
         <label>{{ tx('السائق', 'Driver') }}</label>
         <div v-if="order.driverId" class="driver-detail-box">
@@ -108,14 +126,23 @@ function itemDetails(item: any): string {
         </tr>
       </thead>
       <tbody>
+        <tr v-if="!order.items || !order.items.length">
+          <td colspan="4" style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px;">
+            {{ order.itemsLoaded ? tx('لا توجد أصناف في هذا الطلب', 'This order has no items') : tx('جارٍ تحميل الأصناف…', 'Loading items…') }}
+          </td>
+        </tr>
         <tr v-for="(item, idx) in order.items" :key="idx">
           <td>
-            <div style="font-weight:600; color:var(--text-primary);">{{ item.name }}</div>
+            <div style="font-weight:600; color:var(--text-primary);">{{ nameOf(item) }}</div>
             <div v-if="itemDetails(item)" style="font-size:11px; color:var(--text-muted);">{{ itemDetails(item) }}</div>
+            <!-- ملاحظة الصنف: يكتبها الوكيل ولم تكن تُعرض هنا إطلاقاً -->
+            <div v-if="item.note" style="font-size:11px; color:var(--warning, #b45309); font-weight:700;">
+              {{ tx('ملاحظة: ', 'Note: ') }}{{ item.note }}
+            </div>
           </td>
           <td style="text-align:center;">{{ item.quantity }}</td>
           <td>{{ formatCurrency(item.price) }}</td>
-          <td style="font-weight:700;">{{ formatCurrency(item.price * item.quantity) }}</td>
+          <td style="font-weight:700;">{{ formatCurrency(item.total || item.price * item.quantity) }}</td>
         </tr>
       </tbody>
     </table>

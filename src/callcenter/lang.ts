@@ -242,8 +242,11 @@ export function tx(ar: string, en: string) { return lang.value === 'ar' ? ar : e
  */
 export const nameOf = (o: any): string => {
   if (!o) return ''
-  const ar = o.name ?? o.label ?? ''
-  return lang.value === 'ar' ? ar : (o.nameEn ?? o.labelEn ?? ar)
+  // `nameAr` يأتي من الكتالوج (أحجام/مجموعات/خيارات)، و`name`/`label` من قوائم
+  // الثوابت — مُحلٌّ واحد يفهم الاثنين فلا يُخترع ثانٍ.
+  const ar = o.nameAr ?? o.name ?? o.label ?? ''
+  const en = o.nameEn ?? o.labelEn ?? ''
+  return lang.value === 'ar' ? (ar || en) : (en || ar)
 }
 
 /** رمز اللغة لدوالّ `toLocale*` — التواريخ كانت `ar-KW` دائماً. */

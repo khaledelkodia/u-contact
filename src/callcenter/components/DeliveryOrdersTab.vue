@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail } from '../store'
+import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals } from '../store'
 import { t, tx, nameOf } from '../lang'
+import { formatCurrency } from '../utils'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import OrderDetail from './OrderDetail.vue'
 
 const orders = computed<any[]>(() => deliveryOrdersFiltered())
+// القيمة النهائية عمودٌ بصلاحية مستقلّة: من يتابع الحالات ليس بالضرورة من يرى الأرقام
+const showTotals = computed(() => canViewOrderTotals())
+const colCount = computed(() => (showTotals.value ? 11 : 10))
 
 // نقلاً عن getStatusBadge
 function statusBadge(status: string): string {
   const s = ORDER_STATUSES.find((x: any) => x.id === status)
-  if (!s) return `<span class="status-badge">غير معروف</span>`
+  if (!s) return `<span class="status-badge">${tx('غير معروف', 'Unknown')}</span>`
   return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
 }
 // نقلاً عن getDriverCellHtml
@@ -20,10 +24,11 @@ function driverCell(order: any): string {
   if (order.driverId && order.driverName) {
     return `<div class="driver-cell"><span class="driver-cell-name">${icon('bike', { size: 14 })} ${order.driverName}</span><span class="driver-cell-phone" dir="ltr">${order.driverPhone || ''}</span></div>`
   }
-  return '<span class="driver-cell-empty">لم يُعين بعد</span>'
+  // نصٌّ داخل HTML مبنيّ بالسلاسل — لا تراه مسوحُ القوالب فبقي عربياً
+  return `<span class="driver-cell-empty">${tx('لم يُعين بعد', 'Not assigned yet')}</span>`
 }
 function typeCell(order: any): string {
-  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(order.type === 'pickup' ? 'store' : 'bike', { size: 16 })}</span> ${order.type === 'pickup' ? 'استلام' : 'توصيل'}</span>`
+  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(order.type === 'pickup' ? 'store' : 'bike', { size: 16 })}</span> ${order.type === 'pickup' ? tx('استلام', 'Pickup') : tx('توصيل', 'Delivery')}</span>`
 }
 </script>
 
@@ -63,6 +68,8 @@ function typeCell(order: any): string {
             <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
             <th>{{ tx('اسم الموظف', 'Agent') }}</th>
             <th>{{ tx('النوع', 'Type') }}</th>
+            <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
+            <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
             <th>{{ tx('الجوال', 'Mobile') }}</th>
             <th>{{ tx('الحالة', 'Status') }}</th>
             <th>{{ tx('السائق', 'Driver') }}</th>
@@ -70,7 +77,7 @@ function typeCell(order: any): string {
           </tr>
         </thead>
         <tbody id="orders-table-body">
-          <tr v-if="orders.length === 0"><td colspan="8" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات توصيل في يوم العمل الحالي', 'No delivery orders in the current business day') }}</td></tr>
+          <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات توصيل في يوم العمل الحالي', 'No delivery orders in the current business day') }}</td></tr>
           <tr v-for="order in orders" :key="order.id" :class="{ 'order-row-cancelled': order.status === 'cancelled' }" @click="viewOrderDetail(order.id)">
             <td style="font-weight:700; font-size:16px;">{{ order.dailyNo }}</td>
             <td>
@@ -80,6 +87,11 @@ function typeCell(order: any): string {
             </td>
             <td>{{ order.employeeName }}</td>
             <td><span v-html="typeCell(order)"></span></td>
+            <td>
+              <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+              <span v-else style="color:var(--text-muted);">—</span>
+            </td>
+            <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
             <td class="ltr-num">{{ order.customerPhone }}</td>
             <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
             <td><span v-html="driverCell(order)"></span></td>

@@ -348,6 +348,76 @@ tbody tr:hover { background: #fbfcff; }
 .modal .m-head h3 { font-size: 16px; }
 .modal .m-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
 .modal .m-foot { display: flex; gap: 9px; justify-content: flex-end; padding: 15px 20px; border-top: 1px solid var(--line-soft); background: var(--surface-3); border-radius: 0 0 var(--r-lg) var(--r-lg); }
+/* ── مودالٌ عريض بعمودين (نموذج الوكيل) ──────────────────────────────────────
+   نموذجٌ فيه قائمةٌ تطول لا يعيش في 620px: كانت ثلاث عشرة حبّةً وحقولُ الفرنشايز
+   في صندوقٍ داخليّ ارتفاعه 280px يُمرَّر داخل مودالٍ يُمرَّر هو الآخر — تمريران
+   متداخلان على شاشةٍ واحدة. الهوية قصيرةٌ ثابتة فتأخذ عموداً ضيقاً، والصلاحيات
+   تأخذ الباقي وتُمرَّر مرّةً واحدة مع جسم المودال. */
+.modal.modal-wide {
+  max-width: 940px;
+  max-height: min(82vh, 720px);
+  display: flex;
+  flex-direction: column;
+}
+.modal.modal-wide .m-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+
+.modal .m-body.agent-grid { display: grid; grid-template-columns: 296px minmax(0, 1fr); gap: 24px; align-items: start; }
+.ag-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.ag-col-perm { gap: 10px; }
+
+/* عنوان القسم — يفصل العمودين بلا خطٍّ ثقيل */
+.ag-legend {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  padding-bottom: 9px; border-bottom: 1px solid var(--line-soft);
+}
+.ag-legend-n {
+  margin-inline-start: auto; font-size: 12px; font-weight: 500;
+  color: var(--muted-2); font-variant-numeric: tabular-nums;
+}
+.ag-legend-n.warn { color: var(--amber); }
+
+.ag-search { position: relative; display: flex; align-items: center; }
+.ag-search svg { position: absolute; inset-inline-start: 11px; width: 15px; height: 15px; color: var(--muted-3); pointer-events: none; }
+.ag-search .input { padding-inline-start: 34px; }
+
+.ag-colist { display: flex; flex-direction: column; gap: 9px; }
+
+/* بطاقة الشركة: هادئةٌ وهي غير مربوطة، ومحدَّدةٌ بحدّها حين تُربَط */
+.ag-co {
+  border: 1px solid var(--line); border-radius: var(--r); background: var(--surface);
+  transition: border-color .14s, background .14s;
+}
+.ag-co.on { border-color: var(--accent); background: #fcfdff; }
+.ag-co-head { display: flex; align-items: center; gap: 10px; margin: 0; padding: 12px 14px; cursor: pointer; }
+.ag-co-head input { width: 16px; height: 16px; flex-shrink: 0; cursor: pointer; }
+.ag-co-n { margin-inline-start: auto; font-size: 12px; font-weight: 500; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.ag-co-n.warn { color: var(--amber); }
+.ag-warn { margin: 0; padding: 0 14px 12px; padding-inline-start: 40px; font-size: 12px; color: var(--rose); line-height: 1.6; }
+.ag-co-body { padding: 0 14px 14px; padding-inline-start: 40px; }
+
+.ag-row { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+
+/* مجموعة صلاحيات: عنوانها زرٌّ يمنحها كلَّها أو يسحبها، وعدّادها يقول أين هي */
+.ag-group + .ag-group { margin-top: 10px; }
+.ag-group-head {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  background: none; border: 0; padding: 0 0 6px; cursor: pointer;
+  font-family: inherit; font-size: 11.5px; font-weight: 600; color: var(--muted-2);
+  text-align: start;
+}
+.ag-group-head:hover { color: var(--accent); }
+.ag-group-n {
+  padding: 1px 7px; border-radius: 999px; background: var(--surface-2);
+  font-size: 10.5px; font-weight: 500; color: var(--muted-2); font-variant-numeric: tabular-nums;
+}
+.ag-group-n.full { background: var(--accent-soft); color: var(--accent-ink); }
+
+/* شاشةٌ ضيّقة: عمودٌ واحد — عمودان على 500px أسوأ من واحد */
+@media (max-width: 900px) {
+  .modal .m-body.agent-grid { grid-template-columns: 1fr; gap: 18px; }
+}
+
 @keyframes fade { from { opacity: 0; } }
 @keyframes pop { from { opacity: 0; transform: translateY(6px); } }
 

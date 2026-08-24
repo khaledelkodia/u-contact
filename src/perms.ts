@@ -1,21 +1,39 @@
 // مفاتيح صلاحيات الكول‑سنتر + تسمياتها (عربي/إنجليزي). نفس المفاتيح في الباك‑إند.
+//
+// `group` للعرض وحده: ثلاث عشرة حبّةً في صفٍّ واحد كتلةٌ تُمسح بالعين ولا تُقرأ،
+// فيُمنح المفتاح الخطأ لأن «إلغاء أوردر» جاور «فتح اليوم» بلا رابط. المجموعات لا
+// تُخزَّن ولا تُرسَل — الباك‑إند لا يعرف إلا المفاتيح.
+export const PERM_GROUPS = [
+  { key: 'orders',     ar: 'الأوردرات',       en: 'Orders' },
+  { key: 'day',        ar: 'يوم العمل',       en: 'Business day' },
+  { key: 'catalog',    ar: 'الأصناف والرسوم', en: 'Items & fees' },
+  { key: 'admin',      ar: 'الإدارة',         en: 'Administration' },
+  { key: 'complaints', ar: 'الشكاوى',         en: 'Complaints' },
+]
+
 export const PERMS = [
-  { key: 'callcenter.view', ar: 'عرض الأوردرات', en: 'View orders' },
-  { key: 'callcenter.create', ar: 'إنشاء أوردر', en: 'Create order' },
-  { key: 'callcenter.edit', ar: 'تعديل / تعيين فرع', en: 'Edit / assign branch' },
-  { key: 'callcenter.cancel', ar: 'إلغاء أوردر', en: 'Cancel order' },
-  { key: 'callcenter.open', ar: 'فتح اليوم', en: 'Open day' },
-  { key: 'callcenter.close', ar: 'قفل اليوم', en: 'Close day' },
-  { key: 'callcenter.users', ar: 'إدارة المستخدمين', en: 'Manage users' },
-  { key: 'callcenter.manage', ar: 'إدارة كاملة', en: 'Full manage' },
+  { key: 'callcenter.view', group: 'orders', ar: 'عرض الأوردرات', en: 'View orders' },
+  { key: 'callcenter.create', group: 'orders', ar: 'إنشاء أوردر', en: 'Create order' },
+  { key: 'callcenter.edit', group: 'orders', ar: 'تعديل / تعيين فرع', en: 'Edit / assign branch' },
+  { key: 'callcenter.cancel', group: 'orders', ar: 'إلغاء أوردر', en: 'Cancel order' },
+  { key: 'callcenter.open', group: 'day', ar: 'فتح اليوم', en: 'Open day' },
+  { key: 'callcenter.close', group: 'day', ar: 'قفل اليوم', en: 'Close day' },
+  { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },
+  { key: 'callcenter.manage', group: 'admin', ar: 'إدارة كاملة', en: 'Full manage' },
   // مفتاحان مستقلّان لزرَّين مختلفين — كانا محكومَين بـ`manage` معاً.
   // غيابهما عن هذه القائمة كان يمنع منحهما أصلاً: الشاشة تبنى منها، فما ليس فيها
   // لا يظهر ولا يُختار ولا يدخل سقف الشركة — فيبقى الزرّ معطّلاً للجميع بلا سبب ظاهر.
-  { key: 'callcenter.stop_items', ar: 'إيقاف/تشغيل الأصناف', en: 'Stop / resume items' },
-  { key: 'callcenter.delivery_fee', ar: 'تغيير رسوم التوصيل', en: 'Change delivery fee' },
-  { key: 'complaints.view', ar: 'عرض الشكاوى', en: 'View complaints' },
-  { key: 'complaints.manage', ar: 'إدارة الشكاوى', en: 'Manage complaints' },
+  { key: 'callcenter.stop_items', group: 'catalog', ar: 'إيقاف/تشغيل الأصناف', en: 'Stop / resume items' },
+  { key: 'callcenter.delivery_fee', group: 'catalog', ar: 'تغيير رسوم التوصيل', en: 'Change delivery fee' },
+  // قيمة الطلب النهائية في القائمة — مفتاحٌ مستقلّ: من يتابع الحالات ليس بالضرورة
+  // من يرى الأرقام. ولا يُمنَح لأحدٍ افتراضياً.
+  { key: 'callcenter.view_totals', group: 'admin', ar: 'عرض قيمة الطلب', en: 'View order value' },
+  { key: 'complaints.view', group: 'complaints', ar: 'عرض الشكاوى', en: 'View complaints' },
+  { key: 'complaints.manage', group: 'complaints', ar: 'إدارة الشكاوى', en: 'Manage complaints' },
 ]
+
+/** مفاتيح مجموعةٍ بعينها بترتيبها في `PERMS`. */
+export const permsOfGroup = (g: string) => PERMS.filter((p) => p.group === g)
 export const permLabel = (k: string, ar: boolean) => {
   const p = PERMS.find((x) => x.key === k)
   return p ? (ar ? p.ar : p.en) : k

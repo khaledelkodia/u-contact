@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, orderNotesPreview } from '../store'
+import { computed, nextTick, ref } from 'vue'
+import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
-import { tx } from '../lang'
+import { tx, nameOf } from '../lang'
 import { t } from '../lang'
 
 const disabledItems = computed<any[]>(() => {
@@ -11,16 +11,29 @@ const disabledItems = computed<any[]>(() => {
   return id ? (state.disabledBranchItems[id] || []) : []
 })
 
+/**
+ * وصف السطر: الحجم والإضافات — بلغة الواجهة.
+ * السلّة تخزّن الاسمين (`sizeAr`/`sizeEn` و`modifiers`)، فلا يتجمّد الوصف على لغة
+ * لحظة الاختيار. `extras` (أسماء عربية) تبقى ارتداداً لسطرٍ أُضيف قبل التغيير.
+ */
+function sizeLabel(item: any): string {
+  return nameOf({ nameAr: item.sizeAr ?? item.size, nameEn: item.sizeEn })
+}
+function extrasLabel(item: any): string {
+  const mods = Array.isArray(item.modifiers) && item.modifiers.length ? item.modifiers : null
+  if (mods) return mods.map((m: any) => nameOf(m)).join(tx('، ', ', '))
+  return Array.isArray(item.extras) ? item.extras.join(tx('، ', ', ')) : ''
+}
+
 function itemDetails(item: any): string {
   let s = ''
-  if (item.size) s += `حجم ${item.size}`
-  if (item.extras && item.extras.length > 0) {
-    if (s) s += ' + '
-    s += item.extras.join('، ')
-  }
+  const sz = sizeLabel(item)
+  if (sz) s += tx('حجم ', 'Size ') + sz
+  const ex = extrasLabel(item)
+  if (ex) { if (s) s += ' + '; s += ex }
   if (item.note) {
     if (s) s += '<br>'
-    s += `<span style="color:var(--danger); font-size:11px;">ملاحظة: ${item.note}</span>`
+    s += `<span style="color:var(--danger); font-size:11px;">${tx('ملاحظة: ', 'Note: ')}${item.note}</span>`
   }
   return s
 }
@@ -29,6 +42,27 @@ function itemDetails(item: any): string {
 const selectedChannel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
 const selectedMethod = computed(() => PAYMENT_METHODS.find((m: any) => m.id === state.paymentMethod) || null)
 const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentMethod))
+
+// ── تفاصيل الطلب (رقم المنصّة · ملاحظة · حجز) ────────────────────────────────
+// الثلاثة اختيارية ونادرة، وكانت تشغل ثلث اللوحة **دائماً**: عنوانان أحمران وزرٌّ
+// بعرض اللوحة وحقلٌ ظاهر ولو لم يُملأ قطّ — فتضيق قائمة الأصناف، وهي ما ينظر إليه
+// الوكيل وهو يتكلّم. صارت شريطاً من ثلاث حبّات تُظهر قيمتها إن وُجدت وتفتح محرّرها
+// عند الطلب؛ والحمرة لِما كُتب فعلاً لا لِما هو فارغ.
+const tagOpen = ref(false)
+const tagInput = ref<HTMLInputElement | null>(null)
+function toggleTag() {
+  tagOpen.value = !tagOpen.value
+  if (tagOpen.value) nextTick(() => tagInput.value?.focus())
+}
+/** الحبّة تفتح الحجز وتغلقه — نفس ما كان يفعله مربّع الاختيار. */
+function toggleReservation() { state.isReservation = !state.isReservation }
+
+/** نصٌّ مختصر داخل الحبّة: القيمة إن وُجدت وإلا الاسم. */
+const resLabel = computed(() => {
+  const v = String(state.reservationTime || '')
+  if (!v) return tx('حجز', 'Reservation')
+  return v.replace('T', ' ').slice(5)   // MM-DD HH:mm — اليوم والساعة يكفيان هنا
+})
 </script>
 
 <template>
@@ -64,34 +98,44 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
       </div>
     </div>
 
-    <!-- رقم الطلب على المنصّة الخارجية — صفةُ طلبٍ لا صفةُ عميل، فمكانه السلة مع
-         الملاحظات لا تبويب بيانات العميل (وهو تبويبٌ لا يُفتَح افتراضياً). -->
-    <div class="cart-tag">
-      <label class="cart-notes-label" for="order-tag">
-        {{ tx('رقم الطلب الخارجي', 'External order no.') }}
-        <span style="font-weight:400; opacity:.75;">{{ tx('طلبات · جاهز · كاريدج', 'Talabat · Jahez · Carriage') }}</span>
-      </label>
-      <input type="text" id="order-tag" class="cart-tag-input" :placeholder="tx('اختياري — رقم الطلب على المنصّة', 'Optional — order no. on the platform')"
-        maxlength="64" dir="ltr" v-model="state.orderTag">
-    </div>
+    <!-- ── تفاصيل الطلب: رقم المنصّة · ملاحظة · حجز ────────────────────────────
+         ثلاثتها صفةُ طلبٍ لا صفةُ عميل، فمكانها السلّة. وثلاثتها اختيارية ⇒ حبّةٌ
+         صغيرة لكلٍّ تقول حالتها بنظرة، ولا تأخذ مساحةً إلا حين تُستعمل. -->
+    <div class="cart-extras">
+      <div class="ce-chips">
+        <button type="button" class="ce-chip" :class="{ 'is-set': !!state.orderTag, 'is-open': tagOpen }"
+          @click="toggleTag()" :title="tx('رقم الطلب على منصّة خارجية (طلبات · جاهز · كاريدج)', 'Order no. on an external platform (Talabat · Jahez · Carriage)')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="9" x2="20" y2="9"/><line x1="4" y1="15" x2="20" y2="15"/><line x1="10" y1="3" x2="8" y2="21"/><line x1="16" y1="3" x2="14" y2="21"/></svg>
+          <span class="ce-txt" :dir="state.orderTag ? 'ltr' : undefined">{{ state.orderTag || tx('رقم خارجي', 'External no.') }}</span>
+        </button>
 
-    <div class="cart-notes">
-      <label class="cart-notes-label">{{ t('important_order_notes') }}</label>
-      <button type="button" class="cart-notes-btn" @click="openOrderNotesModal()"><span>{{ t('write_note') }}</span></button>
-      <div class="cart-notes-preview" id="order-notes-preview">{{ orderNotesPreview() }}</div>
-    </div>
+        <button type="button" class="ce-chip ce-chip-note" :class="{ 'is-set': !!state.orderNotes }"
+          @click="openOrderNotesModal()" :title="state.orderNotes || tx('ملاحظة تظهر للفرع مع الطلب', 'A note shown to the branch with the order')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
+          <span class="ce-txt">{{ state.orderNotes || tx('ملاحظة', 'Note') }}</span>
+        </button>
 
-    <!-- حجز (طلب مجدول) — ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده -->
-    <div class="cart-reservation">
-      <label class="cart-res-toggle">
-        <input type="checkbox" v-model="state.isReservation">
-        <span>{{ tx('حجز / طلب مجدول', 'Reservation / scheduled order') }}</span>
-      </label>
-      <div v-if="state.isReservation" class="cart-res-fields">
-        <label class="cart-res-lbl">{{ tx('موعد الاستلام', 'Pickup time') }}</label>
-        <input type="datetime-local" v-model="state.reservationTime" class="cart-res-input">
-        <label class="cart-res-lbl">{{ tx('يبدأ التحضير قبل الموعد بـ (دقيقة)', 'Start preparing before the time by (minutes)') }}</label>
-        <input type="number" min="0" :placeholder="tx('افتراضي الفرع', 'Branch default')" v-model="state.prepLeadMinutes" class="cart-res-input">
+        <button type="button" class="ce-chip" :class="{ 'is-set': state.isReservation }"
+          @click="toggleReservation()" :title="tx('حجز / طلب مجدول — ينزل الفرع بموعده', 'Reservation / scheduled order — reaches the branch at its time')">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="ce-txt">{{ state.isReservation ? resLabel : tx('حجز', 'Reservation') }}</span>
+        </button>
+      </div>
+
+      <!-- محرّر الرقم الخارجي — يظهر عند الطلب لا دائماً -->
+      <div v-if="tagOpen" class="ce-panel">
+        <input ref="tagInput" type="text" id="order-tag" class="ce-input" dir="ltr" maxlength="64"
+          :placeholder="tx('رقم الطلب على المنصّة', 'Order no. on the platform')"
+          v-model="state.orderTag" @keyup.enter="tagOpen = false">
+        <span class="ce-hint">{{ tx('طلبات · جاهز · كاريدج', 'Talabat · Jahez · Carriage') }}</span>
+      </div>
+
+      <!-- حقول الحجز — تظهر ما دام الحجز مفعّلاً (فالموعد إلزاميّ حينها) -->
+      <div v-if="state.isReservation" class="ce-panel ce-panel-res">
+        <label class="ce-lbl">{{ tx('موعد الاستلام', 'Pickup time') }}</label>
+        <input type="datetime-local" v-model="state.reservationTime" class="ce-input">
+        <label class="ce-lbl">{{ tx('يبدأ التحضير قبل الموعد بـ (دقيقة)', 'Start preparing before the time by (minutes)') }}</label>
+        <input type="number" min="0" :placeholder="tx('افتراضي الفرع', 'Branch default')" v-model="state.prepLeadMinutes" class="ce-input">
       </div>
     </div>
 
@@ -149,10 +193,75 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
 </template>
 
 <style scoped>
-.cart-reservation { padding: 10px 12px; border-top: 1px solid var(--border, #e5e7eb); display: flex; flex-direction: column; gap: 8px; }
-.cart-res-toggle { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; cursor: pointer; }
-.cart-res-toggle input { width: 16px; height: 16px; cursor: pointer; }
-.cart-res-fields { display: flex; flex-direction: column; gap: 4px; }
-.cart-res-lbl { font-size: 11px; font-weight: 600; opacity: 0.7; }
-.cart-res-input { width: 100%; padding: 6px 8px; border: 1px solid var(--border, #e5e7eb); border-radius: 8px; font-size: 12px; font-weight: 600; }
+/* ── تفاصيل الطلب ────────────────────────────────────────────────────────────
+   كانت ثلاث كتل ثابتة تلتهم ~١٩٠px من اللوحة ولو لم يُستعمل منها شيء. صارت شريطاً
+   بارتفاع صفٍّ واحد (~٤٤px)، وما زاد عليه يظهر عند الاستعمال وحده. */
+.cart-extras {
+  padding: 9px clamp(12px, 1.2vw, 18px);
+  border-top: 1px solid var(--border-light, #eef1f6);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.ce-chips { display: flex; gap: 6px; }
+
+.ce-chip {
+  flex: 1 1 0;
+  min-width: 0;                       /* وإلا منع النصّ الطويل الحبّة من الانكماش */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 7px 9px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 9px;
+  background: var(--white, #fff);
+  color: var(--text-secondary, #64748b);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: border-color .14s, background .14s, color .14s;
+}
+.ce-chip svg { flex-shrink: 0; }
+.ce-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ce-chip:hover { border-color: var(--primary, #1a56db); color: var(--primary, #1a56db); }
+
+/* مضبوطة: الحبّة تحمل قيمتها فيُعرَف الحال بلا فتحِ شيء */
+.ce-chip.is-set {
+  border-color: var(--primary, #1a56db);
+  background: var(--primary-light, #dbeafe);
+  color: var(--primary-dark, #1242b0);
+}
+/* الملاحظة وحدها تُلوَّن تنبيهاً — لأن الفرع يقرؤها ويجب ألّا تُنسى. والعنوان
+   الأحمر القديم كان يصرخ على حقلٍ فارغ: الحمرة لِما كُتب لا لِما لم يُكتب. */
+.ce-chip-note.is-set {
+  border-color: var(--warning, #f59e0b);
+  background: var(--warning-light, #fef3c7);
+  color: #b45309;
+}
+.ce-chip.is-open { border-color: var(--primary, #1a56db); color: var(--primary, #1a56db); }
+
+.ce-panel { display: flex; flex-direction: column; gap: 5px; }
+.ce-lbl { font-size: 11px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.ce-hint { font-size: 10.5px; color: var(--text-muted, #94a3b8); font-weight: 600; }
+.ce-input {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 8px;
+  background: var(--white, #fff);
+  color: var(--text-primary, #0f172a);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  outline: none;
+  transition: border-color .14s, box-shadow .14s;
+}
+.ce-input:focus { border-color: var(--primary, #1a56db); box-shadow: 0 0 0 3px rgba(26, 86, 219, .1); }
+.ce-input::placeholder { color: var(--text-muted, #94a3b8); font-weight: 500; }
+
+:global(body.dark-mode) .ce-chip,
+:global(body.dark-mode) .ce-input { background: var(--bg-card, #1e293b); }
 </style>

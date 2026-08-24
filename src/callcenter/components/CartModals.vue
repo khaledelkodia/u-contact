@@ -10,7 +10,7 @@ import {
   closeReviewModal, confirmReview, reviewSummary,
 } from '../store'
 import { formatCurrency, formatDate } from '../utils'
-import { tx, lang } from '../lang'
+import { tx, lang, nameOf } from '../lang'
 import { icon } from '../icons'
 
 // ── ملاحظات الطلب ──
@@ -171,8 +171,10 @@ const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : nu
             <tr v-for="i in review.items" :key="i.cartItemId">
               <td>
                 {{ i.name }}
-                <span v-if="i.size" style="color:var(--text-muted); font-size:11px;"> · {{ i.size }}</span>
-                <div v-if="i.extras && i.extras.length" style="font-size:11px; color:var(--text-muted);">{{ i.extras.join('، ') }}</div>
+                <span v-if="i.size" style="color:var(--text-muted); font-size:11px;"> · {{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
+                <div v-if="(i.modifiers && i.modifiers.length) || (i.extras && i.extras.length)" style="font-size:11px; color:var(--text-muted);">
+                  {{ (i.modifiers && i.modifiers.length ? i.modifiers.map((m: any) => nameOf(m)) : i.extras).join(tx('، ', ', ')) }}
+                </div>
                 <div v-if="i.note" style="font-size:11px; color:var(--warning, #b45309);">{{ i.note }}</div>
               </td>
               <td>{{ i.quantity }}</td>

@@ -203,8 +203,12 @@ export async function loadLiveData() {
       // أحجام: لو فيها variants → مصفوفة الأسماء/الأسعار، وإلا null (صنف بسعر واحد)
       sizes: Array.isArray(p.sizes) && p.sizes.length ? p.sizes : null,
       sizePrices: Array.isArray(p.sizePrices) && p.sizePrices.length ? p.sizePrices : null,
+      // الأحجام كاملةً (id + الاسمان + السعر) — `sizes` أعلاه أسماءٌ عربية للتوافق
+      variants: Array.isArray(p.variants) ? p.variants : [],
       // إضافات لكل صنف: [{ id, name, price }]
       extras: Array.isArray(p.extras) ? p.extras : [],
+      // مجموعات الإضافات بقواعدها (مطلوب / أدنى / أقصى) — مصدر مودال الصنف
+      modifierGroups: Array.isArray(p.modifierGroups) ? p.modifierGroups : [],
       imageUrl: '',
       isAvailable: p.isAvailable,
       // صنف بسعر مفتوح: لا سعر ثابت — الوكيل يُدخل سعر الوحدة في مودال الصنف
@@ -326,7 +330,10 @@ function mapCloudOrder(r: any): any {
     employeeName: r.agentName || '—',
     type, status,
     customerName: r.customerName, customerPhone: r.customerPhone,
-    branchId: r.branchId, branchName: r.branchName || (r.holdReason === 'no_branch' ? tx('بانتظار تعيين فرع', 'Awaiting branch assignment') : '—'),
+    branchId: r.branchId,
+    // الاسمان معاً: الوصف يتبع لغة الواجهة لا لغةَ لحظة الجلب
+    branchName: nameOf({ nameAr: r.branchName, nameEn: r.branchNameEn })
+      || (r.holdReason === 'no_branch' ? tx('بانتظار تعيين فرع', 'Awaiting branch assignment') : '—'),
     subtotal: Number(r.subtotal) || 0, deliveryFee: Number(r.deliveryFee) || 0, total: Number(r.total) || 0,
     driverId: r.driverName ? -1 : null, driverName: r.driverName || null, driverPhone: '',
     // حجز: موعده يظهر في شاشة «الطلبات المجدولة»
@@ -338,8 +345,10 @@ function mapCloudOrder(r: any): any {
     businessDate: r.businessDate ? String(r.businessDate).slice(0, 10) : null,
     createdAt: r.createdAt,
     orderTag: r.orderTag || null,
+    notes: r.notes || null,
     region: r.regionName, address: r.addressText,
-    items: [],
+    // البنود تُجلب عند فتح التفاصيل (القائمة لا تحملها) — `itemsLoaded` تمنع التكرار
+    items: [], itemsLoaded: false,
   }
 }
 
@@ -825,6 +834,58 @@ function loadLiveCustomer(c: any) {
   state.showCustomerInfo = true
 }
 
+/**
+ * هل في الشاشة مسوّدة طلبٍ قائمة يُفقَد شيءٌ بتصفيرها؟
+ * (سلّة، أو عميل، أو رقم يُبحث به، أو ملاحظات، أو رقم منصّة)
+ */
+export function hasOrderDraft(): boolean {
+  return !!(
+    (state.cart && state.cart.length) ||
+    state.currentCustomer ||
+    String(state.form?.phone || '').trim() ||
+    String(state.orderNotes || '').trim() ||
+    String(state.orderTag || '').trim()
+  )
+}
+
+/**
+ * يمسح مسوّدة الطلب الحالية بالكامل — صفحةٌ بيضاء.
+ *
+ * هي نفسها ما يُمسح بعد تأكيد طلبٍ ناجح: «بدأت طلباً جديداً» و«أنهيت طلباً» يجب
+ * أن يتركا الشاشة في الحال نفسه، وإلا تسرّب شيءٌ من مكالمةٍ إلى التي تليها.
+ */
+export function resetOrderDraft() {
+  clearCartSilently()          // السلّة + ملاحظات الطلب
+  clearCustomerData()          // العميل + العنوان + الفرع اليدوي + خانة البحث
+  resetPaymentSelection()      // المصدر وطريقة الدفع
+  state.deliveryFeeOverride = null
+  state.orderTag = ''
+  state.isReservation = false
+  state.reservationTime = ''
+  state.prepLeadMinutes = ''
+  state.pendingOrderEvents = []   // وإلا ورث الطلبُ التالي سجلَّ الذي قبله
+  state.editingOrderId = null
+  state.orderType = 'delivery'
+  showAllCategories()             // ونبدأ من رأس المنيو لا من داخل تصنيفٍ سابق
+}
+
+/**
+ * «أوردر جديد» = صفحةٌ بيضاء.
+ *
+ * كان مجرّد تبديل شاشة: يعود الوكيل إليها فيجد عميل المكالمة السابقة وسلّتها،
+ * فيضرب الطلب على حساب من قبله. والتصفير لا يكون صامتاً حين يكون هناك ما يُفقَد —
+ * فبند القائمة نفسه هو طريق العودة إلى سلّةٍ قائمة بعد نظرةٍ على شاشة الأوردرات.
+ */
+export function startNewOrder() {
+  if (hasOrderDraft() && !confirm(tx(
+    'في طلب شغّال دلوقتي — تبدأ واحداً جديداً وتمسح اللي قبله؟',
+    'There is an order in progress — start a new one and discard it?',
+  ))) return
+  resetOrderDraft()
+  state.activeTab = 'menu'
+  state.activeView = 'new-order'
+}
+
 export function clearCartSilently() {
   state.cart = []
   state.orderNotes = ''
@@ -1155,7 +1216,8 @@ export function openItemModal(itemId: number, cartItemId?: string) {
     return
   }
   const hasSizes = Array.isArray(item.sizes) && item.sizes.length > 0
-  const hasExtras = Array.isArray(item.extras) && item.extras.length > 0
+  // المجموعات هي المصدر الآن؛ `extras` المسطّحة تبقى للتوافق مع المووك
+  const hasExtras = itemGroups(item).length > 0 || (Array.isArray(item.extras) && item.extras.length > 0)
   // صنف بسعر مفتوح يفتح المودال دائماً — السعر لا بد أن يُدخله الوكيل قبل الإضافة
   const isOpen = !!item.isOpenPrice
   // لا أحجام ولا إضافات ولا سعر مفتوح → أضف مباشرة (بدون مودال)
@@ -1167,8 +1229,11 @@ export function openItemModal(itemId: number, cartItemId?: string) {
   if (cartItemId) {
     const ci = state.cart.find((c: any) => c.cartItemId === cartItemId)
     state.selectedSize = ci?.size ?? (hasSizes ? item.sizes[0] : null)
-    const names: string[] = ci?.extras || []
-    state.selectedExtras = (item.extras || []).filter((e: any) => names.includes(e.name))
+    // استعادةٌ بالمعرّف لا بالاسم — الاسم يتغيّر بتغيّر اللغة فتضيع الاختيارات
+    const prev: any[] = Array.isArray(ci?.modifiers) && ci.modifiers.length
+      ? ci.modifiers
+      : (item.extras || []).filter((e: any) => (ci?.extras || []).includes(e.name))
+    state.selectedExtras = prev.map((e: any) => ({ ...e }))
     state.itemModalQty = ci?.quantity || 1
     state.itemModalNote = ci?.note || ''
     // تعديل سطر مفتوح السعر: السعر المخزَّن = سعر الوحدة ناقص الإضافات
@@ -1176,12 +1241,104 @@ export function openItemModal(itemId: number, cartItemId?: string) {
   } else {
     state.selectedSize = hasSizes ? item.sizes[0] : null
     state.selectedExtras = []
+    autoSelectRequired(item)   // الإلزاميّ يُضاف من نفسه — ليس سؤالاً يُطرح كل مرة
     state.itemModalQty = 1
     state.itemModalNote = ''
     state.itemModalOpenPrice = ''
   }
   state.itemModalOpen = true
 }
+// ══════════════════════════════════════════════════════════════════════════════
+// مجموعات الإضافات (modifier groups)
+// ══════════════════════════════════════════════════════════════════════════════
+// كانت الإضافات تصل كتلةً مسطّحة بلا قواعد: يختار الوكيل صوصين حيث يُسمح بواحد،
+// ويُغفل إضافةً إلزامية فينزل الطلب للفرع ناقصاً. المجموعة تحمل قاعدتها الآن.
+
+/** مجموعات الصنف (مرتّبة كما جاءت من الخادم). */
+export function itemGroups(item?: any): any[] {
+  const it = item ?? state.selectedMenuItem
+  return Array.isArray(it?.modifierGroups) ? it.modifierGroups : []
+}
+
+/** كم خياراً مختاراً من هذه المجموعة الآن؟ */
+export function groupSelectedCount(g: any): number {
+  const ids = new Set((g?.options || []).map((o: any) => o.id))
+  return state.selectedExtras.filter((e: any) => ids.has(e.id)).length
+}
+
+/** `maxSelect = 0` = بلا حدّ (اصطلاح الخادم). «مطلوب» تُعرض شارةً منفصلة. */
+export function groupRule(g: any): string {
+  const min = Number(g?.minSelect || 0)
+  const max = Number(g?.maxSelect || 0)
+  if (max === 1) return tx('اختيار واحد', 'Choose one')
+  if (max > 1) return tx(`حتى ${max} خيارات`, `Up to ${max}`)
+  if (min > 0) return tx(`${min} على الأقل`, `At least ${min}`)
+  return tx('اختياري', 'Optional')
+}
+
+/** بلغت حدّها الأقصى؟ (الباقي يُعرَض معطَّلاً بدل أن يُرفَض بعد الضغط) */
+export function groupAtMax(g: any): boolean {
+  const max = Number(g?.maxSelect || 0)
+  return max > 0 && groupSelectedCount(g) >= max
+}
+
+/**
+ * اختيار/إلغاء خيارٍ داخل مجموعته.
+ *
+ * `maxSelect = 1` تتصرّف كزرّ راديو: الاختيار الجديد يحلّ محلّ القديم بدل أن
+ * يُرفَض — وهو ما يتوقّعه من يضغط «صوص باربيكيو» بعد «صوص الرانش».
+ */
+export function toggleGroupOption(g: any, opt: any) {
+  const i = state.selectedExtras.findIndex((e: any) => e.id === opt.id)
+  if (i >= 0) {
+    const min = Number(g?.minSelect || 0)
+    if (min > 0 && groupSelectedCount(g) <= min) {
+      showToast(tx(`${nameOf(g)}: لازم تختار ${min} على الأقل`, `${nameOf(g)}: choose at least ${min}`), 'warning')
+      return
+    }
+    state.selectedExtras.splice(i, 1)
+    return
+  }
+  const max = Number(g?.maxSelect || 0)
+  if (max === 1) {
+    // استبدالٌ داخل المجموعة وحدها — لا تُمسّ اختيارات المجموعات الأخرى
+    const ids = new Set((g?.options || []).map((o: any) => o.id))
+    state.selectedExtras = state.selectedExtras.filter((e: any) => !ids.has(e.id))
+  } else if (max > 1 && groupSelectedCount(g) >= max) {
+    showToast(tx(`${nameOf(g)}: الحدّ الأقصى ${max}`, `${nameOf(g)}: maximum ${max}`), 'warning')
+    return
+  }
+  state.selectedExtras.push(pickOpt(g, opt))
+}
+
+/** خيارٌ بشكله المخزَّن: الاسمان معاً فلا يُجمَّد على لغة لحظة الاختيار. */
+function pickOpt(g: any, o: any) {
+  return { id: o.id, name: o.nameAr ?? o.name ?? '', nameEn: o.nameEn ?? null, price: Number(o.price) || 0, groupId: g?.id ?? null }
+}
+
+/** المجموعات التي لم يُستوفَ حدُّها الأدنى — تمنع التأكيد وتُسمّى للوكيل. */
+export function missingGroups(): any[] {
+  return itemGroups().filter((g: any) => groupSelectedCount(g) < Number(g?.minSelect || 0))
+}
+
+/**
+ * الإضافات الإلزامية تُضاف من نفسها.
+ *
+ * مجموعةٌ إلزامية بحدٍّ أدنى ليست سؤالاً — هي جزءٌ من الصنف. كان الوكيل يختارها في
+ * كل مرة، وإن نسيها نزل الطلب ناقصاً. تُملأ حتى الحدّ الأدنى بترتيب الخيارات
+ * (الأرخص ليس أذكى: الترتيب مقصودٌ من مُعِدّ الكتالوج).
+ */
+function autoSelectRequired(item: any) {
+  for (const g of itemGroups(item)) {
+    const min = Number(g?.minSelect || 0)
+    if (min <= 0) continue
+    for (const o of (g.options || [])) {
+      if (groupSelectedCount(g) >= min) break
+      if (!state.selectedExtras.some((e: any) => e.id === o.id)) state.selectedExtras.push(pickOpt(g, o))
+    }
+  }
+}
+
 // ── دوال مودال تخصيص الصنف ──
 export function selectItemSize(size: string) { state.selectedSize = size }
 export function toggleModalExtra(extra: any) {
@@ -1216,6 +1373,11 @@ export function confirmItemModal() {
   const item = state.selectedMenuItem
   if (!item) return
   if (!itemModalValid()) { showToast(tx('حدّد سعر الصنف أولاً', 'Set the item price first'), 'warning'); return }
+  const missing = missingGroups()
+  if (missing.length) {
+    showToast(tx(`اختر من: ${missing.map((g: any) => nameOf(g)).join('، ')}`, `Choose from: ${missing.map((g: any) => nameOf(g)).join(', ')}`), 'warning')
+    return
+  }
   addToCart(item, {
     qty: state.itemModalQty, size: state.selectedSize, extras: state.selectedExtras, note: state.itemModalNote,
     openPrice: item.isOpenPrice ? (parseFloat(state.itemModalOpenPrice) || 0) : undefined,
@@ -1243,6 +1405,12 @@ export function addToCart(item: any, opts: any = {}) {
   }
   const extrasPrice = selectedExtras.reduce((sum: number, extra: any) => sum + extra.price, 0)
   const unitPrice = basePrice + extrasPrice
+  // الحجم والإضافات ببنيتهما لا بأسمائهما: الاسم يتغيّر بتغيّر اللغة، والفرع يحتاج
+  // المعرّفات ليعرف **ماذا** يُحضّر. `extras` (أسماء) تبقى لِما يعرضها اليوم.
+  const variant = (item.variants || []).find((v: any) => (v.nameAr ?? v.name) === size || v.nameEn === size) || null
+  const modifiers = selectedExtras.map((e: any) => ({
+    id: e.id, name: e.name, nameEn: e.nameEn ?? null, price: Number(e.price) || 0, groupId: e.groupId ?? null,
+  }))
 
   // ===== وضع تعديل =====
   if (state.editingCartItemId) {
@@ -1251,9 +1419,13 @@ export function addToCart(item: any, opts: any = {}) {
       state.cart[idx] = {
         ...state.cart[idx],
         size,
+        variantId: variant?.id ?? null,
+        sizeAr: variant?.nameAr ?? (typeof size === 'string' ? size : null),
+        sizeEn: variant?.nameEn ?? null,
         quantity: qty,
         price: unitPrice,
         extras: selectedExtras.map((e: any) => e.name),
+        modifiers,
         extrasPrice,
         note: itemNote,
       }
@@ -1288,6 +1460,10 @@ export function addToCart(item: any, opts: any = {}) {
       quantity: qty,
       price: unitPrice,
       extras: selectedExtras.map((e: any) => e.name),
+      variantId: variant?.id ?? null,
+      sizeAr: variant?.nameAr ?? (typeof size === 'string' ? size : null),
+      sizeEn: variant?.nameEn ?? null,
+      modifiers,
       extrasPrice,
       note: itemNote,
     })
@@ -1415,7 +1591,20 @@ export async function submitOrder() {
     // التجاوز اليدوي فقط — بلا تجاوز يشتقّ الخادم الرسوم من ربط (فرع ↔ مكان)
     deliveryFeeOverride: state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined
       ? Number(state.deliveryFeeOverride) : null,
-    items: state.cart.map((i: any) => ({ productId: i.itemId, productName: i.name, quantity: i.quantity, unitPrice: i.price })),
+    // الفرع كان يستقبل اسماً وسعراً فقط: لا حجم ولا إضافات ولا ملاحظة الصنف —
+    // فيصل «فراخ مشوية» بلا «صوص باربيكيو» و«بدون بصل»، والسعر وحده يشي بأن شيئاً
+    // اختير. القاعدة تحمل الحقول أصلاً (`OnlineOrderItem`) ولم تكن تُملأ.
+    items: state.cart.map((i: any) => ({
+      productId: i.itemId,
+      productName: i.name,
+      productNameEn: i.nameEn || null,
+      variantId: i.variantId ?? null,
+      variantName: i.sizeAr ?? i.size ?? null,
+      quantity: i.quantity,
+      unitPrice: i.price,
+      modifiers: Array.isArray(i.modifiers) && i.modifiers.length ? i.modifiers : undefined,
+      notes: (i.note || '').trim() || null,
+    })),
   }
   if (state.isReservation && state.reservationTime) {
     body.reservationTime = new Date(state.reservationTime).toISOString()
@@ -1445,12 +1634,7 @@ export async function submitOrder() {
   try {
     await contactCreateOrder(body)
     showToast(state.isReservation ? tx('تم إنشاء الحجز ونزوله للفرع', 'Reservation created and sent to the branch') : tx('تم إنشاء الأوردر بنجاح', 'Order created'), 'success')
-    clearCartSilently()
-    clearCustomerData()
-    resetPaymentSelection()
-    state.deliveryFeeOverride = null   // تجاوز الرسوم خاصّ بطلب واحد لا يُورَّث للتالي
-    state.orderTag = ''                // ورقم المنصّة كذلك — لكل طلبٍ رقمه
-    state.isReservation = false; state.reservationTime = ''; state.prepLeadMinutes = ''
+    resetOrderDraft()   // تجاوز الرسوم ورقم المنصّة والحجز خاصّةٌ بطلبٍ واحد لا تُورَّث
     await loadOrders()   // حدّث القائمة قبل التنقّل عشان يظهر الأوردر الجديد
     state.activeView = 'orders'
   } catch (err: any) {
@@ -1901,8 +2085,44 @@ export function toggleBranchItemAvailability(branchId: number | string, itemId: 
 // ORDER DETAIL PANEL (نقلاً عن viewOrderDetail / updateOrderStatus)
 // ==========================================
 // تبديل عرض لوحة التفاصيل: نفس id مفتوح → يقفل؛ غير كده → يفتح (مطابق toggle الأصل عبر dataset.openOrderId)
-export function viewOrderDetail(orderId: number, _source?: string) {
-  state.openOrderId = state.openOrderId === orderId ? null : orderId
+/**
+ * فتح/طيّ تفاصيل الطلب — **ويجلب بنوده**.
+ *
+ * كانت تقلب `openOrderId` وحده، و`mapCloudOrder` تضع `items: []` لأن قائمة الخادم
+ * لا تحمل البنود: فيُفتح جدول «الصنف/الكمية/السعر» فارغاً دائماً، ولا تظهر إضافةٌ
+ * ولا ملاحظةٌ ولا حجم. المسار `GET /contact/orders/:id` يحملها كلّها ولم يكن يُستدعى.
+ */
+export async function viewOrderDetail(orderId: number, _source?: string) {
+  if (state.openOrderId === orderId) { state.openOrderId = null; return }
+  state.openOrderId = orderId
+  const idx = state.orders.findIndex((o: any) => o.id === orderId)
+  if (idx < 0 || !state.live) return
+  if (state.orders[idx].itemsLoaded) return          // جُلبت قبلاً — لا نكرّر
+  try {
+    const d = await contactOrder(orderId)
+    const items = (d?.items || []).map((it: any) => ({
+      id: it.id,
+      name: it.productName,
+      nameEn: it.productNameEn || null,
+      // الحجم والإضافات كما خزّنهما الخادم — بالاسمين فيتبع العرضُ لغةَ الواجهة
+      size: it.variantName || null,
+      sizeAr: it.variantName || null,
+      sizeEn: null,
+      modifiers: Array.isArray(it.modifiers) ? it.modifiers : [],
+      note: it.notes || '',
+      quantity: Number(it.quantity) || 1,
+      price: Number(it.unitPrice) || 0,
+      total: Number(it.totalPrice) || 0,
+    }))
+    state.orders[idx] = { ...state.orders[idx], items, itemsLoaded: true, notes: d?.notes ?? state.orders[idx].notes }
+  } catch {
+    showToast(tx('تعذّر تحميل تفاصيل الطلب', 'Could not load the order details'), 'error')
+  }
+}
+
+/** صلاحية رؤية قيمة الطلب النهائية (عمودٌ في القائمة). */
+export function canViewOrderTotals(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.view_totals')
 }
 
 // نص طريقة الدفع (نقلاً عن getPaymentLabel)
