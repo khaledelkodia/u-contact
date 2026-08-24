@@ -30,7 +30,11 @@ function itemDetails(item: any): string {
   <div v-if="order" class="order-detail-panel">
     <div class="order-detail-header">
       <div>
-        <div class="order-detail-invoice">فاتورة #{{ order.invoiceNo }}</div>
+        <div class="order-detail-invoice">
+          فاتورة #{{ order.invoiceNo }}
+          <!-- رقم المنصّة الخارجية: الوكيل يقارنه بما يقوله العميل -->
+          <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+        </div>
         <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">تاريخ الإنشاء: {{ formatDate(order.createdAt) }}</div>
         <div v-if="order.scheduledDate" style="font-size:13px; color:var(--danger); margin-top:4px; font-weight:bold;">مجدول إلى: {{ formatDate(order.scheduledDate) }}</div>
         <div v-if="order.status === 'cancelled' && order.cancellationReason" class="order-cancel-reason"><i class="fa-solid fa-circle-xmark"></i> سبب الإلغاء: <strong>{{ order.cancellationReason.label }}</strong><template v-if="order.cancellationReason.note && order.cancellationReason.id !== 'other'"> — {{ order.cancellationReason.note }}</template></div>

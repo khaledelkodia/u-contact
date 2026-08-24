@@ -7,6 +7,8 @@ const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || 'https://u-
 type Mode = 'admin' | 'agent'
 export interface Company {
   id: number; name: string; nameAr?: string; permissions: string[]; ceiling: string[]; dialCode?: string | null;
+  // نطاق الفرنشايز لهذا الوكيل في هذه الشركة — **فارغ = كل فرنشايزات الشركة**
+  franchiseIds?: number[];
   // ── توقيت الشركة ──────────────────────────────────────────────────────────
   // الوكيل قد يجلس في مصر ويخدم شركةً في عُمان: ساعته 11م وساعتها 12ص — **يومان
   // مختلفان**. كل وقتٍ يخصّ الشركة يُعرض بمنطقتها هي لا بمنطقة جهازه.
@@ -257,6 +259,8 @@ export interface ContactOrderInput {
   branchId?: number | null; orderTypeCode?: number | null
   paymentMode: 'cash_on_delivery' | 'prepaid_online'; paymentMethodId?: number | null
   discountAmount?: number; notes?: string | null
+  // رقم الطلب على المنصّة الخارجية (طلبات/جاهز/كاريدج…)
+  orderTag?: string | null
   // تجاوز رسوم التوصيل المشتقّة — يتطلّب صلاحية callcenter.delivery_fee على الخادم
   deliveryFeeOverride?: number | null
   // حجز (طلب مجدول): وجود reservationTime ينزّل الطلب في «قائمة الحجوزات» بالفرع

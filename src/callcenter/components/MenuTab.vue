@@ -82,7 +82,9 @@ function itemCatColor(item: any) { const c = itemCategory(item); return c ? c.co
 function itemCatName(item: any) { const c = itemCategory(item); return c ? (isEn.value ? (c.nameEn || c.name) : c.name) : '' }
 function itemName(item: any) { return isEn.value ? (item.nameEn || item.name) : item.name }
 function itemNameSub(item: any) { return isEn.value ? item.name : (item.nameEn || '') }
-function hasSizes(item: any) { return item.sizes && item.sizes.length > 0 }
+function hasSizes(item: any) { return Array.isArray(item.sizes) && item.sizes.length > 0 }
+// الإضافات لم يكن لها أي أثر على الكارت: الوكيل لا يعرف أن الصنف يفتح مودالاً حتى يضغطه
+function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras.length > 0 }
 </script>
 
 <template>
@@ -125,6 +127,15 @@ function hasSizes(item: any) { return item.sizes && item.sizes.length > 0 }
           <div class="menu-item-cat-tag">{{ itemCatName(item) }}</div>
           <div class="menu-item-name">{{ itemName(item) }}</div>
           <div class="menu-item-name-en">{{ itemNameSub(item) }}</div>
+          <!-- ما الذي يحدث عند الضغط: أحجام تُختار، إضافات تُضاف، أو إضافةٌ مباشرة -->
+          <div v-if="hasSizes(item) || hasExtras(item)" class="menu-item-flags">
+            <span v-if="hasSizes(item)" class="mi-flag mi-flag-size">
+              <i class="fa-solid fa-layer-group"></i> {{ isEn ? `${item.sizes.length} sizes` : `${item.sizes.length} أحجام` }}
+            </span>
+            <span v-if="hasExtras(item)" class="mi-flag mi-flag-extra">
+              <i class="fa-solid fa-plus"></i> {{ isEn ? `${item.extras.length} extras` : `${item.extras.length} إضافات` }}
+            </span>
+          </div>
           <!-- سعر مفتوح: لا سعر ثابت يُعرض — الوكيل يحدّده في مودال الصنف -->
           <div v-if="item.isOpenPrice" class="menu-item-price menu-item-price-sized"><i class="fa-solid fa-tag"></i> {{ isEn ? 'Open price' : 'سعر مفتوح' }}</div>
           <div v-else-if="hasSizes(item)" class="menu-item-price menu-item-price-sized"><i class="fa-solid fa-layer-group"></i> {{ isEn ? 'Choose size' : 'حسب الحجم' }}</div>

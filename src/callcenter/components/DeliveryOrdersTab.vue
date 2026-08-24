@@ -73,7 +73,11 @@ function typeCell(order: any): string {
           <tr v-if="orders.length === 0"><td colspan="8" style="text-align:center; padding:30px;">لا توجد طلبات توصيل في يوم العمل الحالي</td></tr>
           <tr v-for="order in orders" :key="order.id" :class="{ 'order-row-cancelled': order.status === 'cancelled' }" @click="viewOrderDetail(order.id)">
             <td style="font-weight:700; font-size:16px;">{{ order.dailyNo }}</td>
-            <td>#{{ order.invoiceNo }}</td>
+            <td>
+              #{{ order.invoiceNo }}
+              <!-- رقم المنصّة الخارجية: يقارنه الوكيل بما يقوله العميل -->
+              <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+            </td>
             <td>{{ order.employeeName }}</td>
             <td><span v-html="typeCell(order)"></span></td>
             <td dir="ltr" style="text-align:right;">{{ order.customerPhone }}</td>

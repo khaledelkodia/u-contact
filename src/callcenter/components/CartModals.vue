@@ -155,6 +155,9 @@ const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : nu
             <span style="color:var(--text-secondary);">العنوان:</span> <strong>{{ review.address }}</strong>
           </div>
           <div><span style="color:var(--text-secondary);">الدفع:</span> <strong>{{ review.payment }}</strong></div>
+          <div v-if="review.orderTag">
+            <span style="color:var(--text-secondary);">رقم المنصّة:</span> <strong dir="ltr">{{ review.orderTag }}</strong>
+          </div>
           <div v-if="review.isReservation" style="color:var(--primary); font-weight:700;">حجز: {{ review.reservationTime }}</div>
         </div>
 

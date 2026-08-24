@@ -41,6 +41,9 @@ export const state = reactive<any>({
   deliveryFeeOverride: null,
   selectedAddressIndex: -1,
   orderNotes: '',
+  // رقم الطلب على المنصّة الخارجية — يكتبه الوكيل حين يأتي الطلب من طلبات/جاهز…
+  // مستقلٌّ عن الملاحظات: يُبحَث به، ويظهر في الفرع خانةً واضحة لا سطراً مدفوناً.
+  orderTag: '',
 
   // ── حجز (طلب مجدول) — ينزل الفرع في «قائمة الحجوزات» بموعده ──
   isReservation: false,        // تفعيل الحجز على الطلب الحالي
@@ -333,6 +336,7 @@ function mapCloudOrder(r: any): any {
     posReservationId: r.posReservationId ?? null,
     businessDate: r.businessDate ? String(r.businessDate).slice(0, 10) : null,
     createdAt: r.createdAt,
+    orderTag: r.orderTag || null,
     region: r.regionName, address: r.addressText,
     items: [],
   }
@@ -1406,6 +1410,7 @@ export async function submitOrder() {
     paymentMode,
     orderTypeCode: isDelivery ? 5 : 6,   // delivery=5, pickup=6
     notes: [state.orderNotes, payLabel ? `الدفع: ${payLabel}` : ''].filter(Boolean).join(' — ') || null,
+    orderTag: (state.orderTag || '').trim() || null,
     // التجاوز اليدوي فقط — بلا تجاوز يشتقّ الخادم الرسوم من ربط (فرع ↔ مكان)
     deliveryFeeOverride: state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined
       ? Number(state.deliveryFeeOverride) : null,
@@ -1443,6 +1448,7 @@ export async function submitOrder() {
     clearCustomerData()
     resetPaymentSelection()
     state.deliveryFeeOverride = null   // تجاوز الرسوم خاصّ بطلب واحد لا يُورَّث للتالي
+    state.orderTag = ''                // ورقم المنصّة كذلك — لكل طلبٍ رقمه
     state.isReservation = false; state.reservationTime = ''; state.prepLeadMinutes = ''
     await loadOrders()   // حدّث القائمة قبل التنقّل عشان يظهر الأوردر الجديد
     state.activeView = 'orders'
@@ -1681,6 +1687,7 @@ export function reviewSummary(): any {
     feeIsOpen: deliveryFeeIsOpen(),
     total: getCartTotal(),
     notes: state.orderNotes || '',
+    orderTag: (state.orderTag || '').trim(),
     isReservation: !!state.isReservation,
     reservationTime: state.reservationTime || '',
   }

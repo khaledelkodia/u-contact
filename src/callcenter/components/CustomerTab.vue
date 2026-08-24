@@ -131,6 +131,13 @@ function addressLine(addr: any): string {
         <label for="cust-phone">رقم الموبايل <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
         <input type="text" id="cust-phone" placeholder="رقم الموبايل" maxlength="15" v-model="state.form.phone">
       </div>
+      <!-- رقم الطلب على المنصّة الخارجية: يُكتب عند الاستلام فيُبحَث به لاحقاً حين
+           يتّصل العميل قائلاً «طلبي رقم كذا على طلبات» -->
+      <div class="form-group">
+        <label for="order-tag">رقم الطلب الخارجي <span style="color:var(--text-muted); font-weight:400;">(طلبات / جاهز / كاريدج…)</span></label>
+        <input type="text" id="order-tag" placeholder="اكتب رقم الطلب على المنصّة" maxlength="64" v-model="state.orderTag">
+      </div>
+
       <div class="form-group">
         <label for="cust-phone2">رقم آخر</label>
         <input type="text" id="cust-phone2" placeholder="رقم إضافي (اختياري)" maxlength="15" v-model="state.form.phone2">

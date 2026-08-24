@@ -20,6 +20,11 @@ const step = ref<'login' | 'scope'>('login')
 const coName = (c: any) => (isAr() ? (c?.nameAr || c?.name) : (c?.name || c?.nameAr))
 
 const pickedCompany = ref<number | null>(null)
+/** الوكيل مقيَّد بفرنشايزات بعينها في الشركة المختارة؟ (فارغ = بلا قيد) */
+const restricted = computed(() => {
+  const c = session.companies.find((x: any) => x.id === pickedCompany.value)
+  return !!(c?.franchiseIds && c.franchiseIds.length)
+})
 const pickedFranchise = ref<number | null>(null)
 const frBusy = ref(false)
 
@@ -41,6 +46,7 @@ function enterApp() {
   router.push('/app/callcenter')   // واجهة الوكيل الموحّدة (الشِل الجديد)
 }
 
+// مسارٌ لكلّ دور: `/login` للوكيل و`/admin` للمشرف العام. الجذر يبدأ عند `/login`.
 async function submit() {
   err.value = ''; busy.value = true
   try {
@@ -122,7 +128,9 @@ async function submit() {
             <div class="field" v-if="pickedCompany && (frBusy || session.franchises.length)">
               <label>{{ t('الفرنشايز', 'Franchise') }}</label>
               <select v-model.number="pickedFranchise" :disabled="frBusy">
-                <option :value="null">{{ t('كل الفروع', 'All branches') }}</option>
+                <!-- «كل الفروع» ليست خياراً لوكيلٍ مقيَّد بفرنشايزات بعينها: اختيارها
+                     يعني العمل خارج نطاقه والخادم يرفضه — فلا تُعرَض أصلاً. -->
+                <option v-if="!restricted" :value="null">{{ t('كل الفروع', 'All branches') }}</option>
                 <option v-for="f in session.franchises" :key="f.id" :value="f.id">{{ coName(f) }}</option>
               </select>
               <span v-if="frBusy" class="muted" style="font-size:12px;">{{ t('جارٍ تحميل الفرنشايزات…', 'Loading franchises…') }}</span>
