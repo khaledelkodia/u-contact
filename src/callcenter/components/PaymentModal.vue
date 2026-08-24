@@ -34,9 +34,12 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
           </div>
         </div>
         <!-- 2) طريقة الدفع -->
-        <div class="pm-step pm-step-methods" v-show="channel">
+        <div class="pm-step pm-step-methods">
           <div class="pm-step-label"><span class="pm-step-num">2</span> {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}</div>
           <div class="pm-methods">
+            <p v-if="!methods.length" class="pm-empty">
+              {{ tx('لا توجد طرق دفع مفعّلة لهذه الشركة — عرّفها من داشبورد U‑Serve.', 'No active payment methods for this company — define them in the U-Serve dashboard.') }}
+            </p>
             <button v-for="m in methods" :key="m.id" type="button" class="pm-method" :class="{ active: String(state.paymentMethod) === String(m.id) }" @click="setPaymentMethod(m.id)">
               <span class="pm-method-icon"><i :class="m.icon || (m.isCash ? 'fa-solid fa-money-bill-wave' : 'fa-solid fa-credit-card')" :style="{ color: String(state.paymentMethod) === String(m.id) ? '#fff' : (m.color || (m.isCash ? '#16a34a' : '#2563eb')) }"></i></span>
               <span class="pm-method-name">{{ nameOf(m) }}</span>
@@ -56,3 +59,12 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
     </div>
   </div>
 </template>
+
+<style scoped>
+.pm-empty {
+  margin: 0; padding: 12px 14px;
+  border: 1px dashed var(--border, #e5e7eb); border-radius: 10px;
+  font-size: 12.5px; font-weight: 600; line-height: 1.7;
+  color: var(--text-muted, #94a3b8);
+}
+</style>

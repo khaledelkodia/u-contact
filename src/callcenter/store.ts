@@ -827,6 +827,25 @@ function applyLiveAddress(addr: any) {
   state.form.sectionId = sec ? sec.id : null
   applyPlace()
 }
+/**
+ * العميل جاهز ⇒ افتح المنيو من رأسه.
+ *
+ * الوكيل على الهاتف: بعد اختيار العميل أو حفظه لا يبقى في تبويب البيانات ليضغط
+ * «القائمة» بيده — الخطوة التالية دائماً هي الأصناف. وعميلٌ بأكثر من عنوان يُقال
+ * له أيُّها استُعمل، فلا يُرسَل الطلب لعنوانٍ لم ينتبه إليه.
+ */
+function goToMenu(addressCount = 0, usedAddress?: string) {
+  state.activeTab = 'menu'
+  showAllCategories()
+  if (addressCount > 1 && usedAddress) {
+    showToast(
+      tx(`العميل له ${addressCount} عناوين — المستعمَل: ${usedAddress}. غيّره من تبويب بيانات العميل.`,
+         `Customer has ${addressCount} addresses — using: ${usedAddress}. Change it from the customer tab.`),
+      'info',
+    )
+  }
+}
+
 function loadLiveCustomer(c: any) {
   state.currentCustomer = c
   state.form.name = c.name || ''
@@ -975,14 +994,17 @@ export async function searchCustomer() {
     try {
       const list = await contactCustomers(phone)
       if (list && list.length > 0) {
-        clearCartSilently()
-        loadLiveCustomer(list[0])
-        showToast(tx('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'Customer found — review the details then pick the menu'), 'success')
-        state.activeTab = 'customer-data'
+        loadLiveCustomer(list[0])   // يصفّر المسوّدة بنفسه حين يتغيّر العميل
+        showToast(tx('تم العثور على بيانات العميل', 'Customer found'), 'success')
+        const adr = list[0]?.addresses || []
+        const used = adr[state.selectedAddressIndex]
+        goToMenu(adr.length, used?.address || used?.section || used?.region || '')
       } else {
         showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
+        // مسوّدةٌ نظيفة تماماً: `clearCartSilently` وحدها كانت تُبقي رقم المنصّة
+        // والدفع والحجز من المكالمة السابقة على عميلٍ جديد لم يُنشأ بعد.
+        resetDraftForNewCustomer()
         clearCustomerData()
-        clearCartSilently()
         state.form.phone = phone
         state.activeTab = 'customer-data'
       }
@@ -994,14 +1016,14 @@ export async function searchCustomer() {
 
   const customer = state.customers.find((c: any) => c.phone === phone || c.phone2 === phone)
   if (customer) {
-    if (!state.currentCustomer || state.currentCustomer.id !== customer.id) clearCartSilently()
-    loadCustomerData(customer)
-    showToast(tx('تم العثور على بيانات العميل — راجع البيانات ثم اختر القائمة', 'Customer found — review the details then pick the menu'), 'success')
-    state.activeTab = 'customer-data'
+    loadCustomerData(customer)   // يصفّر المسوّدة بنفسه حين يتغيّر العميل
+    showToast(tx('تم العثور على بيانات العميل', 'Customer found'), 'success')
+    const adr = customer?.addresses || []
+    goToMenu(adr.length, adr[state.selectedAddressIndex]?.addressText || adr[state.selectedAddressIndex]?.area || '')
   } else {
     showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
+    resetDraftForNewCustomer()
     clearCustomerData()
-    clearCartSilently()
     state.form.phone = phone
     state.activeTab = 'customer-data'
   }
@@ -1088,7 +1110,7 @@ async function saveCustomerLive() {
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
   try {
-    await contactSaveCustomer({
+    const saved = await contactSaveCustomer({
       name, phone: phoneE164(phone, companyDial()),
       regionName: region ? region.name : null,
       sectionName: section ? section.name : null,
@@ -1097,6 +1119,24 @@ async function saveCustomerLive() {
       building: state.form.building || null, floor: state.form.floor || null, apartment: state.form.apartment || null,
     })
     showToast(tx('تم حفظ بيانات العميل بنجاح', 'Customer saved'), 'success')
+    // الحفظ كان ينتهي هنا: `currentCustomer` يبقى فارغاً فيرفض التأكيد لاحقاً بـ
+    // «يرجى إضافة بيانات العميل أولاً» رغم أن الوكيل حفظ العميل للتوّ — والتبويب
+    // يبقى على البيانات فيضغط «القائمة» بيده في كل مكالمة.
+    const addr = {
+      regionId: state.form.regionId, sectionId: state.form.sectionId,
+      area: region ? region.name : '', sectionName: section ? section.name : '',
+      addressText: state.form.addressText || '',
+      block: state.form.block || '', street: state.form.street || '',
+      building: state.form.building || '', floor: state.form.floor || '', apartment: state.form.apartment || '',
+    }
+    state.currentCustomer = {
+      id: (saved as any)?.id ?? state.currentCustomer?.id ?? null,
+      name, phone: phone,
+      addresses: isDelivery ? [addr] : [],
+    }
+    state.selectedAddressIndex = isDelivery ? 0 : -1
+    state.showCustomerInfo = true
+    goToMenu()
   } catch (err: any) {
     showToast(err?.response?.data?.message || tx('تعذّر حفظ العميل', 'Could not save the customer'), 'error')
   }
@@ -1168,12 +1208,7 @@ export function saveCustomer() {
   }
 
   loadCustomerData(customerData)
-
-  // انتقل لتبويب القائمة لبدء الطلب (نفس التأخير الأصلي)
-  setTimeout(() => {
-    state.activeTab = 'menu'
-    showAllCategories()
-  }, 500)
+  goToMenu()   // كان بتأخير نصف ثانية بلا سبب — الانتقال فوريّ
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
