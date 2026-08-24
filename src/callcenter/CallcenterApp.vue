@@ -291,7 +291,7 @@ onBeforeUnmount(() => {
           </select>
         </label>
         <label v-if="session.franchises.length > 1">
-          <span>{{ tx('الفرنشايز', 'Franchise') }}</span>
+          <span>{{ tx('الامتياز', 'Franchise') }}</span>
           <select :value="curFr?.id || ''" @change="pickFranchise">
             <option value="" disabled>{{ tx('اختر الفرع', 'Select branch') }}</option>
             <option v-for="f in session.franchises" :key="f.id" :value="f.id">{{ coName(f) }}</option>

@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { session, isAuthed, scopeConfirmed } from './api'
+import { session, isAuthed, scopeIncomplete } from './api'
 import Login from './views/Login.vue'
 import Agents from './views/admin/Agents.vue'
 import Companies from './views/admin/Companies.vue'
@@ -32,8 +32,14 @@ const router = createRouter({
 
 const isLoginRoute = (p: string) => p === '/login' || p === '/admin'
 
-/** وكيلٌ دخل ولم يؤكّد شركته/فرنشايزه بعد — مكانه شاشة الاختيار لا التطبيق. */
-const needsScope = () => isAuthed() && session.mode === 'agent' && !scopeConfirmed()
+/**
+ * وكيلٌ دخل ولم يؤكّد نطاقه بعد — مكانه شاشة الاختيار لا التطبيق.
+ *
+ * والنطاق ناقصٌ كذلك حين تكون للشركة امتيازات ولم يُختَر واحد: العمل على النطاق
+ * `0` يعني بلا فرعٍ ولا منيو ولا يوم عمل، فيقف كلُّ أوردرٍ صامتاً. يشمل هذا
+ * الجلسات القديمة التي أُكِّدت قبل أن يصير الاختيار إلزامياً.
+ */
+const needsScope = () => isAuthed() && scopeIncomplete()
 
 router.beforeEach((to) => {
   if (isLoginRoute(to.path)) {

@@ -830,23 +830,23 @@ function applyLiveAddress(addr: any) {
 /**
  * العميل جاهز ⇒ افتح المنيو من رأسه.
  *
- * الوكيل على الهاتف: بعد اختيار العميل أو حفظه لا يبقى في تبويب البيانات ليضغط
- * «القائمة» بيده — الخطوة التالية دائماً هي الأصناف. وعميلٌ بأكثر من عنوان يُقال
- * له أيُّها استُعمل، فلا يُرسَل الطلب لعنوانٍ لم ينتبه إليه.
+ * تُستدعى بعد **الحفظ** وحده: حينها يكون العنوان مؤكَّداً. أمّا عميلٌ وُجد بالبحث
+ * فيبقى على تبويب بياناته ليختار عنواناً آخر أو يضيف جديداً — القفزُ للأصناف
+ * حينها يُرسل الطلب لعنوان المرّة الماضية.
  */
-function goToMenu(addressCount = 0, usedAddress?: string) {
+function goToMenu() {
   state.activeTab = 'menu'
   showAllCategories()
-  if (addressCount > 1 && usedAddress) {
-    showToast(
-      tx(`العميل له ${addressCount} عناوين — المستعمَل: ${usedAddress}. غيّره من تبويب بيانات العميل.`,
-         `Customer has ${addressCount} addresses — using: ${usedAddress}. Change it from the customer tab.`),
-      'info',
-    )
-  }
 }
 
 function loadLiveCustomer(c: any) {
+  // عميلٌ آخر = مكالمةٌ أخرى (نفس قاعدة `loadCustomerData`): بحثٌ عن عميلٍ جديد
+  // كان يُبقي سلّة السابق ورقمَ منصّته ودفعه في هذا المسار وحده.
+  const prev = state.currentCustomer
+  const changed = !prev
+    || (c?.id != null && prev.id != null && String(prev.id) !== String(c.id))
+    || String(prev.phone || '') !== String(c?.phone || '')
+  if (changed) resetDraftForNewCustomer()
   state.currentCustomer = c
   state.form.name = c.name || ''
   state.form.phone = c.phone || ''
@@ -994,11 +994,20 @@ export async function searchCustomer() {
     try {
       const list = await contactCustomers(phone)
       if (list && list.length > 0) {
-        loadLiveCustomer(list[0])   // يصفّر المسوّدة بنفسه حين يتغيّر العميل
-        showToast(tx('تم العثور على بيانات العميل', 'Customer found'), 'success')
-        const adr = list[0]?.addresses || []
-        const used = adr[state.selectedAddressIndex]
-        goToMenu(adr.length, used?.address || used?.section || used?.region || '')
+        loadLiveCustomer(list[0])   // يصفّر المسوّدة عند تغيّر العميل
+        // **لا ننتقل للمنيو هنا**: العميل القائم قد يطلب لعنوانٍ آخر من عناوينه أو
+        // لعنوانٍ جديد تماماً — والقفز للأصناف يُرسل الطلب لعنوان المرّة الماضية.
+        // الانتقال يكون بعد «حفظ» حين يكون العنوان مؤكَّداً.
+        state.activeTab = 'customer-data'
+        const n = (list[0]?.addresses || []).length
+        showToast(
+          n > 1
+            ? tx(`تم العثور على العميل — له ${n} عناوين، اختر العنوان ثم احفظ`,
+                 `Customer found — has ${n} addresses; pick one then save`)
+            : tx('تم العثور على العميل — راجع العنوان أو أضف عنواناً جديداً ثم احفظ',
+                 'Customer found — check the address or add a new one, then save'),
+          'success',
+        )
       } else {
         showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
         // مسوّدةٌ نظيفة تماماً: `clearCartSilently` وحدها كانت تُبقي رقم المنصّة
@@ -1016,10 +1025,17 @@ export async function searchCustomer() {
 
   const customer = state.customers.find((c: any) => c.phone === phone || c.phone2 === phone)
   if (customer) {
-    loadCustomerData(customer)   // يصفّر المسوّدة بنفسه حين يتغيّر العميل
-    showToast(tx('تم العثور على بيانات العميل', 'Customer found'), 'success')
-    const adr = customer?.addresses || []
-    goToMenu(adr.length, adr[state.selectedAddressIndex]?.addressText || adr[state.selectedAddressIndex]?.area || '')
+    loadCustomerData(customer)   // يصفّر المسوّدة عند تغيّر العميل
+    state.activeTab = 'customer-data'
+    const n = (customer?.addresses || []).length
+    showToast(
+      n > 1
+        ? tx(`تم العثور على العميل — له ${n} عناوين، اختر العنوان ثم احفظ`,
+             `Customer found — has ${n} addresses; pick one then save`)
+        : tx('تم العثور على العميل — راجع العنوان أو أضف عنواناً جديداً ثم احفظ',
+             'Customer found — check the address or add a new one, then save'),
+      'success',
+    )
   } else {
     showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
     resetDraftForNewCustomer()
@@ -1122,21 +1138,42 @@ async function saveCustomerLive() {
     // الحفظ كان ينتهي هنا: `currentCustomer` يبقى فارغاً فيرفض التأكيد لاحقاً بـ
     // «يرجى إضافة بيانات العميل أولاً» رغم أن الوكيل حفظ العميل للتوّ — والتبويب
     // يبقى على البيانات فيضغط «القائمة» بيده في كل مكالمة.
-    const addr = {
-      regionId: state.form.regionId, sectionId: state.form.sectionId,
-      area: region ? region.name : '', sectionName: section ? section.name : '',
-      addressText: state.form.addressText || '',
-      block: state.form.block || '', street: state.form.street || '',
-      building: state.form.building || '', floor: state.form.floor || '', apartment: state.form.apartment || '',
+    // إعادة الجلب بعد الحفظ: الخادم إمّا حدّث عنواناً قائماً أو أنشأ جديداً، وبناءُ
+    // العميل من النموذج وحده يجعل عناوينه **عنواناً واحداً** فتختفي بقيّة عناوينه
+    // من الشاشة. ونختار العنوان الذي حُفظ للتوّ لا الافتراضيّ.
+    let placed = false
+    try {
+      const list = await contactCustomers(phone)
+      if (list && list.length) {
+        loadLiveCustomer(list[0])
+        const adr = list[0].addresses || []
+        const i = adr.findIndex((a: any) =>
+          String(a.region || '') === String(region?.name || '') &&
+          String(a.section || '') === String(section?.name || '') &&
+          String(a.block || '') === String(state.form.block || '') &&
+          String(a.street || '') === String(state.form.street || '') &&
+          String(a.building || '') === String(state.form.building || ''))
+        if (i >= 0) { state.selectedAddressIndex = i; applyLiveAddress(adr[i]) }
+        placed = true
+      }
+    } catch { /* تعذّرت إعادة الجلب — نُكمل بما بنيناه من النموذج */ }
+
+    if (!placed) {
+      state.currentCustomer = {
+        id: (saved as any)?.id ?? state.currentCustomer?.id ?? null,
+        name, phone,
+        addresses: isDelivery ? [{
+          regionId: state.form.regionId, sectionId: state.form.sectionId,
+          area: region ? region.name : '', section: section ? section.name : '',
+          address: state.form.addressText || '',
+          block: state.form.block || '', street: state.form.street || '',
+          building: state.form.building || '', floor: state.form.floor || '', apartment: state.form.apartment || '',
+        }] : [],
+      }
+      state.selectedAddressIndex = isDelivery ? 0 : -1
     }
-    state.currentCustomer = {
-      id: (saved as any)?.id ?? state.currentCustomer?.id ?? null,
-      name, phone: phone,
-      addresses: isDelivery ? [addr] : [],
-    }
-    state.selectedAddressIndex = isDelivery ? 0 : -1
     state.showCustomerInfo = true
-    goToMenu()
+    goToMenu()   // «حفظ» = العنوان مؤكَّد ⇒ إلى الأصناف
   } catch (err: any) {
     showToast(err?.response?.data?.message || tx('تعذّر حفظ العميل', 'Could not save the customer'), 'error')
   }
@@ -1826,13 +1863,17 @@ export function resetDeliveryFeeOverride() {
 export function openPaymentModal() { state.paymentModalOpen = true }
 export function closePaymentModal() { state.paymentModalOpen = false }
 export function setPaymentChannel(id: string) {
-  if (state.paymentChannel !== id) state.paymentMethod = null   // تغيير المصدر يصفّر الطريقة
-  state.paymentChannel = id
+  // كان تغيير المصدر يصفّر الطريقة لأن الطرق كانت تابعةً له (`channel.methods`).
+  // الطرق من الشركة الآن ولا تتبعه — فالتصفير يمحو اختياراً صحيحاً بلا سبب.
+  // والضغط على المصدر المختار يلغيه: المصدر اختياريّ فلا بدّ من طريقٍ للتراجع.
+  state.paymentChannel = state.paymentChannel === id ? null : id
 }
 export function setPaymentMethod(id: any) { state.paymentMethod = id }
 export function resetPaymentSelection() { state.paymentChannel = null; state.paymentMethod = null }
 export function confirmPaymentSelection() {
-  if (!state.paymentChannel || !state.paymentMethod) { showToast(tx('اختر المصدر وطريقة الدفع', 'Choose the source and the payment method'), 'warning'); return }
+  // المصدر (الفون/طلبات/كاري…) اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له.
+  // الطريقة وحدها إلزامية — بها يُحسَب وضع الدفع ويُسجَّل التقرير.
+  if (!state.paymentMethod) { showToast(tx('اختر طريقة الدفع', 'Choose the payment method'), 'warning'); return }
   state.paymentModalOpen = false
 }
 
@@ -1943,7 +1984,6 @@ export async function reorderItems(orderId: number) {
 export function reviewOrder() {
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   if (!state.currentCustomer) { showToast(tx('يرجى إضافة بيانات العميل أولاً', 'Add the customer details first'), 'warning'); return }
-  if (!state.paymentChannel) { showToast(tx('يرجى تحديد مصدر الطلب أولاً (الفون / طلبات / كاري / ...)', 'Choose the order source first (Phone / Talabat / Carriage / …)'), 'warning'); return }
   if (!state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
 
   const orderBranchId = getResolvedOrderBranchId()
@@ -2259,9 +2299,10 @@ export function getPaymentLabel(channelId: string, methodId: any): string {
   const ch = PAYMENT_CHANNELS.find((c: any) => c.id === channelId)
   // الطريقة من طرق الشركة (وإلا من قائمة `data.ts`) — والاسم يتبع لغة الواجهة
   const m = companyPaymentMethods().find((x: any) => String(x.id) === String(methodId))
-  const chLabel = ch ? nameOf(ch) : channelId
   const mLabel = m ? nameOf(m) : String(methodId ?? '')
-  return `${chLabel}  •  ${mLabel}`
+  // بلا مصدر: الطريقة وحدها — لا فاصلٌ معلّقٌ بلا طرف
+  if (!channelId) return mLabel
+  return `${ch ? nameOf(ch) : channelId}  •  ${mLabel}`
 }
 
 // حالة الطلب التالية في المسار (نقلاً عن statusFlow في viewOrderDetail)

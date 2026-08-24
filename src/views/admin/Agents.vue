@@ -364,9 +364,9 @@ async function save() {
                   <!-- نطاق الفرنشايز: لا يظهر لشركةٍ بلا فرنشايزات — لا معنى لقيدٍ على لا شيء -->
                   <template v-if="coFranchises(c.id).length">
                     <div class="ag-row" style="margin-top:14px;">
-                      <label style="margin:0;">{{ t('نطاق الفرنشايز', 'Franchise scope') }}</label>
+                      <label style="margin:0;">{{ t('نطاق الامتياز', 'Franchise scope') }}</label>
                       <span class="muted" style="font-size:12px;">
-                        {{ scopeOf(c.id).length ? t('مقيَّد', 'Restricted') : t('كل الفرنشايزات', 'All franchises') }}
+                        {{ scopeOf(c.id).length ? t('مقيَّد', 'Restricted') : t('كل الامتيازات', 'All franchises') }}
                       </span>
                       <button v-if="scopeOf(c.id).length" type="button" class="btn ghost sm" style="margin-inline-start:auto;" @click="clearScope(c.id)">
                         {{ t('إلغاء التقييد', 'Clear') }}
@@ -378,7 +378,7 @@ async function save() {
                       </div>
                     </div>
                     <p class="muted" style="font-size:12px; margin:8px 0 0;">
-                      {{ t('اترك الاختيار فارغاً ليعمل على كل فرنشايزات الشركة.', 'Leave empty to let the agent work on all franchises of the company.') }}
+                      {{ t('اترك الاختيار فارغاً ليعمل على كل امتيازات الشركة.', 'Leave empty to let the agent work on all franchises of the company.') }}
                     </p>
                   </template>
                 </div>

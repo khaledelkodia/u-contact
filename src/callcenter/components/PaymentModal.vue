@@ -10,7 +10,8 @@ const channel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.
 // تحصّل بـ«مدى» أو «STC Pay» لا تجدهما ويُسجَّل طلبها بطريقةٍ لا وجود لها عندها.
 // المصدر (الفون/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
 const methods = computed<any[]>(() => companyPaymentMethods())
-const canConfirm = computed(() => !!(state.paymentChannel && state.paymentMethod))
+// المصدر اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له. الطريقة وحدها إلزامية.
+const canConfirm = computed(() => !!state.paymentMethod)
 const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paymentChannel, state.paymentMethod) : '')
 </script>
 
@@ -24,7 +25,10 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
       <div class="modal-body" style="padding:18px 22px;">
         <!-- 1) المصدر -->
         <div class="pm-step">
-          <div class="pm-step-label"><span class="pm-step-num">1</span> {{ tx('اختر المصدر', 'Choose the source') }}</div>
+          <div class="pm-step-label">
+            <span class="pm-step-num">1</span> {{ tx('اختر المصدر', 'Choose the source') }}
+            <span class="pm-opt">{{ tx('اختياري', 'Optional') }}</span>
+          </div>
           <div class="pm-channels" id="pm-channels">
             <button v-for="ch in PAYMENT_CHANNELS" :key="ch.id" type="button" class="pm-channel" :class="{ active: state.paymentChannel === ch.id }" @click="setPaymentChannel(ch.id)">
               <span v-if="ch.logo" class="pm-channel-logo" v-html="ch.logo"></span>
@@ -35,7 +39,10 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
         </div>
         <!-- 2) طريقة الدفع -->
         <div class="pm-step pm-step-methods">
-          <div class="pm-step-label"><span class="pm-step-num">2</span> {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}</div>
+          <div class="pm-step-label">
+            <span class="pm-step-num">2</span> {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}
+            <span class="pm-req">{{ tx('مطلوب', 'Required') }}</span>
+          </div>
           <div class="pm-methods">
             <p v-if="!methods.length" class="pm-empty">
               {{ tx('لا توجد طرق دفع مفعّلة لهذه الشركة — عرّفها من داشبورد U‑Serve.', 'No active payment methods for this company — define them in the U-Serve dashboard.') }}
@@ -61,6 +68,16 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
 </template>
 
 <style scoped>
+/* أيُّ الخطوتين إلزاميّ — يُقرأ قبل الضغط لا بعد رفضٍ مفاجئ */
+.pm-req, .pm-opt {
+  margin-inline-start: auto;
+  padding: 2px 8px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 800;
+}
+.pm-req { background: var(--danger-light, #fee2e2); color: var(--danger, #dc2626); }
+.pm-opt { background: var(--bg, #f1f5f9); color: var(--text-muted, #94a3b8); }
+.pm-step-label { display: flex; align-items: center; gap: 8px; }
+
 .pm-empty {
   margin: 0; padding: 12px 14px;
   border: 1px dashed var(--border, #e5e7eb); border-radius: 10px;

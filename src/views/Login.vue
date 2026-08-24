@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { adminLogin, agentLogin, session, setCompany, setFranchise, loadFranchises,
-         isAuthed, logout, scopeConfirmed, confirmScope } from '../api'
+         isAuthed, logout, scopeIncomplete, confirmScope } from '../api'
 import { lang, setLang, t, isAr } from '../i18n'
 import Icon from '../components/Icon.vue'
 
@@ -21,15 +21,34 @@ const step = ref<'login' | 'scope'>('login')
 const coName = (c: any) => (isAr() ? (c?.nameAr || c?.name) : (c?.name || c?.nameAr))
 
 const pickedCompany = ref<number | null>(null)
-/** الوكيل مقيَّد بفرنشايزات بعينها في الشركة المختارة؟ (فارغ = بلا قيد) */
-const restricted = computed(() => {
-  const c = session.companies.find((x: any) => x.id === pickedCompany.value)
-  return !!(c?.franchiseIds && c.franchiseIds.length)
-})
 const pickedFranchise = ref<number | null>(null)
+
+/**
+ * الامتياز **إلزاميّ** ما دامت للشركة امتيازات.
+ *
+ * «كل الامتيازات» كان خياراً مطروحاً: وكيلٌ يدخل بلا امتياز يعمل على النطاق `0` —
+ * لا يومَ عملٍ له ولا فرعَ ولا قائمةَ أصناف. فأيّ أوردرٍ يضربه يقف في الكلاود
+ * صامتاً، وأيّ منيو يُعرض له لا يخصّ فرعاً بعينه. الخيار أُسقط، والدخول ممنوع
+ * حتى يُختار واحد. (شركةٌ بلا امتيازات أصلاً تدخل كما كانت — لا شيء ليُختار.)
+ */
+const needsFranchise = computed(() => session.franchises.length > 0)
+const scopeReady = computed(() => !!pickedCompany.value && (!needsFranchise.value || pickedFranchise.value != null))
 const frBusy = ref(false)
 
-/** تغيير الشركة يُعيد تحميل فرنشايزاتها — القائمة الثانية تتفلتر بها دائماً. */
+/**
+ * أوّل امتيازٍ متاح يُختار من نفسه.
+ *
+ * القائمة كانت تُترك فارغة حين يكون للشركة أكثر من امتياز: ووكيلٌ مقيَّد لا يُعرض
+ * له «كل الفروع» أصلاً، فيرى قائمةً بلا اختيار ويضغط «دخول» فيعمل بلا نطاق —
+ * على يومٍ ليس يوم فرعه. اختيارٌ افتراضيٌّ خيرٌ من فراغ، ويبقى قابلاً للتغيير.
+ */
+function autoPickFranchise() {
+  if (pickedFranchise.value != null) return
+  const first = session.franchises[0]
+  if (first) pickedFranchise.value = first.id
+}
+
+/** تغيير الشركة يُعيد تحميل امتيازاتها — القائمة الثانية تتفلتر بها دائماً. */
 async function onCompanyChange() {
   pickedFranchise.value = null
   if (!pickedCompany.value) { session.franchises = []; return }
@@ -37,12 +56,13 @@ async function onCompanyChange() {
   try {
     setCompany(pickedCompany.value)
     await loadFranchises()
-    pickedFranchise.value = session.franchiseId   // يُختار تلقائياً لو فرنشايز واحد
+    pickedFranchise.value = session.franchiseId   // يُختار تلقائياً لو امتيازٌ واحد
+    autoPickFranchise()
   } finally { frBusy.value = false }
 }
 
 function enterApp() {
-  if (!pickedCompany.value) return
+  if (!scopeReady.value) return
   setFranchise(pickedFranchise.value)
   confirmScope()                   // من هنا وحدها يصير النطاق «مؤكَّداً»
   router.push('/app/callcenter')   // واجهة الوكيل الموحّدة (الشِل الجديد)
@@ -61,13 +81,14 @@ function backToLogin() {
 // ريفريش على شاشة النطاق: نعود إليها بحالتها لا إلى نموذج الدخول (الحارس صار
 // يسمح بالبقاء هنا ما دام النطاق غير مؤكَّد).
 onMounted(async () => {
-  if (isAdmin.value || !isAuthed() || session.mode !== 'agent' || scopeConfirmed()) return
+  if (isAdmin.value || !isAuthed() || !scopeIncomplete()) return
   pickedCompany.value = session.companyId
   if (session.companyId && !session.franchises.length) {
     frBusy.value = true
     try { await loadFranchises() } finally { frBusy.value = false }
   }
   pickedFranchise.value = session.franchiseId
+  autoPickFranchise()
   // لا شيء ليُختار (شركة واحدة وفرنشايز واحد أو لا شيء) ⇒ لا تُعرض شاشةٌ بخيارٍ
   // واحد: أكّد وادخل. وهذا ما يُبقي أصحاب الشركة الواحدة بلا خطوةٍ جديدة.
   if (session.companyId && session.companies.length <= 1 && session.franchises.length <= 1) {
@@ -141,7 +162,7 @@ async function submit() {
         <template v-else>
           <h1 style="font-size:24px;">{{ t('اختر الشركة', 'Choose a company') }}</h1>
           <p class="muted" style="margin:7px 0 22px; font-size:14px;">
-            {{ t('مرحباً', 'Welcome') }} {{ session.name }} — {{ t('اختر الشركة والفرنشايز اللي هتشتغل عليهم', 'pick the company and franchise you’ll work on') }}
+            {{ t('مرحباً', 'Welcome') }} {{ session.name }} — {{ t('اختر الشركة والامتياز اللي هتشتغل عليهم', 'pick the company and franchise you’ll work on') }}
           </p>
 
           <div style="display:flex; flex-direction:column; gap:15px;">
@@ -156,17 +177,20 @@ async function submit() {
 
             <!-- الفرنشايز يتبع الشركة: مقفول قبل اختيارها، ومخفيّ لو ما لهاش فرنشايزات -->
             <div class="field" v-if="pickedCompany && (frBusy || session.franchises.length)">
-              <label>{{ t('الفرنشايز', 'Franchise') }}</label>
+              <label>{{ t('الامتياز', 'Franchise') }}</label>
               <select v-model.number="pickedFranchise" :disabled="frBusy">
-                <!-- «كل الفروع» ليست خياراً لوكيلٍ مقيَّد بفرنشايزات بعينها: اختيارها
-                     يعني العمل خارج نطاقه والخادم يرفضه — فلا تُعرَض أصلاً. -->
-                <option v-if="!restricted" :value="null">{{ t('كل الفروع', 'All branches') }}</option>
+                <!-- «كل الامتيازات» ليست خياراً لأحد: الوكيل بلا امتياز يعمل على
+                     نطاقٍ بلا يومِ عملٍ ولا فرعٍ ولا منيو — فيقف أوردره صامتاً. -->
+                <option :value="null" disabled>{{ t('اختر الامتياز…', 'Select a franchise…') }}</option>
                 <option v-for="f in session.franchises" :key="f.id" :value="f.id">{{ coName(f) }}</option>
               </select>
-              <span v-if="frBusy" class="muted" style="font-size:12px;">{{ t('جارٍ تحميل الفرنشايزات…', 'Loading franchises…') }}</span>
+              <span v-if="needsFranchise && pickedFranchise == null" class="muted" style="font-size:12px;">
+                {{ t('لازم تختار امتيازاً — منه يُعرَف الفرع والمنيو ويوم العمل.', 'Pick a franchise — it determines the branch, the menu and the business day.') }}
+              </span>
+              <span v-if="frBusy" class="muted" style="font-size:12px;">{{ t('جارٍ تحميل الامتيازات…', 'Loading franchises…') }}</span>
             </div>
 
-            <button class="btn" :disabled="!pickedCompany || frBusy" style="margin-top:4px; padding:12px;" @click="enterApp()">
+            <button class="btn" :disabled="!scopeReady || frBusy" style="margin-top:4px; padding:12px;" @click="enterApp()">
               {{ t('دخول', 'Continue') }}
             </button>
             <!-- مخرجٌ من هذه الشاشة: بدونه كان الوكيل حبيسها — لا دخولَ بحسابٍ آخر

@@ -112,6 +112,13 @@ export const isAuthed = () => !!session.token
 // لم يؤكّدهما — يعمل على «كل الفروع» وهو كان في طريقه لاختيار فرعٍ بعينه. تُرفَع
 // هذه الراية عند ضغط «دخول» وحده (أو حين لا يكون هناك ما يُختار أصلاً).
 export const scopeConfirmed = () => localStorage.getItem('uc_scope') === '1'
+/**
+ * النطاق ناقص: لم يُؤكَّد بعد، **أو** للشركة امتيازات ولم يُختَر واحد.
+ * مصدرٌ واحد يقرؤه الحارس وشاشةُ الاختيار معاً فلا يفترقان.
+ */
+export const scopeIncomplete = () =>
+  session.mode === 'agent' &&
+  (!scopeConfirmed() || (session.franchises.length > 0 && !session.franchiseId))
 export const confirmScope = () => localStorage.setItem('uc_scope', '1')
 export const resetScope = () => localStorage.removeItem('uc_scope')
 export const currentCompany = () => session.companies.find((c) => c.id === session.companyId) || null

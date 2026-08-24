@@ -59,9 +59,10 @@ watch(() => session.mode, (m) => { if (m === 'admin') ensureAdminCounts() }, { i
           <option v-for="c in session.companies" :key="c.id" :value="c.id">{{ coName(c) }}</option>
         </select>
         <template v-if="session.franchises.length > 1">
-          <div class="group">{{ t('الفرنشايز', 'Franchise') }}</div>
+          <div class="group">{{ t('الامتياز', 'Franchise') }}</div>
           <select class="input" style="margin-bottom:12px;" :value="curFr?.id || ''" @change="pickFranchise">
-            <option value="">{{ t('كل الفرنشايز', 'All franchises') }}</option>
+            <!-- لا «كل الامتيازات»: العمل بلا امتياز يعني نطاقاً بلا فرعٍ ولا منيو -->
+            <option value="" disabled>{{ t('اختر الامتياز…', 'Select a franchise…') }}</option>
             <option v-for="f in session.franchises" :key="f.id" :value="f.id">{{ coName(f) }}</option>
           </select>
         </template>

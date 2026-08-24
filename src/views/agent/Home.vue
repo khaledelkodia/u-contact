@@ -37,14 +37,14 @@ function chooseFr(id: number | null) { setFranchise(id) }
 
     <!-- اختيار الفرنشايز (لو الشركة فيها أكتر من فرنشايز) -->
     <template v-else-if="needFranchise">
-      <div class="page-head"><div><div class="t">{{ t('اختر الفرنشايز', 'Choose a franchise') }}</div><div class="d">{{ coName(cur) }} — {{ t('اختر الفرنشايز اللي هتشتغل عليه', 'pick the franchise you’ll work on') }}</div></div></div>
+      <div class="page-head"><div><div class="t">{{ t('اختر الامتياز', 'Choose a franchise') }}</div><div class="d">{{ coName(cur) }} — {{ t('اختر الامتياز اللي هتشتغل عليه', 'pick the franchise you’ll work on') }}</div></div></div>
       <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px;">
         <button v-for="f in session.franchises" :key="f.id" class="card pad" style="text-align:start; cursor:pointer; display:flex; align-items:center; gap:12px;" @click="chooseFr(f.id)">
           <div class="logo" style="width:40px;height:40px;border-radius:11px;background:var(--primary-soft);color:var(--primary-ink);display:grid;place-items:center;"><Icon name="building" /></div>
           <div><div class="t-strong">{{ coName(f) }}</div></div>
         </button>
         <button class="card pad" style="text-align:start; cursor:pointer;" @click="chooseFr(null)">
-          <div class="muted">{{ t('كل الفرنشايز', 'All franchises') }}</div>
+          <div class="muted">{{ t('كل الامتيازات', 'All franchises') }}</div>
         </button>
       </div>
     </template>

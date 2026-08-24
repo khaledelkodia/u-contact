@@ -41,7 +41,8 @@ function itemDetails(item: any): string {
 // زر الدفع — الاختيار الحالي (نقلاً عن updatePaymentButton)
 const selectedChannel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
 const selectedMethod = computed(() => PAYMENT_METHODS.find((m: any) => m.id === state.paymentMethod) || null)
-const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentMethod))
+// المصدر اختياريّ ⇒ الطريقة وحدها تُعلن أن الدفع «مُختار»
+const paymentSelected = computed(() => !!state.paymentMethod)
 
 // ── تفاصيل الطلب (رقم المنصّة · ملاحظة · حجز) ────────────────────────────────
 // الثلاثة اختيارية ونادرة، وكانت تشغل ثلث اللوحة **دائماً**: عنوانان أحمران وزرٌّ
