@@ -196,6 +196,11 @@ export const contactSaveCustomer = (body: { name: string; phone: string; regionN
   api.post('/contact/customers', body).then((r) => r.data as { id: number })
 // مناطق التوصيل → الفرع المشتق + الرسوم
 export const contactRegions = () => api.get('/contact/lookup/regions').then((r) => r.data as ContactRegion[])
+// طرق الدفع وأنواع الطلب كما عرّفتها الشركة — كانت مكتوبةً في كود الواجهة
+export const contactPaymentMethods = () =>
+  api.get('/contact/lookup/payment-methods').then((r) => r.data as ContactPaymentMethod[])
+export const contactOrderTypes = () =>
+  api.get('/contact/lookup/order-types').then((r) => r.data as ContactOrderType[])
 // إنشاء أوردر (ينشئ/يربط العميل تلقائياً بالتليفون)
 export const contactCreateOrder = (body: ContactOrderInput) => api.post('/contact/orders', body).then((r) => r.data)
 // قائمة الأوردرات + يوم العمل الحالي
@@ -259,6 +264,10 @@ export interface ContactSection { id: number; name: string; nameEn: string | nul
 // «المنطقة» في هذه الواجهة = **المدينة** (Area). `areaLinked` = المدينة نفسها مربوطة
 // بفرع؛ لو false فالفرع يأتي من الحيّ وحده ويصير اختياره إلزامياً.
 export interface ContactRegion { id: number; name: string; nameEn: string | null; areaLinked: boolean; branchId: number | null; fee: number; isFree: boolean; sections: ContactSection[] }
+/** طريقة دفعٍ للشركة. `isCash` تحدّد `paymentMode` المُرسَل مع الطلب. */
+export interface ContactPaymentMethod { id: number; nameAr: string; nameEn: string; isCash: boolean; isCredit: boolean; sortOrder: number }
+/** نوع طلبٍ للشركة. `code` (1..8) هو ما يفهمه الفرع؛ 4/5 يحتاجان عنواناً. */
+export interface ContactOrderType { id: number; code: number; nameAr: string; nameEn: string }
 export interface ContactOrderModifierInput { id?: number | null; name: string; nameEn?: string | null; price?: number; groupId?: number | null }
 export interface ContactOrderItemInput {
   productId?: number | null; productName: string; productNameEn?: string | null

@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, selectOrderType, companyOrderTypes, isDeliveryCode, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
-import { t, tx } from '../lang'
+import { t, tx, nameOf } from '../lang'
 import { icon } from '../icons'
 
 // ── كومبو المنطقة (searchable-select) ──
 const comboOpen = ref(false)
 const comboSearch = ref('')
+// أنواع الطلب من الشركة (فارغة = ارتدادٌ لبطاقتَي توصيل/استلام)
+const orderTypes = computed<any[]>(() => companyOrderTypes())
 const comboRoot = ref<HTMLElement | null>(null)
 
 interface AreaOpt { name: string; branchId: number; branchName: string }
@@ -82,7 +84,21 @@ function addressLine(addr: any): string {
 
 <template>
   <div id="panel-customer-data" class="tab-panel" :class="{ active: state.activeTab === 'customer-data' }">
-    <div class="order-type-selector">
+    <!-- ── أنواع الطلب كما عرّفتها الشركة ──────────────────────────────────────
+         كان النوع مثبَّتاً على «توصيل=5 / استلام=6»: شركةٌ تعمل على «طلبات» (4) أو
+         أوقفت «الاستلام» تُسجَّل طلباتها بنوعٍ لا تستعمله. واختيار النوع يضبط شكل
+         النموذج معه (٤ و٥ يحتاجان عنواناً، وما عداهما لا). -->
+    <div v-if="orderTypes.length" class="ot-bar">
+      <button v-for="ot in orderTypes" :key="ot.id" type="button" class="ot-chip"
+        :class="{ on: state.selectedOrderType && state.selectedOrderType.id === ot.id }"
+        @click="selectOrderType(ot)">
+        <span class="ot-chip-name">{{ nameOf(ot) }}</span>
+        <span class="ot-chip-kind">{{ isDeliveryCode(ot.code) ? tx('يحتاج عنواناً', 'Needs address') : tx('بلا عنوان', 'No address') }}</span>
+      </button>
+    </div>
+
+    <!-- بلا أنواعٍ من الشركة (لم تصل أو لم تُعرَّف) ⇒ البطاقتان كما كانتا -->
+    <div v-else class="order-type-selector">
       <button class="order-type-card btn-type-delivery" :class="{ active: state.orderType === 'delivery' }" @click="setOrderType('delivery')">
         <span class="order-type-icon">
           <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -258,3 +274,26 @@ function addressLine(addr: any): string {
     </form>
   </div>
 </template>
+
+<style scoped>
+/* شريط أنواع الطلب — بديلُ البطاقتين حين تُعرِّف الشركة أنواعها */
+.ot-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.ot-chip {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 10px 16px; min-width: 130px;
+  border: 1.5px solid var(--border, #e5e7eb); border-radius: 12px;
+  background: var(--white, #fff); color: var(--text-primary, #0f172a);
+  font-family: inherit; cursor: pointer;
+  transition: border-color .14s, background .14s, color .14s;
+}
+.ot-chip:hover { border-color: var(--primary, #1a56db); }
+.ot-chip.on {
+  border-color: var(--primary, #1a56db);
+  background: var(--primary-lighter, #eff6ff);
+  color: var(--primary-dark, #1242b0);
+}
+.ot-chip-name { font-size: 14px; font-weight: 800; }
+.ot-chip-kind { font-size: 11px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.ot-chip.on .ot-chip-kind { color: inherit; opacity: .8; }
+:global(body.dark-mode) .ot-chip { background: var(--bg-card, #1e293b); }
+</style>

@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { tx } from '../lang'
-import { state, setPaymentChannel, setPaymentMethod, resetPaymentSelection, confirmPaymentSelection, closePaymentModal, getPaymentLabel } from '../store'
-import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
+import { tx, nameOf } from '../lang'
+import { state, setPaymentChannel, setPaymentMethod, resetPaymentSelection, confirmPaymentSelection, closePaymentModal, getPaymentLabel, companyPaymentMethods } from '../store'
+import { PAYMENT_CHANNELS } from '../data'
 import { icon } from '../icons'
 
 const channel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
-const methods = computed<any[]>(() => (channel.value?.methods || []).map((mid: string) => PAYMENT_METHODS.find((x: any) => x.id === mid)).filter(Boolean) as any[])
+// طرق الدفع **من الشركة**: كانت ثلاثاً مكتوبةً في `data.ts` (كاش/كي‑نت/لينك)، فشركةٌ
+// تحصّل بـ«مدى» أو «STC Pay» لا تجدهما ويُسجَّل طلبها بطريقةٍ لا وجود لها عندها.
+// المصدر (الفون/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
+const methods = computed<any[]>(() => companyPaymentMethods())
 const canConfirm = computed(() => !!(state.paymentChannel && state.paymentMethod))
 const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paymentChannel, state.paymentMethod) : '')
 </script>
@@ -34,9 +37,9 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
         <div class="pm-step pm-step-methods" v-show="channel">
           <div class="pm-step-label"><span class="pm-step-num">2</span> {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}</div>
           <div class="pm-methods">
-            <button v-for="m in methods" :key="m.id" type="button" class="pm-method" :class="{ active: state.paymentMethod === m.id }" @click="setPaymentMethod(m.id)">
-              <span class="pm-method-icon"><i :class="m.icon" :style="{ color: state.paymentMethod === m.id ? '#fff' : (m.color || '#047857') }"></i></span>
-              <span class="pm-method-name">{{ m.name }}</span>
+            <button v-for="m in methods" :key="m.id" type="button" class="pm-method" :class="{ active: String(state.paymentMethod) === String(m.id) }" @click="setPaymentMethod(m.id)">
+              <span class="pm-method-icon"><i :class="m.icon || (m.isCash ? 'fa-solid fa-money-bill-wave' : 'fa-solid fa-credit-card')" :style="{ color: String(state.paymentMethod) === String(m.id) ? '#fff' : (m.color || (m.isCash ? '#16a34a' : '#2563eb')) }"></i></span>
+              <span class="pm-method-name">{{ nameOf(m) }}</span>
             </button>
           </div>
         </div>

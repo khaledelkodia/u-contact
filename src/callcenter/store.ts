@@ -9,6 +9,7 @@ import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBusinessDay, contactOpenDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
+  contactPaymentMethods, contactOrderTypes,
   contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -50,6 +51,12 @@ export const state = reactive<any>({
   isReservation: false,        // تفعيل الحجز على الطلب الحالي
   reservationTime: '',         // datetime-local (YYYY-MM-DDTHH:mm)
   prepLeadMinutes: '',         // زمن التحضير قبل الموعد (فارغ = افتراضي الفرع)
+
+  // طرق الدفع وأنواع الطلب **من الشركة** (فارغة = ارتدادٌ لقوائم data.ts)
+  companyPaymentMethods: [],
+  companyOrderTypes: [],
+  // نوع الطلب المختار من أنواع الشركة (كائن) — `orderType` أدناه يبقى للشكل البنيوي
+  selectedOrderType: null,
 
   // مجموعات البيانات (من data.ts)
   customers: [],
@@ -155,9 +162,16 @@ export async function loadLiveData() {
   // لا نشغّلها إلا لوكيل معه شركة مختارة — غير كده نفضل على المووك
   if (!(session.mode === 'agent' && session.companyId)) return
   try {
-    const [branches, regions, products] = await Promise.all([
+    // طرق الدفع وأنواع الطلب من الشركة — فشلُها لا يُسقط الشاشة: نرتدّ لقوائم data.ts
+    const [branches, regions, products, payMethods, orderTypes] = await Promise.all([
       contactBranches(), contactRegions(), contactProducts(),
+      contactPaymentMethods().catch(() => []),
+      contactOrderTypes().catch(() => []),
     ])
+    state.companyPaymentMethods = Array.isArray(payMethods) ? payMethods : []
+    state.companyOrderTypes = Array.isArray(orderTypes) ? orderTypes : []
+    // نوعٌ مختار افتراضاً: أوّل نوعٍ يوافق الشكل البنيويّ الحالي (توصيل/استلام)
+    syncSelectedOrderType()
 
     // الفروع: {id,name} — نضيف areas:[] حتى لا تنكسر مساعدات branchByArea.
     // ونحمل معها **جاهزيّة الفرع** كما حسبها الخادم (متصل/يوم عمله/هل يستقبل الآن):
@@ -876,6 +890,26 @@ export function resetOrderDraft() {
  * فيضرب الطلب على حساب من قبله. والتصفير لا يكون صامتاً حين يكون هناك ما يُفقَد —
  * فبند القائمة نفسه هو طريق العودة إلى سلّةٍ قائمة بعد نظرةٍ على شاشة الأوردرات.
  */
+/**
+ * تصفير مسوّدة الطلب **مع إبقاء العميل** — لاختيار عميلٍ جديد وسط الشاشة.
+ *
+ * اختيار عميلٍ آخر يعني مكالمةً أخرى: سلّة السابق وملاحظاته ورقم منصّته ودفعُه
+ * وحجزُه لا تخصّ هذا العميل، وتركُها يعني ضربَ طلبٍ باسمه بأصناف غيره. لا نمسّ
+ * نموذج العميل هنا لأنه على وشك أن يُملأ ببياناته هو.
+ */
+export function resetDraftForNewCustomer() {
+  clearCartSilently()          // السلّة + ملاحظات الطلب
+  resetPaymentSelection()      // المصدر وطريقة الدفع
+  state.deliveryFeeOverride = null
+  state.orderTag = ''          // رقم المنصّة الخارجية — صفةُ طلبٍ لا صفةُ عميل
+  state.isReservation = false
+  state.reservationTime = ''
+  state.prepLeadMinutes = ''
+  state.pendingOrderEvents = []
+  state.editingOrderId = null
+  showAllCategories()          // ونبدأ من رأس المنيو
+}
+
 export function startNewOrder() {
   if (hasOrderDraft() && !confirm(tx(
     'في طلب شغّال دلوقتي — تبدأ واحداً جديداً وتمسح اللي قبله؟',
@@ -892,6 +926,17 @@ export function clearCartSilently() {
 }
 
 export function loadCustomerData(customer: any) {
+  // عميلٌ آخر = مكالمةٌ أخرى: سلّة السابق وملاحظاته ورقم منصّته ودفعه وحجزه لا
+  // تخصّ هذا العميل، وتركُها يعني ضربَ طلبٍ باسمه بأصناف غيره.
+  //
+  // الشرط «تغيّر العميل» لا «كل تحميل»: هذه الدالّة تُستدعى أيضاً بعد حفظ تعديلٍ
+  // على العميل الحالي (تصحيح عنوان مثلاً) — والتصفير حينها يمحو سلّةً بناها الوكيل
+  // للتوّ.
+  const prev = state.currentCustomer
+  const changed = !prev
+    || (customer?.id != null && prev.id != null && String(prev.id) !== String(customer.id))
+    || String(prev.phone || '') !== String(customer?.phone || '')
+  if (changed) resetDraftForNewCustomer()
   state.currentCustomer = customer
   state.form.name = customer.name
   state.form.phone = customer.phone
@@ -1131,8 +1176,47 @@ export function saveCustomer() {
   }, 500)
 }
 
+// ══════════════════════════════════════════════════════════════════════════════
+// أنواع الطلب وطرق الدفع — من الشركة لا من كود الواجهة
+// ══════════════════════════════════════════════════════════════════════════════
+// كان `orderTypeCode` مثبَّتاً على 5 للتوصيل و6 للاستلام، وطرق الدفع ثلاثاً مكتوبةً
+// في `data.ts`. شركةٌ تعمل على «طلبات» (4) أو تحصّل بـ«مدى» لا تجد شيئاً من ذلك،
+// فيُسجَّل الطلب بنوعٍ وطريقةٍ لا وجود لهما عندها ويختلّ تقريرها.
+
+/** الأنواع التي تحتاج عنواناً: التوصيل (5) وطلبات (4). ما عداها استلامٌ/داخل الفرع. */
+const DELIVERY_CODES = [4, 5]
+export const isDeliveryCode = (code: number) => DELIVERY_CODES.includes(Number(code))
+
+/** أنواع الشركة (فارغة = لم تصل بعد أو الشركة بلا أنواع ⇒ ارتدادٌ للبطاقتين). */
+export function companyOrderTypes(): any[] {
+  return Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
+}
+/** طرق دفع الشركة (فارغة = ارتدادٌ لقائمة `data.ts`). */
+export function companyPaymentMethods(): any[] {
+  const list = Array.isArray(state.companyPaymentMethods) ? state.companyPaymentMethods : []
+  return list.length ? list : PAYMENT_METHODS
+}
+
+/** يُبقي النوع المختار موافقاً للشكل البنيويّ (توصيل/استلام) بعد كل تغيير. */
+function syncSelectedOrderType() {
+  const list = companyOrderTypes()
+  if (!list.length) { state.selectedOrderType = null; return }
+  const wantDelivery = state.orderType === 'delivery'
+  const cur = state.selectedOrderType
+  if (cur && list.some((t: any) => t.id === cur.id) && isDeliveryCode(cur.code) === wantDelivery) return
+  state.selectedOrderType = list.find((t: any) => isDeliveryCode(t.code) === wantDelivery) || null
+}
+
+/** اختيار نوعٍ من أنواع الشركة — يضبط الشكل البنيويّ معه (العنوان يظهر أو يختفي). */
+export function selectOrderType(t: any) {
+  if (!t) return
+  state.selectedOrderType = t
+  state.orderType = isDeliveryCode(t.code) ? 'delivery' : 'pickup'
+}
+
 export function setOrderType(type: string) {
   state.orderType = type
+  syncSelectedOrderType()
 }
 
 export function showTab(tab: string) {
@@ -1572,7 +1656,14 @@ export async function submitOrder() {
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
   // كاش → تحصيل عند التسليم؛ كي‑نت/لينك → مدفوع أونلاين
-  const paymentMode: 'cash_on_delivery' | 'prepaid_online' = state.paymentMethod === 'cash' ? 'cash_on_delivery' : 'prepaid_online'
+  // طريقة الدفع المختارة من طرق الشركة (أو من قائمة `data.ts` حين لا تصل)
+  const payMethod = companyPaymentMethods().find((m: any) => String(m.id) === String(state.paymentMethod)) || null
+  // قائمة `data.ts` الاحتياطية لا تحمل `isCash` أصلاً: `!!undefined` كان يجعل الكاش
+  // «مدفوعاً مسبقاً» فيُسجَّل الطلب بوضع دفعٍ خاطئ. نسأل عن وجود الحقل لا عن قيمته.
+  const isCashPay = payMethod && 'isCash' in payMethod
+    ? !!payMethod.isCash
+    : String(state.paymentMethod ?? '') === 'cash'
+  const paymentMode: 'cash_on_delivery' | 'prepaid_online' = isCashPay ? 'cash_on_delivery' : 'prepaid_online'
   const payLabel = getPaymentLabel(state.paymentChannel, state.paymentMethod)
   // حجز: لازم موعد مستقبلي — الطلب ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده
   if (state.isReservation) {
@@ -1585,7 +1676,10 @@ export async function submitOrder() {
     customerPhone: phoneE164(phone, companyDial()),
     customerName: name,
     paymentMode,
-    orderTypeCode: isDelivery ? 5 : 6,   // delivery=5, pickup=6
+    // نوع الطلب من أنواع الشركة؛ وبلا أنواعٍ نرتدّ للثابت القديم (5/6)
+    orderTypeCode: state.selectedOrderType?.code ?? (isDelivery ? 5 : 6),
+    // معرّف طريقة الدفع كما عرّفتها الشركة — لم يكن يُرسَل إطلاقاً
+    paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
     notes: [state.orderNotes, payLabel ? `الدفع: ${payLabel}` : ''].filter(Boolean).join(' — ') || null,
     orderTag: (state.orderTag || '').trim() || null,
     // التجاوز اليدوي فقط — بلا تجاوز يشتقّ الخادم الرسوم من ربط (فرع ↔ مكان)
@@ -1700,7 +1794,7 @@ export function setPaymentChannel(id: string) {
   if (state.paymentChannel !== id) state.paymentMethod = null   // تغيير المصدر يصفّر الطريقة
   state.paymentChannel = id
 }
-export function setPaymentMethod(id: string) { state.paymentMethod = id }
+export function setPaymentMethod(id: any) { state.paymentMethod = id }
 export function resetPaymentSelection() { state.paymentChannel = null; state.paymentMethod = null }
 export function confirmPaymentSelection() {
   if (!state.paymentChannel || !state.paymentMethod) { showToast(tx('اختر المصدر وطريقة الدفع', 'Choose the source and the payment method'), 'warning'); return }
@@ -2126,11 +2220,12 @@ export function canViewOrderTotals(): boolean {
 }
 
 // نص طريقة الدفع (نقلاً عن getPaymentLabel)
-export function getPaymentLabel(channelId: string, methodId: string): string {
+export function getPaymentLabel(channelId: string, methodId: any): string {
   const ch = PAYMENT_CHANNELS.find((c: any) => c.id === channelId)
-  const m = PAYMENT_METHODS.find((x: any) => x.id === methodId)
-  const chLabel = ch ? ch.name : channelId
-  const mLabel = m ? m.name : methodId
+  // الطريقة من طرق الشركة (وإلا من قائمة `data.ts`) — والاسم يتبع لغة الواجهة
+  const m = companyPaymentMethods().find((x: any) => String(x.id) === String(methodId))
+  const chLabel = ch ? nameOf(ch) : channelId
+  const mLabel = m ? nameOf(m) : String(methodId ?? '')
   return `${chLabel}  •  ${mLabel}`
 }
 
