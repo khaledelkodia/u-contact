@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { session, isAuthed } from './api'
+import { session, isAuthed, scopeConfirmed } from './api'
 import Login from './views/Login.vue'
 import Agents from './views/admin/Agents.vue'
 import Companies from './views/admin/Companies.vue'
@@ -32,13 +32,19 @@ const router = createRouter({
 
 const isLoginRoute = (p: string) => p === '/login' || p === '/admin'
 
+/** وكيلٌ دخل ولم يؤكّد شركته/فرنشايزه بعد — مكانه شاشة الاختيار لا التطبيق. */
+const needsScope = () => isAuthed() && session.mode === 'agent' && !scopeConfirmed()
+
 router.beforeEach((to) => {
   if (isLoginRoute(to.path)) {
     if (!isAuthed()) return true
+    // ريفريش على شاشة «اختر الشركة»: يبقى عليها بدل أن يُقذف داخل التطبيق
+    if (needsScope()) return true
     return session.mode === 'admin' ? '/admin/agents' : '/app/callcenter'
   }
   if (!isAuthed()) return to.path.startsWith('/admin') ? '/admin' : '/login'
   if (to.meta.mode && to.meta.mode !== session.mode) return '/' // منع خلط الأدوار
+  if (needsScope()) return '/login'
 })
 
 export default router

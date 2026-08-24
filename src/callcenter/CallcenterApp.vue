@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
 import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast } from './store'
-import { t, lang, toggleLang } from './lang'
+import { t, lang, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
 
@@ -208,7 +208,9 @@ onMounted(() => {
   // حقن CSS التصميم + Font Awesome، وضبط RTL
   styleEl = document.createElement('style'); styleEl.id = 'cc-styles'; styleEl.textContent = ccStyles; document.head.appendChild(styleEl)
   faEl = document.createElement('link'); faEl.rel = 'stylesheet'; faEl.href = 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css'; document.head.appendChild(faEl)
-  document.documentElement.dir = 'rtl'; document.documentElement.lang = 'ar'
+  // الاتجاه من اللغة لا مثبَّتاً: كان `rtl` دائماً، فتُعرَض الإنجليزية في تخطيطٍ
+  // معكوس (السايدبار يميناً والنصّ محاذًى لليمين) حتى يبدّل المستخدم اللغة يدوياً.
+  applyDir()
 
   initData(); initBusinessDate()
   tick(); clockTimer = setInterval(tick, 1000)

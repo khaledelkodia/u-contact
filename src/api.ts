@@ -105,6 +105,15 @@ function persist() {
   if (session.franchiseId) localStorage.setItem('uc_franchise', String(session.franchiseId)); else localStorage.removeItem('uc_franchise')
 }
 export const isAuthed = () => !!session.token
+
+// ── تأكيد النطاق ────────────────────────────────────────────────────────────
+// توكنٌ صالح ≠ نطاقٌ مختار: الوكيل الذي يقف على شاشة «اختر الشركة» مسجَّلُ دخولٍ
+// بالفعل، فأيّ ريفريش كان يراه الحارسُ داخلاً فيقذفه إلى التطبيق بشركةٍ وفرنشايز
+// لم يؤكّدهما — يعمل على «كل الفروع» وهو كان في طريقه لاختيار فرعٍ بعينه. تُرفَع
+// هذه الراية عند ضغط «دخول» وحده (أو حين لا يكون هناك ما يُختار أصلاً).
+export const scopeConfirmed = () => localStorage.getItem('uc_scope') === '1'
+export const confirmScope = () => localStorage.setItem('uc_scope', '1')
+export const resetScope = () => localStorage.removeItem('uc_scope')
 export const currentCompany = () => session.companies.find((c) => c.id === session.companyId) || null
 export const currentFranchise = () => session.franchises.find((f) => f.id === session.franchiseId) || null
 export function setFranchise(id: number | null) { session.franchiseId = id; persist() }
@@ -123,7 +132,7 @@ export function setCompany(id: number) {
 export function logout() {
   session.mode = null; session.token = null; session.name = ''; session.companies = []; session.companyId = null
   session.franchises = []; session.franchiseId = null
-  ;['uc_token', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise'].forEach((k) => localStorage.removeItem(k))
+  ;['uc_token', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise', 'uc_scope'].forEach((k) => localStorage.removeItem(k))
 }
 
 api.interceptors.request.use((cfg) => {
@@ -142,10 +151,12 @@ export async function adminLogin(email: string, password: string) {
   const { data } = await api.post('/auth/admin/login', { email, password })
   session.mode = 'admin'; session.token = data.accessToken; session.name = data.user?.name || data.user?.email || ''
   session.companies = []; session.companyId = null; persist()
+  confirmScope()   // المشرف العام بلا نطاقٍ يُختار
 }
 export async function agentLogin(email: string, password: string) {
   const { data } = await api.post('/contact/auth/login', { email, password })
   session.mode = 'agent'; session.token = data.accessToken; session.name = data.agent?.name || data.agent?.email || ''
+  resetScope()     // دخولٌ جديد ⇒ النطاق يُختار من جديد
   session.companies = data.companies || []
   // لحظة الخادم تصل مع كل شركة (نفس القيمة) — نقيس بها انحراف ساعة الجهاز مرةً واحدة.
   noteServerTime(session.companies[0]?.serverTime)

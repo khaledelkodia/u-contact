@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { adminLogin, agentLogin, session, setCompany, setFranchise, loadFranchises } from '../api'
+import { adminLogin, agentLogin, session, setCompany, setFranchise, loadFranchises,
+         isAuthed, logout, scopeConfirmed, confirmScope } from '../api'
 import { lang, setLang, t, isAr } from '../i18n'
 import Icon from '../components/Icon.vue'
 
@@ -43,8 +44,37 @@ async function onCompanyChange() {
 function enterApp() {
   if (!pickedCompany.value) return
   setFranchise(pickedFranchise.value)
+  confirmScope()                   // من هنا وحدها يصير النطاق «مؤكَّداً»
   router.push('/app/callcenter')   // واجهة الوكيل الموحّدة (الشِل الجديد)
 }
+
+/** رجوع لتسجيل الدخول — ودخولٌ بمستخدمٍ آخر.
+ *  التوكن يُمسَح فعلاً لا شكلاً: العودة إلى النموذج مع بقاء الجلسة تعني أن أوّل
+ *  ريفريش يُعيدك إلى حساب من قبلك. */
+function backToLogin() {
+  logout()
+  email.value = ''; password.value = ''; err.value = ''
+  pickedCompany.value = null; pickedFranchise.value = null
+  step.value = 'login'
+}
+
+// ريفريش على شاشة النطاق: نعود إليها بحالتها لا إلى نموذج الدخول (الحارس صار
+// يسمح بالبقاء هنا ما دام النطاق غير مؤكَّد).
+onMounted(async () => {
+  if (isAdmin.value || !isAuthed() || session.mode !== 'agent' || scopeConfirmed()) return
+  pickedCompany.value = session.companyId
+  if (session.companyId && !session.franchises.length) {
+    frBusy.value = true
+    try { await loadFranchises() } finally { frBusy.value = false }
+  }
+  pickedFranchise.value = session.franchiseId
+  // لا شيء ليُختار (شركة واحدة وفرنشايز واحد أو لا شيء) ⇒ لا تُعرض شاشةٌ بخيارٍ
+  // واحد: أكّد وادخل. وهذا ما يُبقي أصحاب الشركة الواحدة بلا خطوةٍ جديدة.
+  if (session.companyId && session.companies.length <= 1 && session.franchises.length <= 1) {
+    confirmScope(); router.replace('/app/callcenter'); return
+  }
+  step.value = 'scope'
+})
 
 // مسارٌ لكلّ دور: `/login` للوكيل و`/admin` للمشرف العام. الجذر يبدأ عند `/login`.
 async function submit() {
@@ -56,7 +86,7 @@ async function submit() {
     // شركة واحدة بلا فرنشايزات تُذكر ⇒ لا شيء ليُختار: ادخل مباشرةً بدل شاشة بخيار واحد
     if (session.companyId) {
       if (!session.franchises.length) await loadFranchises()
-      if (session.franchises.length <= 1) { router.push('/app/callcenter'); return }
+      if (session.franchises.length <= 1) { confirmScope(); router.push('/app/callcenter'); return }
     }
     pickedCompany.value = session.companyId
     pickedFranchise.value = session.franchiseId
@@ -89,7 +119,7 @@ async function submit() {
 
     <!-- Form panel -->
     <div class="auth-form">
-      <div class="langtoggle" style="position:absolute; top:24px; inset-inline-end:28px;">
+      <div class="langtoggle on-light" style="position:absolute; top:24px; inset-inline-end:28px;">
         <button :class="{ on: lang === 'ar' }" @click="setLang('ar')">العربية</button>
         <button :class="{ on: lang === 'en' }" @click="setLang('en')">English</button>
       </div>
@@ -138,6 +168,11 @@ async function submit() {
 
             <button class="btn" :disabled="!pickedCompany || frBusy" style="margin-top:4px; padding:12px;" @click="enterApp()">
               {{ t('دخول', 'Continue') }}
+            </button>
+            <!-- مخرجٌ من هذه الشاشة: بدونه كان الوكيل حبيسها — لا دخولَ بحسابٍ آخر
+                 إلا بمسح تخزين المتصفّح. -->
+            <button type="button" class="btn ghost" style="padding:11px;" @click="backToLogin()">
+              <Icon name="arrow-back" class="ic-flip" /> {{ t('رجوع — دخول بحساب آخر', 'Back — sign in as another user') }}
             </button>
           </div>
         </template>

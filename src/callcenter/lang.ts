@@ -193,11 +193,33 @@ import { ref } from 'vue'
 export { translations }
 export const lang = ref<'ar' | 'en'>((localStorage.getItem('cc_lang') as 'ar' | 'en') || 'ar')
 export const isRTL = () => lang.value === 'ar'
+/** كروم لا يُبطل ستايل عناصر النماذج (input/select/button) حين يتغيّر `dir` على
+ *  الجذر أثناء التشغيل: الحاوية تنعكس فوراً بينما يبقى الحقل بحشوه واستدارته
+ *  وسهم الـselect من الاتجاه القديم حتى إعادة تحميل الصفحة. إخفاءٌ وإظهارٌ في
+ *  نفس الإطار يُجبر إعادة حساب الستايل — لا وميض، ولا يُنفَّذ إلا حين يتغيّر الاتجاه. */
+function forceRestyle() {
+  const b = document.body
+  if (!b) return
+  const prev = b.style.display
+  b.style.display = 'none'
+  void b.offsetHeight
+  b.style.display = prev
+}
+
+/** يطبّق اتجاه اللغة الحالية على <html>. كان الضبط داخل `setLang` وحدها، فاللغة
+ *  المحفوظة من جلسةٍ سابقة تعود إنجليزيةً باتجاهٍ عربيّ حتى يبدّل المستخدم يدوياً. */
+export function applyDir() {
+  const el = document.documentElement
+  const dir = lang.value === 'ar' ? 'rtl' : 'ltr'
+  const changed = el.dir !== dir
+  el.dir = dir
+  el.lang = lang.value
+  if (changed) forceRestyle()
+}
 export function setLang(l: 'ar' | 'en') {
   lang.value = l
   localStorage.setItem('cc_lang', l)
-  document.documentElement.dir = l === 'ar' ? 'rtl' : 'ltr'
-  document.documentElement.lang = l
+  applyDir()
 }
 export function toggleLang() { setLang(lang.value === 'ar' ? 'en' : 'ar') }
 // نفس آلية data-lang الأصلية: t(key) بيرجّع النص باللغة الحالية (fallback: عربي ثم المفتاح)

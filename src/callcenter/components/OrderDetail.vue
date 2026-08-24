@@ -63,7 +63,7 @@ function itemDetails(item: any): string {
       </div>
       <div class="order-detail-field">
         <label>رقم الهاتف</label>
-        <span dir="ltr" style="text-align:right;">{{ order.customerPhone }}</span>
+        <span class="ltr-num">{{ order.customerPhone }}</span>
       </div>
       <div class="order-detail-field">
         <label>العنوان</label>
@@ -92,18 +92,18 @@ function itemDetails(item: any): string {
       </div>
     </div>
 
-    <div v-if="order.notes" style="background:var(--warning-light); padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:16px; border-right:4px solid var(--warning);">
+    <div v-if="order.notes" style="background:var(--warning-light); padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:16px; border-inline-start:4px solid var(--warning);">
       <strong style="color:var(--warning); font-size:13px;">ملاحظات:</strong>
-      <span style="font-size:14px; margin-right:8px;">{{ order.notes }}</span>
+      <span style="font-size:14px; margin-inline-start:8px;">{{ order.notes }}</span>
     </div>
 
     <table class="order-items-table">
       <thead>
         <tr>
-          <th style="text-align:right;">الصنف</th>
+          <th style="text-align:start;">الصنف</th>
           <th style="text-align:center;">الكمية</th>
-          <th style="text-align:right;">سعر الوحدة</th>
-          <th style="text-align:right;">الإجمالي</th>
+          <th style="text-align:start;">سعر الوحدة</th>
+          <th style="text-align:start;">الإجمالي</th>
         </tr>
       </thead>
       <tbody>

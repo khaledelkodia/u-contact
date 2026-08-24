@@ -87,7 +87,7 @@ body.dark-mode {
 /* Dark cart styling to match the reference layout */
 body.dark-mode .cart-panel {
   background: #1a2233;
-  border-right-color: #253248;
+  border-inline-start-color: #253248;
 }
 
 body.dark-mode .cart-header {
@@ -268,7 +268,7 @@ body.dark-mode .toast {
 }
 
 body.dark-mode .customer-info-bar {
-  border-right-color: #3b82f6;
+  border-inline-start-color: #3b82f6;
 }
 
 body.dark-mode .info-branch-badge {
@@ -547,9 +547,18 @@ html {
   scroll-behavior: smooth;
 }
 
+/* ================================================
+   الاتجاه (RTL/LTR)
+   ================================================
+   الورقة كُتبت للعربية، فكل `right` فيها كان يعني «بداية السطر» لا «يمين الشاشة».
+   حُوّلت إلى الخصائص المنطقية (inline-start/end) فتنعكس وحدها مع `dir` على <html>:
+   العربية كما هي بالحرف، والإنجليزية مرآتها بلا ورقةٍ ثانية تُصان.
+   و`--dir` لما لا نظير منطقيّ له — translateX في التحريكات والإزاحات. */
+html { --dir: 1; }
+html[dir="ltr"] { --dir: -1; }
+
 body {
   font-family: 'Cairo', sans-serif;
-  direction: rtl;
   background: var(--bg);
   color: var(--text-primary);
   font-size: 14px;
@@ -604,8 +613,13 @@ select {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: left 12px center;
-  padding-left: 32px;
+  padding-inline-end: 32px;
   cursor: pointer;
+}
+
+/* السهم وحده يحتاج قلباً صريحاً — `background-position` بلا نظيرٍ منطقيّ */
+[dir="ltr"] select {
+  background-position: right 12px center;
 }
 
 img {
@@ -655,7 +669,7 @@ img {
   background: rgba(255, 255, 255, 0.03);
   border-radius: 50%;
   top: -200px;
-  right: -100px;
+  inset-inline-start: -100px;
   animation: float 8s ease-in-out infinite;
 }
 
@@ -667,7 +681,7 @@ img {
   background: rgba(255, 255, 255, 0.04);
   border-radius: 50%;
   bottom: -100px;
-  left: -50px;
+  inset-inline-end: -50px;
   animation: float 6s ease-in-out infinite reverse;
 }
 
@@ -786,7 +800,7 @@ img {
    ================================================ */
 #sidebar {
   position: fixed;
-  right: 0;
+  inset-inline-start: 0;
   top: 0;
   width: var(--sidebar-width);
   height: 100vh;
@@ -905,13 +919,14 @@ img {
 .nav-item.active::before {
   content: '';
   position: absolute;
-  right: -8px;
+  inset-inline-start: -8px;
   top: 50%;
   transform: translateY(-50%);
   width: 4px;
   height: 60%;
   background: var(--white);
-  border-radius: 0 4px 4px 0;
+  border-start-start-radius: 4px;
+  border-end-start-radius: 4px;
 }
 
 .nav-item svg {
@@ -957,8 +972,8 @@ img {
 #header {
   position: fixed;
   top: 0;
-  right: var(--sidebar-width);
-  left: 0;
+  inset-inline-start: var(--sidebar-width);
+  inset-inline-end: 0;
   height: var(--header-height);
   background: var(--white);
   border-bottom: 1px solid var(--border);
@@ -1299,7 +1314,7 @@ body.dark-mode .header-eod-btn:hover {
 .notification-btn .badge {
   position: absolute;
   top: 2px;
-  left: 2px;
+  inset-inline-end: 2px;
   width: 18px;
   height: 18px;
   background: var(--danger);
@@ -1350,7 +1365,7 @@ body.dark-mode .header-eod-btn:hover {
    MAIN CONTENT
    ================================================ */
 #main-content {
-  margin-right: var(--sidebar-width);
+  margin-inline-start: var(--sidebar-width);
   margin-top: var(--header-height);
   min-height: calc(100vh - var(--header-height));
   padding: 0;
@@ -1417,16 +1432,19 @@ body.dark-mode .order-page-new-order {
 }
 
 .search-box input {
-  border-radius: var(--radius) 0 0 var(--radius);
-  border-left: none;
+  border-start-start-radius: var(--radius);
+  border-end-start-radius: var(--radius);
+  border-start-end-radius: 0;
+  border-end-end-radius: 0;
+  border-inline-end: none;
   padding: 12px 16px;
-  padding-right: 44px;
+  padding-inline-start: 44px;
   font-size: 15px;
 }
 
 .search-box .search-icon {
   position: absolute;
-  right: 14px;
+  inset-inline-start: 14px;
   top: 50%;
   transform: translateY(-50%);
   color: var(--text-muted);
@@ -1438,7 +1456,8 @@ body.dark-mode .order-page-new-order {
   background: var(--primary);
   color: white;
   border: none;
-  border-radius: 0 var(--radius) var(--radius) 0;
+  border-start-end-radius: var(--radius);
+  border-end-end-radius: var(--radius);
   font-weight: 700;
   font-size: 14px;
   white-space: nowrap;
@@ -1513,7 +1532,7 @@ body.dark-mode .order-page-new-order {
   display: flex;
   align-items: center;
   gap: 32px;
-  border-right: 4px solid var(--primary);
+  border-inline-start: 4px solid var(--primary);
   animation: slideInRight 0.3s ease;
 }
 
@@ -1524,7 +1543,7 @@ body.dark-mode .order-page-new-order {
 }
 
 .info-item-alert {
-  margin-right: auto;
+  margin-inline-start: auto;
   padding: 6px 12px;
   border-radius: var(--radius-full);
   background: #fee2e2;
@@ -1878,7 +1897,7 @@ body.dark-mode .branch-override-menu {
   background: var(--white);
   cursor: pointer;
   transition: var(--transition);
-  text-align: right;
+  text-align: start;
   box-shadow: var(--shadow-sm);
 }
 
@@ -2228,7 +2247,7 @@ body.dark-mode .searchable-select-search input {
 
 .menu-search-bar input {
   padding: 12px 16px;
-  padding-right: 44px;
+  padding-inline-start: 44px;
   border-radius: var(--radius);
   font-size: 15px;
   background: var(--bg);
@@ -2530,7 +2549,8 @@ body.dark-mode .searchable-select-search input {
   bottom: 12px;
   inset-inline-start: 0;
   width: 3px;
-  border-radius: 0 3px 3px 0;
+  border-start-start-radius: 3px;
+  border-end-start-radius: 3px;
   background: var(--cat-color, var(--primary));
   opacity: 0.55;
   transition: opacity 0.18s ease, width 0.18s ease;
@@ -2666,7 +2686,7 @@ body.dark-mode .menu-item-price {
 .cart-panel {
   width: var(--cart-width);
   background: var(--white);
-  border-right: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   max-height: calc(100vh - var(--header-height));
@@ -2757,7 +2777,7 @@ body.dark-mode .menu-item-price {
   font-size: 14px;
   color: var(--text-primary);
   white-space: nowrap;
-  margin-right: 8px;
+  margin-inline-start: 8px;
 }
 
 .cart-item-details {
@@ -3444,7 +3464,7 @@ body.dark-mode .pm-summary {
   padding: 14px 16px;
   font-weight: 700;
   color: var(--text-secondary);
-  text-align: right;
+  text-align: start;
   white-space: nowrap;
   font-size: 12px;
   text-transform: uppercase;
@@ -3502,6 +3522,20 @@ body.dark-mode .pm-summary {
   color: var(--text-primary);
   direction: ltr;
   text-align: right;
+}
+
+[dir="ltr"] .order-customer-phone {
+  text-align: left;
+}
+
+/* رقمٌ داخل صفٍّ أو خلية: يُعرض ltr ليُقرأ صحيحاً، ويُحاذى مع اتجاه الصفحة */
+.ltr-num {
+  direction: ltr;
+  text-align: right;
+}
+
+[dir="ltr"] .ltr-num {
+  text-align: left;
 }
 
 .order-customer-name {
@@ -3576,7 +3610,7 @@ body.dark-mode .pm-summary {
   font-size: 12px;
   font-weight: 700;
   color: var(--text-secondary);
-  text-align: right;
+  text-align: start;
 }
 
 .order-items-table td {
@@ -3917,7 +3951,7 @@ body.dark-mode .pm-summary {
 .toast-container {
   position: fixed;
   top: 80px;
-  left: 24px;
+  inset-inline-end: 24px;
   z-index: 9000;
   display: flex;
   flex-direction: column;
@@ -3935,23 +3969,23 @@ body.dark-mode .pm-summary {
   min-width: 300px;
   max-width: 450px;
   animation: slideInLeft 0.3s ease;
-  border-right: 4px solid;
+  border-inline-start: 4px solid;
 }
 
 .toast-success {
-  border-right-color: var(--success);
+  border-inline-start-color: var(--success);
 }
 
 .toast-error {
-  border-right-color: var(--danger);
+  border-inline-start-color: var(--danger);
 }
 
 .toast-warning {
-  border-right-color: var(--warning);
+  border-inline-start-color: var(--warning);
 }
 
 .toast-info {
-  border-right-color: var(--info);
+  border-inline-start-color: var(--info);
 }
 
 .toast-icon {
@@ -4249,7 +4283,7 @@ body.dark-mode .pm-summary {
 @keyframes slideInRight {
   from {
     opacity: 0;
-    transform: translateX(30px);
+    transform: translateX(calc(30px * var(--dir)));
   }
   to {
     opacity: 1;
@@ -4260,7 +4294,7 @@ body.dark-mode .pm-summary {
 @keyframes slideInLeft {
   from {
     opacity: 0;
-    transform: translateX(-30px);
+    transform: translateX(calc(-30px * var(--dir)));
   }
   to {
     opacity: 1;
@@ -4432,7 +4466,7 @@ body.dark-mode .pm-summary {
   justify-content: space-between;
   box-shadow: var(--shadow-sm);
   min-height: 90px;
-  text-align: right;
+  text-align: start;
 }
 
 .address-card:hover {
@@ -4484,7 +4518,7 @@ body.dark-mode .address-card-title {
 .address-card-delete-btn {
   position: absolute;
   top: 8px;
-  left: 8px;
+  inset-inline-end: 8px;
   background: transparent;
   color: var(--danger);
   border: none;
@@ -4812,7 +4846,7 @@ body.dark-mode .menu-item-card.menu-item-disabled {
   content: 'غير متوفر بالفرع';
   position: absolute;
   top: 6px;
-  left: 6px;
+  inset-inline-end: 6px;
   background: var(--danger);
   color: white;
   font-size: 9px;
@@ -4866,7 +4900,7 @@ body.dark-mode .cart-item.cart-item-disabled {
   font-size: 12.5px;
   font-weight: 600;
   font-family: inherit;
-  text-align: right;
+  text-align: start;
   transition: var(--transition);
 }
 
@@ -4899,7 +4933,7 @@ body.dark-mode .cart-item.cart-item-disabled {
 }
 
 .sidebar-disabled-chevron {
-  margin-right: auto;
+  margin-inline-start: auto;
   opacity: 0.7;
   transition: transform 0.2s ease;
   flex-shrink: 0;
@@ -5008,7 +5042,7 @@ body.dark-mode .cart-item.cart-item-disabled {
   font-size: 12.5px;
   font-weight: 600;
   font-family: inherit;
-  text-align: right;
+  text-align: start;
   transition: var(--transition);
 }
 
@@ -5059,7 +5093,7 @@ body.dark-mode .cart-item.cart-item-disabled {
 }
 
 .sidebar-items-chevron {
-  margin-right: auto;
+  margin-inline-start: auto;
   opacity: 0.7;
   transition: transform 0.2s ease;
   flex-shrink: 0;
@@ -5665,7 +5699,7 @@ body.dark-mode .driver-detail-box {
 .driver-option:hover {
   border-color: var(--primary);
   background: var(--primary-light, rgba(37, 99, 235, 0.06));
-  transform: translateX(-2px);
+  transform: translateX(calc(-2px * var(--dir)));
 }
 
 .driver-option.selected {
@@ -6505,12 +6539,12 @@ body.dark-mode .order-cancel-reason {
   background: linear-gradient(135deg, var(--primary, #2563eb), var(--primary-dark, #1d4ed8));
   color: #fff;
   border-color: var(--primary-dark, #1d4ed8);
-  transform: translateX(4px);
+  transform: translateX(calc(4px * var(--dir)));
   box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
 }
 
 .btn-back-page:active {
-  transform: translateX(2px);
+  transform: translateX(calc(2px * var(--dir)));
 }
 
 .btn-back-page i {

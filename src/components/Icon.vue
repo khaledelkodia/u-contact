@@ -28,6 +28,7 @@ const ICONS: Record<string, string> = {
   user: '<circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/>',
   clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
   download: '<path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 19h16"/>',
+  'arrow-back': '<path d="M19 12H5"/><path d="m12 19-7-7 7-7"/>',
 }
 </script>
 

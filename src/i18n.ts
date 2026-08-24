@@ -8,9 +8,26 @@ export const lang = ref<Lang>(saved === 'en' ? 'en' : 'ar')
 export const isAr = () => lang.value === 'ar'
 export function t(ar: string, en: string) { return lang.value === 'ar' ? ar : en }
 
+/** كروم لا يُبطل ستايل عناصر النماذج (input/select/button) حين يتغيّر `dir` على
+ *  الجذر أثناء التشغيل: الحاوية تنعكس فوراً بينما يبقى الحقل بحشوه واستدارته
+ *  وسهم الـselect من الاتجاه القديم حتى إعادة تحميل الصفحة. إخفاءٌ وإظهارٌ في
+ *  نفس الإطار يُجبر إعادة حساب الستايل — لا وميض، ولا يُنفَّذ إلا حين يتغيّر الاتجاه. */
+function forceRestyle() {
+  const b = document.body
+  if (!b) return
+  const prev = b.style.display
+  b.style.display = 'none'
+  void b.offsetHeight
+  b.style.display = prev
+}
+
 export function applyDir() {
-  document.documentElement.lang = lang.value
-  document.documentElement.dir = lang.value === 'ar' ? 'rtl' : 'ltr'
+  const el = document.documentElement
+  const dir = lang.value === 'ar' ? 'rtl' : 'ltr'
+  const changed = el.dir !== dir
+  el.lang = lang.value
+  el.dir = dir
+  if (changed) forceRestyle()
 }
 export function setLang(l: Lang) {
   lang.value = l

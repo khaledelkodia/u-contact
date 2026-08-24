@@ -27,7 +27,7 @@ function onToggle(row: any, ev: Event) {
         <p style="color: var(--text-secondary); margin-bottom: 16px;">عرض الأصناف الموقوفة في كل الفروع</p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
           <button class="btn btn-secondary" @click="state.activeView = 'stopped-items'">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-left:6px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-inline-end:6px;"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>
             الأصناف الموقوفة
           </button>
         </div>

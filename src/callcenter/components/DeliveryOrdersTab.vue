@@ -80,7 +80,7 @@ function typeCell(order: any): string {
             </td>
             <td>{{ order.employeeName }}</td>
             <td><span v-html="typeCell(order)"></span></td>
-            <td dir="ltr" style="text-align:right;">{{ order.customerPhone }}</td>
+            <td class="ltr-num">{{ order.customerPhone }}</td>
             <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" title="يوجد شكوى" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
             <td><span v-html="driverCell(order)"></span></td>
             <td>

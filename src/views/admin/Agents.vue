@@ -121,6 +121,18 @@ function togglePerm(cid: number, key: string) {
   const i = arr.indexOf(key); if (i >= 0) arr.splice(i, 1); else arr.push(key)
 }
 
+// «تحديد الكل»: وكيلٌ يُراد له كلّ شيء كان يُمنح ثلاث عشرة صلاحيةً واحدةً واحدة — ولكل
+// شركةٍ من جديد. زرٌّ واحد يقلب بين المنح الكامل والتفريغ، لأن مَن ضغط «الكل» بالغلط
+// يحتاج تراجعاً بضغطةٍ لا بثلاث عشرة.
+const allPerms = (cid: number) => {
+  const arr = form.links[cid]
+  return !!arr && PERMS.every((p) => arr.includes(p.key))
+}
+function toggleAllPerms(cid: number) {
+  if (!form.links[cid]) return
+  form.links[cid] = allPerms(cid) ? [] : PERMS.map((p) => p.key)
+}
+
 async function save() {
   saving.value = true; err.value = ''
   try {
@@ -265,6 +277,20 @@ async function save() {
                         'No branch in this company has the call center enabled — orders this agent takes will never reach a branch. Enable it from the U-Serve dashboard › company › branches.') }}
                 </p>
                 <div v-if="linked(c.id)" style="margin-top:10px; padding-inline-start:25px;">
+                  <div style="display:flex; align-items:center; gap:8px; margin:0 0 7px;">
+                    <label style="margin:0;">{{ t('الصلاحيات', 'Permissions') }}</label>
+                    <!-- العدّاد يقول ما تقوله الحبّات مجتمعةً بنظرة: مربوطٌ بلا صلاحية
+                         **لا يستطيع شيئاً** — تُقال هنا لا تُترك تُستنتج من حبّاتٍ كلّها مطفأة. -->
+                    <span class="muted" style="font-size:12px;" :style="!form.links[c.id].length ? 'color:var(--amber);' : ''">
+                      {{ form.links[c.id].length
+                        ? t(`${form.links[c.id].length} من ${PERMS.length}`, `${form.links[c.id].length} of ${PERMS.length}`)
+                        : t('بلا صلاحية', 'No permissions') }}
+                    </span>
+                    <button type="button" class="btn ghost sm" style="margin-inline-start:auto;" @click="toggleAllPerms(c.id)">
+                      <Icon :name="allPerms(c.id) ? 'x' : 'check'" />
+                      {{ allPerms(c.id) ? t('إلغاء التحديد', 'Clear all') : t('تحديد الكل', 'Select all') }}
+                    </button>
+                  </div>
                   <div class="pills">
                     <div v-for="p in PERMS" :key="p.key" class="pill" :class="{ on: form.links[c.id].includes(p.key) }" @click="togglePerm(c.id, p.key)">
                       <Icon v-if="form.links[c.id].includes(p.key)" name="check" />{{ permLabel(p.key, isAr()) }}
