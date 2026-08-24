@@ -63,6 +63,17 @@ const paymentSelected = computed(() => !!(state.paymentChannel && state.paymentM
       </div>
     </div>
 
+    <!-- رقم الطلب على المنصّة الخارجية — صفةُ طلبٍ لا صفةُ عميل، فمكانه السلة مع
+         الملاحظات لا تبويب بيانات العميل (وهو تبويبٌ لا يُفتَح افتراضياً). -->
+    <div class="cart-tag">
+      <label class="cart-notes-label" for="order-tag">
+        رقم الطلب الخارجي
+        <span style="font-weight:400; opacity:.75;">طلبات · جاهز · كاريدج</span>
+      </label>
+      <input type="text" id="order-tag" class="cart-tag-input" placeholder="اختياري — رقم الطلب على المنصّة"
+        maxlength="64" dir="ltr" v-model="state.orderTag">
+    </div>
+
     <div class="cart-notes">
       <label class="cart-notes-label">{{ t('important_order_notes') }}</label>
       <button type="button" class="cart-notes-btn" @click="openOrderNotesModal()"><span>{{ t('write_note') }}</span></button>

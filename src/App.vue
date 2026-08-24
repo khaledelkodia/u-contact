@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { session, isAuthed, currentCompany, setCompany, currentFranchise, setFranchise, logout } from './api'
 import { lang, setLang, t, isAr } from './i18n'
 import Icon from './components/Icon.vue'
+import { adminMeta, ensureAdminCounts, resetAdminCounts } from './adminMeta'
 
 const route = useRoute()
 const router = useRouter()
@@ -17,7 +18,11 @@ const can = (p: string) => !!cur.value?.permissions?.includes(p)
 const curFr = computed(() => currentFranchise())
 function pickCompany(e: any) { setCompany(Number(e.target.value)); if (route.path !== '/app') router.push('/app') }
 function pickFranchise(e: any) { const v = e.target.value; setFranchise(v ? Number(v) : null) }
-function signOut() { logout(); router.push('/login') }
+function signOut() { logout(); resetAdminCounts(); router.push('/login') }
+
+// عدّادات القائمة تُسحب أوّل ما يصير الوضع «إدارة» — لا عند إقلاع التطبيق، لأن
+// الشل يُركَّب قبل تسجيل الدخول ولا صلاحية حينها.
+watch(() => session.mode, (m) => { if (m === 'admin') ensureAdminCounts() }, { immediate: true })
 </script>
 
 <template>
@@ -36,8 +41,14 @@ function signOut() { logout(); router.push('/login') }
       <!-- Super-admin nav -->
       <template v-if="session.mode === 'admin'">
         <div class="group">{{ t('الإدارة', 'Management') }}</div>
-        <router-link to="/admin/agents" class="navlink" :class="{ on: route.path === '/admin/agents' }"><Icon name="users" /> {{ t('الوكلاء', 'Agents') }}</router-link>
-        <router-link to="/admin/companies" class="navlink" :class="{ on: route.path === '/admin/companies' }"><Icon name="building" /> {{ t('الشركات', 'Companies') }}</router-link>
+        <router-link to="/admin/agents" class="navlink" :class="{ on: route.path === '/admin/agents' }">
+          <Icon name="users" /> {{ t('الوكلاء', 'Agents') }}
+          <span v-if="adminMeta.agents !== null" class="n">{{ adminMeta.agents }}</span>
+        </router-link>
+        <router-link to="/admin/companies" class="navlink" :class="{ on: route.path === '/admin/companies' }">
+          <Icon name="building" /> {{ t('الشركات', 'Companies') }}
+          <span v-if="adminMeta.companies !== null" class="n">{{ adminMeta.companies }}</span>
+        </router-link>
         <router-link to="/admin/reports" class="navlink" :class="{ on: route.path === '/admin/reports' }"><Icon name="chart" /> {{ t('التقارير', 'Reports') }}</router-link>
       </template>
 

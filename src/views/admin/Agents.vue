@@ -3,6 +3,7 @@ import { computed, onMounted, reactive, ref } from 'vue'
 import { listAgents, createAgent, updateAgent, setAgentPassword, setAgentCompanies, listCompanies } from '../../api'
 import { t, isAr } from '../../i18n'
 import { PERMS, permLabel } from '../../perms'
+import { adminMeta } from '../../adminMeta'
 import Icon from '../../components/Icon.vue'
 
 const agents = ref<any[]>([])
@@ -62,16 +63,40 @@ const stats = computed(() => ({
 
 /** أوّل حرفٍ للاسم — بديلُ الصورة، ولونه ثابتٌ مشتقٌّ من المعرّف. */
 const initial = (n: string) => (n || '?').trim().charAt(0).toUpperCase()
-const AV = ['#2563eb', '#0891b2', '#7c3aed', '#c026d3', '#0f766e', '#b45309']
+const AV = ['#2a4ce0', '#0891b2', '#8b3fd6', '#0f9b8e', '#c026d3', '#b45309']
 const avColor = (id: number) => AV[Math.abs(Number(id) || 0) % AV.length]
 
 async function load() {
   loading.value = true; err.value = ''
-  try { const [a, c] = await Promise.all([listAgents(), listCompanies()]); agents.value = a; companies.value = c }
+  try {
+    const [a, c] = await Promise.all([listAgents(), listCompanies()])
+    agents.value = a; companies.value = c
+    // الصفحة تسحب القائمتين أصلاً ⇒ تحديث عدّادَي الشريط الجانبي بلا طلبٍ إضافي
+    adminMeta.agents = a.length; adminMeta.companies = c.length
+  }
   catch (e: any) { err.value = e?.response?.data?.message || t('تعذّر التحميل', 'Failed to load') }
   finally { loading.value = false }
 }
 onMounted(load)
+
+// ── تصدير ────────────────────────────────────────────────────────────────────
+// يُصدَّر **المعروض** لا الكل: من صفّى ثم ضغط «تصدير» يقصد ما يراه. وBOM في أوّل
+// الملف لأن إكسل بدونه يقرأ العربية رموزاً.
+function exportCsv() {
+  const head = [t('الاسم', 'Name'), t('البريد', 'Email'), t('التليفون', 'Phone'), t('الحالة', 'Status'), t('الشركات', 'Companies'), t('عدد الصلاحيات', 'Permissions')]
+  const rows = shown.value.map((a: any) => [
+    a.name, a.email, a.phone || '',
+    a.isActive ? t('مفعّل', 'Active') : t('موقوف', 'Suspended'),
+    (a.companies || []).map((c: any) => coName(c)).join(' · '),
+    (a.companies || []).reduce((s: number, c: any) => s + (c.permissions || []).length, 0),
+  ])
+  const esc = (v: any) => '"' + String(v ?? '').replace(/"/g, '""') + '"'
+  const csv = '﻿' + [head, ...rows].map((r) => r.map(esc).join(',')).join('\r\n')
+  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+  const a = document.createElement('a')
+  a.href = url; a.download = `agents-${new Date().toISOString().slice(0, 10)}.csv`
+  a.click(); URL.revokeObjectURL(url)
+}
 
 function openCreate() {
   editingId.value = null
@@ -118,53 +143,70 @@ async function save() {
 <template>
   <div class="content">
     <div class="page-head">
-      <div style="flex:1;">
-        <div class="t">{{ t('الوكلاء', 'Agents') }}</div>
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="t">{{ t('الوكلاء', 'Agents') }}</div>
+          <span v-if="!loading" class="n">{{ t(`${stats.total} وكيل`, `${stats.total} agents`) }}</span>
+        </div>
         <div class="d">{{ t('أنشئ الوكلاء واربطهم بالشركات بصلاحيات لكل شركة', 'Create agents and link them to companies with per-company permissions') }}</div>
       </div>
-      <button class="btn" @click="openCreate"><Icon name="plus" /> {{ t('وكيل جديد', 'New agent') }}</button>
+      <div class="acts">
+        <button class="btn ghost" :disabled="!shown.length" @click="exportCsv"><Icon name="download" /> {{ t('تصدير', 'Export') }}</button>
+        <button class="btn" @click="openCreate"><Icon name="plus" /> {{ t('وكيل جديد', 'New agent') }}</button>
+      </div>
     </div>
 
     <div v-if="err" class="err" style="margin-bottom:14px;"><Icon name="alert" /> {{ err }}</div>
 
     <!-- ملخّص: الأرقام التي تُفتح الصفحة لأجلها قبل الجدول -->
     <div class="stats">
-      <div class="stat"><div class="lbl"><Icon name="users" /> {{ t('الوكلاء', 'Agents') }}</div><div class="val">{{ stats.total }}</div></div>
-      <div class="stat"><div class="lbl"><Icon name="check" /> {{ t('مفعّلون', 'Active') }}</div><div class="val" style="color:var(--green);">{{ stats.active }}</div></div>
-      <div class="stat"><div class="lbl"><Icon name="building" /> {{ t('مربوطون بشركات', 'Linked') }}</div><div class="val">{{ stats.linked }}</div></div>
       <div class="stat">
-        <div class="lbl"><Icon name="alert" /> {{ t('بلا شركة', 'Unlinked') }}</div>
-        <!-- الوكيل بلا شركة لا يستطيع فعل شيء — يُبرز أحمرَ ليُعالَج لا ليُعَدّ -->
-        <div class="val" :style="{ color: stats.orphan ? 'var(--rose)' : undefined }">{{ stats.orphan }}</div>
+        <div class="lbl"><span>{{ t('إجمالي الوكلاء', 'Total agents') }}</span><span class="ic"><Icon name="users" /></span></div>
+        <div class="val">{{ stats.total }}<i>{{ t('حساب', 'accounts') }}</i></div>
       </div>
-    </div>
-
-    <div class="toolbar">
-      <div class="tb-search">
-        <Icon name="search" />
-        <input class="input" v-model="q" :placeholder="t('ابحث بالاسم أو البريد أو الشركة…', 'Search name, email or company…')" />
+      <div class="stat">
+        <div class="lbl"><span>{{ t('مفعّلون', 'Active') }}</span><span class="ic green"><Icon name="check" /></span></div>
+        <div class="val green">{{ stats.active }}<i>{{ t('نشط الآن', 'active now') }}</i></div>
       </div>
-      <div class="seg">
-        <button :class="{ on: statusFilter === 'all' }" @click="statusFilter = 'all'">{{ t('الكل', 'All') }}</button>
-        <button :class="{ on: statusFilter === 'active' }" @click="statusFilter = 'active'">{{ t('مفعّل', 'Active') }}</button>
-        <button :class="{ on: statusFilter === 'off' }" @click="statusFilter = 'off'">{{ t('موقوف', 'Suspended') }}</button>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('مربوطون بشركات', 'Linked') }}</span><span class="ic violet"><Icon name="building" /></span></div>
+        <div class="val violet">{{ stats.linked }}<i>{{ t('مرتبط', 'linked') }}</i></div>
       </div>
-      <span class="muted" style="font-size:12.5px; margin-inline-start:auto;">{{ shown.length }} / {{ agents.length }}</span>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('بلا شركة', 'Unlinked') }}</span><span class="ic amber"><Icon name="alert" /></span></div>
+        <!-- الوكيل بلا شركة لا يستطيع فعل شيء ⇒ يُبرز ليُعالَج. والصفر يبقى حِبريّاً:
+             لا شيء يُعالَج فلا داعي لإنذارٍ ملوّن. -->
+        <div class="val" :class="stats.orphan ? 'amber' : 'plain'">{{ stats.orphan }}<i>{{ t('بحاجة لربط', 'need linking') }}</i></div>
+      </div>
     </div>
 
     <div class="card tbl-wrap">
+      <!-- شريط الأدوات داخل بطاقة الجدول: البحث والتصفية يخصّان هذا الجدول وحده -->
+      <div class="tbl-head">
+        <div class="tb-search">
+          <Icon name="search" />
+          <input class="input" v-model="q" :placeholder="t('ابحث بالاسم أو البريد أو الشركة…', 'Search name, email or company…')" />
+        </div>
+        <div class="seg">
+          <button :class="{ on: statusFilter === 'all' }" @click="statusFilter = 'all'">{{ t('الكل', 'All') }}</button>
+          <button :class="{ on: statusFilter === 'active' }" @click="statusFilter = 'active'">{{ t('مفعّل', 'Active') }}</button>
+          <button :class="{ on: statusFilter === 'off' }" @click="statusFilter = 'off'">{{ t('موقوف', 'Suspended') }}</button>
+        </div>
+        <span class="muted" style="font-size:13px; font-variant-numeric:tabular-nums;">{{ t(`${shown.length} من ${agents.length}`, `${shown.length} of ${agents.length}`) }}</span>
+      </div>
+
       <table>
         <thead><tr><th>{{ t('الوكيل', 'Agent') }}</th><th>{{ t('الحالة', 'Status') }}</th><th>{{ t('الشركات والصلاحيات', 'Companies & permissions') }}</th><th></th></tr></thead>
         <tbody>
-          <tr v-if="loading"><td colspan="4" class="muted" style="text-align:center; padding:30px;">{{ t('جارٍ التحميل…', 'Loading…') }}</td></tr>
-          <tr v-else-if="!shown.length"><td colspan="4"><div class="empty"><div class="ic"><Icon name="users" /></div><div>{{ agents.length ? t('لا نتائج مطابقة', 'No matches') : t('لا يوجد وكلاء بعد', 'No agents yet') }}</div></div></td></tr>
+          <tr v-if="loading"><td colspan="4" class="muted" style="text-align:center; padding:34px;">{{ t('جارٍ التحميل…', 'Loading…') }}</td></tr>
+          <tr v-else-if="!shown.length"><td colspan="4"><div class="empty"><div class="ic"><Icon name="users" /></div><div>{{ agents.length ? t('لا توجد نتائج مطابقة للبحث', 'No matches') : t('لا يوجد وكلاء بعد', 'No agents yet') }}</div></div></td></tr>
           <tr v-for="a in shown" :key="a.id">
             <td>
               <div class="idcell">
                 <div class="av-sm" :style="{ background: avColor(a.id) }">{{ initial(a.name) }}</div>
                 <div style="min-width:0;">
                   <div class="t-strong">{{ a.name }}</div>
-                  <div class="muted" style="font-size:12px;">{{ a.email }}</div>
+                  <div class="muted" style="font-size:12.5px; direction:ltr; text-align:start; overflow:hidden; text-overflow:ellipsis;">{{ a.email }}</div>
                 </div>
               </div>
             </td>
@@ -176,8 +218,8 @@ async function save() {
                 </span>
               </template>
               <!-- ليست خانةً فارغة: وكيلٌ بلا شركة لا يدخل شيئاً — نقولها لا نتركها شرطة -->
-              <span v-else class="chip" style="background:var(--rose-soft); border-color:transparent; color:var(--rose);">
-                {{ t('غير مربوط بأي شركة', 'Not linked to any company') }}
+              <span v-else class="chip" style="background:var(--amber-soft); border-color:transparent; color:var(--amber);">
+                <Icon name="alert" />{{ t('غير مربوط بأي شركة', 'Not linked to any company') }}
               </span>
             </td>
             <td style="text-align:end;"><button class="btn ghost sm" @click="openEdit(a)"><Icon name="edit" /> {{ t('تعديل', 'Edit') }}</button></td>
@@ -206,23 +248,23 @@ async function save() {
           <div class="field">
             <label>{{ t('الشركات والصلاحيات', 'Companies & permissions') }}</label>
             <div style="display:flex; flex-direction:column; gap:8px; max-height:280px; overflow:auto;">
-              <div v-for="c in companies" :key="c.id" class="card" style="padding:11px 13px; border-radius:11px;">
+              <div v-for="c in companies" :key="c.id" class="card" style="padding:12px 14px; border-radius:12px;">
                 <label style="display:flex; align-items:center; gap:9px; cursor:pointer; margin:0;">
                   <input type="checkbox" :checked="linked(c.id)" @change="toggleCompany(c.id)" style="width:16px; height:16px;" />
                   <span class="t-strong">{{ coName(c) }}</span>
                   <!-- شركة بلا فرع مفعّل: الوكيل يدخل ويضرب أوردراً يبقى في الكلاود
                        بلا أن يسحبه فرع. نقولها هنا قبل الربط لا بعد أول طلب ضائع. -->
                   <span v-if="!Number(c.branchesCallCenter || 0)" class="chip soft"
-                    style="background:#fee2e2; color:#b91c1c; margin-inline-start:auto;">
+                    style="background:var(--rose-soft); color:var(--rose); margin-inline-start:auto;">
                     <Icon name="alert" />{{ t('الكول‑سنتر غير مفعّل', 'Call center not enabled') }}
                   </span>
                 </label>
-                <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)" class="muted"
-                  style="margin:7px 0 0; padding-inline-start:25px; font-size:11.5px; color:#b91c1c;">
+                <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)"
+                  style="margin:7px 0 0; padding-inline-start:25px; font-size:12px; color:var(--rose);">
                   {{ t('لا فرع في هذه الشركة مفعّل عليه الكول‑سنتر — أي أوردر يضربه الوكيل لن ينزل أي فرع. فعّله من داشبورد U‑Serve › الشركة › الفروع.',
                         'No branch in this company has the call center enabled — orders this agent takes will never reach a branch. Enable it from the U-Serve dashboard › company › branches.') }}
                 </p>
-                <div v-if="linked(c.id)" style="margin-top:9px; padding-inline-start:25px;">
+                <div v-if="linked(c.id)" style="margin-top:10px; padding-inline-start:25px;">
                   <div class="pills">
                     <div v-for="p in PERMS" :key="p.key" class="pill" :class="{ on: form.links[c.id].includes(p.key) }" @click="togglePerm(c.id, p.key)">
                       <Icon v-if="form.links[c.id].includes(p.key)" name="check" />{{ permLabel(p.key, isAr()) }}
@@ -231,9 +273,9 @@ async function save() {
 
                   <!-- نطاق الفرنشايز: لا يظهر لشركةٍ بلا فرنشايزات — لا معنى لقيدٍ على لا شيء -->
                   <template v-if="coFranchises(c.id).length">
-                    <div style="display:flex; align-items:center; gap:8px; margin:12px 0 6px;">
+                    <div style="display:flex; align-items:center; gap:8px; margin:14px 0 7px;">
                       <label style="margin:0;">{{ t('نطاق الفرنشايز', 'Franchise scope') }}</label>
-                      <span class="muted" style="font-size:11px; font-weight:500; text-transform:none; letter-spacing:0;">
+                      <span class="muted" style="font-size:12px;">
                         {{ scopeOf(c.id).length ? t('مقيَّد', 'Restricted') : t('كل الفرنشايزات', 'All franchises') }}
                       </span>
                       <button v-if="scopeOf(c.id).length" type="button" class="btn ghost sm" style="margin-inline-start:auto;" @click="clearScope(c.id)">
@@ -245,7 +287,7 @@ async function save() {
                         <Icon v-if="scopeOf(c.id).includes(f.id)" name="check" />{{ coName(f) }}
                       </div>
                     </div>
-                    <p class="muted" style="font-size:11.5px; margin:7px 0 0;">
+                    <p class="muted" style="font-size:12px; margin:8px 0 0;">
                       {{ t('اترك الاختيار فارغاً ليعمل على كل فرنشايزات الشركة.', 'Leave empty to let the agent work on all franchises of the company.') }}
                     </p>
                   </template>

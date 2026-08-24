@@ -32,17 +32,36 @@ onMounted(async () => { companies.value = await listCompanies().catch(() => []);
 <template>
   <div class="content">
     <div class="page-head">
-      <div style="flex:1;"><div class="t">{{ t('تقارير الوكلاء', 'Agent reports') }}</div><div class="d">{{ t('أداء كل وكيل عبر كل الشركات', 'Each agent’s performance across all companies') }}</div></div>
+      <div>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <div class="t">{{ t('تقارير الوكلاء', 'Agent reports') }}</div>
+          <span v-if="!loading && rows.length" class="n">{{ t(`${totals.orders} أوردر`, `${totals.orders} orders`) }}</span>
+        </div>
+        <div class="d">{{ t('أداء كل وكيل عبر كل الشركات', 'Each agent’s performance across all companies') }}</div>
+      </div>
     </div>
 
     <div class="stats">
-      <div class="card stat"><div class="lbl"><Icon name="users" /> {{ t('الوكلاء', 'Agents') }}</div><div class="val">{{ totals.agents }}</div></div>
-      <div class="card stat"><div class="lbl"><Icon name="ticket" /> {{ t('الأوردرات', 'Orders') }}</div><div class="val">{{ totals.orders }}</div></div>
-      <div class="card stat"><div class="lbl"><Icon name="chart" /> {{ t('الإيراد', 'Revenue') }}</div><div class="val">{{ money(totals.revenue) }}</div></div>
-      <div class="card stat"><div class="lbl"><Icon name="alert" /> {{ t('الشكاوى', 'Complaints') }}</div><div class="val">{{ totals.complaints }}</div></div>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('الوكلاء', 'Agents') }}</span><span class="ic"><Icon name="users" /></span></div>
+        <div class="val">{{ totals.agents }}<i>{{ t('وكيل', 'agents') }}</i></div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('الأوردرات', 'Orders') }}</span><span class="ic violet"><Icon name="ticket" /></span></div>
+        <div class="val violet">{{ totals.orders }}<i>{{ t('طلب', 'orders') }}</i></div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('الإيراد', 'Revenue') }}</span><span class="ic green"><Icon name="chart" /></span></div>
+        <div class="val green">{{ money(totals.revenue) }}</div>
+      </div>
+      <div class="stat">
+        <div class="lbl"><span>{{ t('الشكاوى', 'Complaints') }}</span><span class="ic amber"><Icon name="alert" /></span></div>
+        <!-- الصفر يبقى حِبريّاً: لا شكوى تُعالَج فلا داعي لإنذارٍ ملوّن -->
+        <div class="val" :class="totals.complaints ? 'amber' : 'plain'">{{ totals.complaints }}<i>{{ t('شكوى', 'complaints') }}</i></div>
+      </div>
     </div>
 
-    <div class="card pad" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:16px;">
+    <div class="card pad" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; margin-bottom:14px;">
       <div class="field" style="min-width:200px;"><label>{{ t('الشركة', 'Company') }}</label><select v-model="filter.companyId"><option value="">{{ t('كل الشركات', 'All companies') }}</option><option v-for="c in companies" :key="c.id" :value="c.id">{{ coName(c) }}</option></select></div>
       <div class="field"><label>{{ t('من', 'From') }}</label><input class="input" v-model="filter.from" type="date" /></div>
       <div class="field"><label>{{ t('إلى', 'To') }}</label><input class="input" v-model="filter.to" type="date" /></div>
