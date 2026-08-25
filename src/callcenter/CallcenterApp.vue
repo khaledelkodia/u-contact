@@ -232,6 +232,9 @@ onMounted(() => {
 
 // عند تغيير الشركة/الفرنشايز → أعِد تحميل البيانات الحقيقية + يوم العمل (lookups تختلف)
 watch(() => [session.companyId, session.franchiseId], () => { void loadLiveData(); void loadBusinessDay(); openOrdersStream() })
+// تجديد التوكن ⇒ أعِد فتح التيّار بالتوكن الجديد وحده. (بلا تحميل بيانات: النطاق
+// لم يتغيّر، وإعادةُ تحميلها كل ربع ساعة لكل وكيل حِملٌ بلا مقابل.)
+watch(() => session.token, (t, prev) => { if (t && prev && t !== prev) openOrdersStream() })
 // عند دخول شاشة الأوردرات → حدّث من الكلاود
 watch(() => state.activeView, (v) => { if (state.live && (v === 'orders' || v === 'scheduled-orders')) void loadOrders() })
 onBeforeUnmount(() => {

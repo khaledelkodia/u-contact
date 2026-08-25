@@ -82,12 +82,13 @@ export function phoneE164(raw: any, dial?: string | null): string {
 }
 export interface Franchise { id: number; name: string; nameAr?: string }
 export const session = reactive<{
-  mode: Mode | null; token: string | null; name: string;
+  mode: Mode | null; token: string | null; refreshToken: string | null; name: string;
   companies: Company[]; companyId: number | null;
   franchises: Franchise[]; franchiseId: number | null;
 }>({
   mode: (localStorage.getItem('uc_mode') as Mode) || null,
   token: localStorage.getItem('uc_token'),
+  refreshToken: localStorage.getItem('uc_refresh'),
   name: localStorage.getItem('uc_name') || '',
   companies: JSON.parse(localStorage.getItem('uc_companies') || '[]'),
   companyId: Number(localStorage.getItem('uc_company')) || null,
@@ -97,6 +98,7 @@ export const session = reactive<{
 
 function persist() {
   if (session.token) localStorage.setItem('uc_token', session.token); else localStorage.removeItem('uc_token')
+  if (session.refreshToken) localStorage.setItem('uc_refresh', session.refreshToken); else localStorage.removeItem('uc_refresh')
   if (session.mode) localStorage.setItem('uc_mode', session.mode); else localStorage.removeItem('uc_mode')
   localStorage.setItem('uc_name', session.name)
   localStorage.setItem('uc_companies', JSON.stringify(session.companies))
@@ -137,9 +139,9 @@ export function setCompany(id: number) {
   void loadFranchises()   // الفرنشايزات تختلف بين الشركات → أعد تحميلها
 }
 export function logout() {
-  session.mode = null; session.token = null; session.name = ''; session.companies = []; session.companyId = null
+  session.mode = null; session.token = null; session.refreshToken = null; session.name = ''; session.companies = []; session.companyId = null
   session.franchises = []; session.franchiseId = null
-  ;['uc_token', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise', 'uc_scope'].forEach((k) => localStorage.removeItem(k))
+  ;['uc_token', 'uc_refresh', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise', 'uc_scope'].forEach((k) => localStorage.removeItem(k))
 }
 
 api.interceptors.request.use((cfg) => {
@@ -148,21 +150,95 @@ api.interceptors.request.use((cfg) => {
   if (session.mode === 'agent' && session.franchiseId) cfg.headers['x-franchise-id'] = String(session.franchiseId)
   return cfg
 })
-api.interceptors.response.use((r) => r, (e) => {
-  if (e?.response?.status === 401) { logout(); if (location.pathname !== '/login') location.assign('/login') }
+// ──────────────────────────────────────────────────────────────────────────────
+// تجديد الجلسة عند 401.
+//
+// كان أيُّ 401 يطرد الوكيل إلى شاشة الدخول — وتوكن الوصول عمره ١٥ دقيقة، فكانت
+// الجلسة تنقطع كل ربع ساعة **وسط مكالمة**. الآن: 401 ⇒ جدِّد ثم أعد الطلب، ولا
+// يُطرَد إلا إذا سقط التجديد نفسه (توكن التجديد منتهٍ أو الحساب أُوقف).
+//
+// **طلبٌ واحد للتجديد مهما تزامنت الإخفاقات**: شاشة الكول‑سنتر تُطلق نداءاتٍ
+// متوازية، فانتهاءُ التوكن يُفشلها كلها في اللحظة نفسها. بلا هذا الحارس ينطلق
+// تجديدٌ لكل واحدٍ منها، فيدوس بعضُها بعضاً (كلٌّ يُصدر توكناً يُبطل ما قبله)
+// ويلتهم حدَّ الطلبات. `inflight` يجعل الجميع ينتظرون تجديداً واحداً.
+let inflight: Promise<boolean> | null = null
+
+async function renew(): Promise<boolean> {
+  if (!session.refreshToken) return false
+  const path = session.mode === 'admin' ? '/auth/refresh' : '/contact/auth/refresh'
+  try {
+    // نداءٌ عارٍ (axios لا api) — حتى لا يمرّ بهذا المعترِض نفسه فيتكرّر بلا نهاية
+    const { data } = await axios.post(String(api.defaults.baseURL || '').replace(/\/$/, '') + path,
+      { refreshToken: session.refreshToken })
+    if (!data?.accessToken) return false
+    session.token = data.accessToken
+    // تدويرٌ: الخادم يعيد توكن تجديدٍ جديداً — نحفظه، وإلا انتهى القديم بعد أسبوع
+    if (data.refreshToken) session.refreshToken = data.refreshToken
+    persist()
+    return true
+  } catch {
+    return false
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// إبقاءُ الجلسة حيّة استباقياً.
+//
+// المعترِض وحده يجدّد **عند الفشل** — وهذا يكفي وكيلاً يعمل، لا وكيلاً ساكتاً:
+// شاشةٌ مفتوحة بلا نداءات ربعَ ساعة يموت توكنها، ويبقى رابط البثّ اللحظي حاملاً
+// توكناً منتهياً؛ فأوّل انقطاعٍ للشبكة لا يعود بعده (EventSource لا يعيد المحاولة
+// بعد ردٍّ غير 200) ⇒ شاشةٌ متجمّدة يظنّها الوكيل حيّة.
+//
+// فحصٌ كل دقيقة: إن بقي للتوكن أقلّ من ثلاث دقائق جُدِّد. والفحص الدوريّ — لا
+// مؤقّتٌ محسوبٌ مرّةً — لأن الجهاز ينام ويصحو، فيوقظه أوّل تكّةٍ بعد الصحو.
+const EXPIRY_MARGIN_S = 180
+
+/** `exp` من حمولة التوكن بلا تحقّق — قراءةُ وقتٍ لا إذن. */
+function tokenExpiry(t: string | null): number {
+  if (!t) return 0
+  try { return Number(JSON.parse(atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))?.exp) || 0 }
+  catch { return 0 }
+}
+
+setInterval(() => {
+  if (!session.token || !session.refreshToken) return
+  const exp = tokenExpiry(session.token)
+  if (!exp) return
+  // `clockSkewMs` يجعل المقارنة بساعة الخادم — جهازٌ ساعته متأخّرة كان يظنّ التوكن
+  // حيّاً حتى يموت فعلاً، وجهازٌ متقدّمة يجدّد بلا داعٍ.
+  const nowS = (Date.now() + clockSkewMs) / 1000
+  if (exp - nowS <= EXPIRY_MARGIN_S) { inflight = inflight || renew().finally(() => { inflight = null }) }
+}, 60_000)
+
+api.interceptors.response.use((r) => r, async (e) => {
+  const cfg = e?.config
+  const is401 = e?.response?.status === 401
+  // `_retried` يمنع الحلقة: طلبٌ فشل بعد التجديد لا يُجدَّد له ثانيةً
+  const renewable = is401 && cfg && !cfg._retried && session.refreshToken &&
+    !String(cfg.url || '').includes('/auth/refresh') && !String(cfg.url || '').includes('/login')
+  if (renewable) {
+    inflight = inflight || renew().finally(() => { inflight = null })
+    if (await inflight) {
+      cfg._retried = true
+      return api.request(cfg)     // المعترِض الطالب يركّب التوكن الجديد تلقائياً
+    }
+  }
+  if (is401) { logout(); if (location.pathname !== '/login') location.assign('/login') }
   return Promise.reject(e)
 })
 
 // ── تسجيل الدخول ────────────────────────────────────────────────────────────────
 export async function adminLogin(email: string, password: string) {
   const { data } = await api.post('/auth/admin/login', { email, password })
-  session.mode = 'admin'; session.token = data.accessToken; session.name = data.user?.name || data.user?.email || ''
+  session.mode = 'admin'; session.token = data.accessToken; session.refreshToken = data.refreshToken || null
+  session.name = data.user?.name || data.user?.email || ''
   session.companies = []; session.companyId = null; persist()
   confirmScope()   // المشرف العام بلا نطاقٍ يُختار
 }
 export async function agentLogin(email: string, password: string) {
   const { data } = await api.post('/contact/auth/login', { email, password })
-  session.mode = 'agent'; session.token = data.accessToken; session.name = data.agent?.name || data.agent?.email || ''
+  session.mode = 'agent'; session.token = data.accessToken; session.refreshToken = data.refreshToken || null
+  session.name = data.agent?.name || data.agent?.email || ''
   resetScope()     // دخولٌ جديد ⇒ النطاق يُختار من جديد
   session.companies = data.companies || []
   // لحظة الخادم تصل مع كل شركة (نفس القيمة) — نقيس بها انحراف ساعة الجهاز مرةً واحدة.
