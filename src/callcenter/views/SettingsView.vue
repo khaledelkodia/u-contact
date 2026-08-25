@@ -5,6 +5,7 @@ import {
   onAvailabilityBranchChange, onAvailabilityCategoryChange, onAvailabilitySearchChange,
 } from '../store'
 import { tx, lang } from '../lang'
+import { icon } from '../icons'
 
 const groups = computed<any[]>(() => availabilityGroups())
 const totalShown = computed<number>(() => groups.value.reduce((sum, g) => sum + g.items.length, 0))
@@ -42,32 +43,32 @@ function onToggle(row: any, ev: Event) {
         <div class="availability-filters-bar">
           <div class="availability-filter">
             <label class="availability-filter-label" for="settings-availability-branch">
-              <i class="fa-solid fa-store"></i> {{ tx('الفرع المستهدف', 'Target branch') }}
+              <span class="inline-ico" v-html="icon('store', { size: 13 })"></span> {{ tx('الفرع المستهدف', 'Target branch') }}
             </label>
             <div class="availability-filter-input">
               <select id="settings-availability-branch" :value="state.availBranchId" @change="onAvailabilityBranchChange(($event.target as HTMLSelectElement).value)">
                 <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
               </select>
-              <i class="fa-solid fa-chevron-down availability-filter-chev"></i>
+              <span class="availability-filter-chev inline-ico" v-html="icon('chevron-down', { size: 13 })"></span>
             </div>
           </div>
 
           <div class="availability-filter">
             <label class="availability-filter-label" for="settings-availability-category">
-              <i class="fa-solid fa-layer-group"></i> {{ tx('التصنيف', 'Category') }}
+              <span class="inline-ico" v-html="icon('layers', { size: 13 })"></span> {{ tx('التصنيف', 'Category') }}
             </label>
             <div class="availability-filter-input">
               <select id="settings-availability-category" :value="state.availCategory" @change="onAvailabilityCategoryChange(($event.target as HTMLSelectElement).value)">
                 <option value="all">{{ tx('كل التصنيفات', 'All categories') }}</option>
                 <option v-for="cat in state.menuCategories.filter((c: any) => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
               </select>
-              <i class="fa-solid fa-chevron-down availability-filter-chev"></i>
+              <span class="availability-filter-chev inline-ico" v-html="icon('chevron-down', { size: 13 })"></span>
             </div>
           </div>
 
           <div class="availability-filter availability-filter-search">
             <label class="availability-filter-label" for="settings-availability-search">
-              <i class="fa-solid fa-magnifying-glass"></i> {{ tx('بحث', 'Search') }}
+              <span class="inline-ico" v-html="icon('search', { size: 13 })"></span> {{ tx('بحث', 'Search') }}
             </label>
             <div class="availability-filter-input">
               <input type="text" id="settings-availability-search" :placeholder="tx('ابحث باسم الصنف...', 'Search by item name…')" :value="state.availSearch" @input="onAvailabilitySearchChange(($event.target as HTMLInputElement).value)" />
@@ -77,7 +78,7 @@ function onToggle(row: any, ev: Event) {
 
         <div id="settings-branch-items-list" class="settings-branch-items-list">
           <div v-if="totalShown === 0" class="settings-empty">
-            <i class="fa-solid fa-magnifying-glass"></i>
+            <span class="inline-ico" v-html="icon('search', { size: 14 })"></span>
             <div>{{ tx('لا توجد أصناف تطابق الفلتر الحالي', 'No items match the current filter') }}</div>
           </div>
           <div v-for="group in groups" :key="group.cat.id" class="settings-cat-section">

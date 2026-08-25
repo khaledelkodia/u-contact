@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { tx } from '../lang'
+import { icon } from '../icons'
 import { state, stoppedItemsGroups } from '../store'
 import { formatCurrency } from '../utils'
 
@@ -12,7 +13,7 @@ const groups = computed<any[]>(() => stoppedItemsGroups())
     <div class="settings-section">
       <div class="page-header-with-back">
         <button class="btn-back-page" @click="state.activeView = 'settings'" :title="tx('رجوع للإعدادات', 'Back to settings')">
-          <i class="fa-solid fa-arrow-right"></i>
+          <span class="inline-ico" v-html="icon('arrow-right', { size: 14 })"></span>
         </button>
         <div class="page-header-text">
           <h2 class="dashboard-title">{{ tx('الأصناف الموقوفة', 'Stopped items') }}</h2>

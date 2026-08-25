@@ -32,7 +32,7 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
           <div class="pm-channels" id="pm-channels">
             <button v-for="ch in PAYMENT_CHANNELS" :key="ch.id" type="button" class="pm-channel" :class="{ active: state.paymentChannel === ch.id }" @click="setPaymentChannel(ch.id)">
               <span v-if="ch.logo" class="pm-channel-logo" v-html="ch.logo"></span>
-              <span v-else class="pm-channel-icon"><i :class="ch.icon" :style="{ color: state.paymentChannel === ch.id ? '#fff' : (ch.color || 'var(--primary)') }"></i></span>
+              <span v-else class="pm-channel-icon" :style="{ color: state.paymentChannel === ch.id ? '#fff' : (ch.color || 'var(--primary)') }" v-html="icon(ch.icon, { size: 18 })"></span>
               <span class="pm-channel-name">{{ ch.name }}</span>
             </button>
           </div>
@@ -48,7 +48,7 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
               {{ tx('لا توجد طرق دفع مفعّلة لهذه الشركة — عرّفها من داشبورد U‑Serve.', 'No active payment methods for this company — define them in the U-Serve dashboard.') }}
             </p>
             <button v-for="m in methods" :key="m.id" type="button" class="pm-method" :class="{ active: String(state.paymentMethod) === String(m.id) }" @click="setPaymentMethod(m.id)">
-              <span class="pm-method-icon"><i :class="m.icon || (m.isCash ? 'fa-solid fa-money-bill-wave' : 'fa-solid fa-credit-card')" :style="{ color: String(state.paymentMethod) === String(m.id) ? '#fff' : (m.color || (m.isCash ? '#16a34a' : '#2563eb')) }"></i></span>
+              <span class="pm-method-icon" :style="{ color: String(state.paymentMethod) === String(m.id) ? '#fff' : (m.color || (m.isCash ? '#16a34a' : '#2563eb')) }" v-html="icon(m.icon || (m.isCash ? 'banknote' : 'credit-card'), { size: 18 })"></span>
               <span class="pm-method-name">{{ nameOf(m) }}</span>
             </button>
           </div>

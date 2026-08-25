@@ -51,7 +51,7 @@ function itemDetails(item: any): string {
         </div>
         <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">{{ tx('تاريخ الإنشاء:', 'Created:') }} {{ formatDate(order.createdAt) }}</div>
         <div v-if="order.scheduledDate" style="font-size:13px; color:var(--danger); margin-top:4px; font-weight:bold;">{{ tx('مجدول إلى:', 'Scheduled for:') }} {{ formatDate(order.scheduledDate) }}</div>
-        <div v-if="order.status === 'cancelled' && order.cancellationReason" class="order-cancel-reason"><i class="fa-solid fa-circle-xmark"></i> {{ tx('سبب الإلغاء:', 'Cancellation reason:') }} <strong>{{ order.cancellationReason.label }}</strong><template v-if="order.cancellationReason.note && order.cancellationReason.id !== 'other'"> — {{ order.cancellationReason.note }}</template></div>
+        <div v-if="order.status === 'cancelled' && order.cancellationReason" class="order-cancel-reason"><span class="inline-ico" v-html="icon('x-circle', { size: 13 })"></span> {{ tx('سبب الإلغاء:', 'Cancellation reason:') }} <strong>{{ order.cancellationReason.label }}</strong><template v-if="order.cancellationReason.note && order.cancellationReason.id !== 'other'"> — {{ order.cancellationReason.note }}</template></div>
       </div>
       <div style="display:flex; gap:10px; align-items:center;">
         <span v-html="statusBadge(order.status)"></span>

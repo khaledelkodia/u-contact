@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
-import { state, selectCategory, showAllCategories, filterMenuItems, openItemModal, menuBranchId, isItemDisabledForOrder } from '../store'
-import { lang, t } from '../lang'
+import { state, selectCategory, selectSubCategory, showAllCategories, menuBack, subCategoriesOf, filterMenuItems, openItemModal, menuBranchId, isItemDisabledForOrder } from '../store'
+import { lang, t, tx } from '../lang'
+import { icon } from '../icons'
 import { formatCurrency } from '../utils'
 
 const isEn = computed(() => lang.value === 'en')
@@ -10,7 +11,18 @@ const isEn = computed(() => lang.value === 'en')
 const imgFailed = reactive<Record<string, boolean>>({})
 
 const categoriesVisible = computed(() => state.menuView === 'categories' || !!state.menuSearch)
+// المستوى الثاني — والبحث يتخطّاه: نتيجةٌ عبر كل الفئات لا داخل واحدة
+const subsVisible = computed(() => state.menuView === 'subcategories' && !state.menuSearch)
 const itemsVisible = computed(() => state.menuView === 'items' || !!state.menuSearch)
+const subCats = computed<any[]>(() => subCategoriesOf(state.activeCategory))
+const activeCatName = computed(() => {
+  const c = state.menuCategories.find((x: any) => x.id === state.activeCategory)
+  return c ? catName(c) : ''
+})
+function subName(sub: any) { return isEn.value ? (sub.nameEn || sub.name) : (sub.name || sub.nameEn) }
+function subNameAlt(sub: any) { const alt = isEn.value ? sub.name : sub.nameEn; return alt && alt !== subName(sub) ? alt : '' }
+function subCount(sub: any) { return state.menuItems.filter((i: any) => i.subCategoryId === sub.id).length }
+function subInitial(sub: any) { const n = (subName(sub) || '').trim(); return n ? n.charAt(0) : '#' }
 
 function catImg(cat: any) { return cat.imageUrl || `assets/images/${cat.id}.png` }
 function catName(cat: any) { return isEn.value ? (cat.nameEn || cat.name) : cat.name }
@@ -29,7 +41,10 @@ const itemsTitle = computed(() => {
   if (state.menuSearch) return 'نتائج البحث'
   if (state.activeCategory === 'all' || !state.activeCategory) return isEn.value ? 'All Items' : 'جميع الأصناف'
   const c = state.menuCategories.find((x: any) => x.id === state.activeCategory)
-  return c ? (isEn.value ? (c.nameEn || c.name) : c.name) : (isEn.value ? 'Items' : 'الأصناف')
+  const base = c ? (isEn.value ? (c.nameEn || c.name) : c.name) : (isEn.value ? 'Items' : 'الأصناف')
+  // الفئة الفرعية تُذكَر مع الرئيسية: الوكيل يعرف أين هو من التقسيم
+  const sc = subCats.value.find((x: any) => x.id === state.activeSubCategory)
+  return sc ? `${base} — ${subName(sc)}` : base
 })
 
 const shownItems = computed<any[]>(() => {
@@ -38,7 +53,9 @@ const shownItems = computed<any[]>(() => {
     return state.menuItems.filter((i: any) => i.name.toLowerCase().includes(q) || (i.nameEn || '').toLowerCase().includes(q))
   }
   if (state.activeCategory === 'all' || !state.activeCategory) return state.menuItems
-  return state.menuItems.filter((i: any) => i.categoryId === state.activeCategory)
+  const inCat = state.menuItems.filter((i: any) => i.categoryId === state.activeCategory)
+  // بلا فئةٍ فرعية مختارة نعرض كل أصناف الرئيسية — ومنها ما لا فئة فرعية له أصلاً
+  return state.activeSubCategory ? inCat.filter((i: any) => i.subCategoryId === state.activeSubCategory) : inCat
 })
 
 // عدد أصناف التصنيف — بديل مفيد لمربّع الصورة الفارغ (المشروع بلا صور أصناف)
@@ -113,12 +130,48 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
         </div>
       </div>
     </div>
+    <!-- ── الفئات الفرعية ─────────────────────────────────────────────────────
+         المستوى الثاني: «بيتزا» تفتح أقسامها لا سبعين كارتاً دفعةً واحدة. الفئة
+         التي لا أقسام لها تتخطّى هذا المستوى فلا تُزاد نقرةٌ بلا فائدة. -->
+    <div id="menu-subcategories" :class="{ hidden: !subsVisible }">
+      <div class="menu-items-header">
+        <h3 class="menu-items-title">{{ activeCatName }}</h3>
+        <button class="menu-items-back menu-items-back-floating" @click="menuBack()">
+          <span class="menu-items-back-icon" v-html="icon(isEn ? 'arrow-left' : 'arrow-right', { size: 13 })"></span>
+          <span>{{ t('back_to_categories') }}</span>
+        </button>
+      </div>
+      <div class="menu-categories">
+        <!-- «كل الأصناف»: الوكيل يعرف الصنف ولا يعرف قسمه — فلا يُحبَس في التقسيم -->
+        <div class="category-card compact sub-card" :class="{ active: !state.activeSubCategory }"
+          :style="catVars({ id: state.activeCategory })" @click="selectSubCategory('')">
+          <div class="cat-avatar" v-html="icon('layers', { size: 15 })"></div>
+          <div class="category-card-info">
+            <div class="category-card-name">{{ isEn ? 'All items' : 'كل الأصناف' }}</div>
+            <div class="category-card-meta"><span class="cat-count">{{ catCount({ id: state.activeCategory }) }}</span></div>
+          </div>
+        </div>
+        <div v-for="sub in subCats" :key="sub.id" class="category-card compact sub-card"
+          :class="{ active: state.activeSubCategory === sub.id }" :style="catVars(sub)"
+          @click="selectSubCategory(sub.id)">
+          <div class="cat-avatar">{{ subInitial(sub) }}</div>
+          <div class="category-card-info">
+            <div class="category-card-name">{{ subName(sub) }}</div>
+            <div class="category-card-meta">
+              <span v-if="subNameAlt(sub)" class="cat-sub">{{ subNameAlt(sub) }}</span>
+              <span class="cat-count">{{ subCount(sub) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div id="menu-items-section" :class="{ hidden: !itemsVisible }">
       <div class="menu-items-header">
         <h3 class="menu-items-title" id="menu-items-title">{{ itemsTitle }}</h3>
-        <button class="menu-items-back menu-items-back-floating" @click="showAllCategories()">
-          <span class="menu-items-back-icon">{{ isEn ? '←' : '→' }}</span>
-          <span>{{ t('back_to_categories') }}</span>
+        <button class="menu-items-back menu-items-back-floating" @click="menuBack()">
+          <span class="menu-items-back-icon" v-html="icon(isEn ? 'arrow-left' : 'arrow-right', { size: 13 })"></span>
+          <span>{{ subsVisible || subCats.length ? tx('رجوع', 'Back') : t('back_to_categories') }}</span>
         </button>
       </div>
       <div id="menu-items" class="menu-items">
@@ -130,15 +183,15 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
           <!-- ما الذي يحدث عند الضغط: أحجام تُختار، إضافات تُضاف، أو إضافةٌ مباشرة -->
           <div v-if="hasSizes(item) || hasExtras(item)" class="menu-item-flags">
             <span v-if="hasSizes(item)" class="mi-flag mi-flag-size">
-              <i class="fa-solid fa-layer-group"></i> {{ isEn ? `${item.sizes.length} sizes` : `${item.sizes.length} أحجام` }}
+              <span class="inline-ico" v-html="icon('layers', { size: 11 })"></span> {{ isEn ? `${item.sizes.length} sizes` : `${item.sizes.length} أحجام` }}
             </span>
             <span v-if="hasExtras(item)" class="mi-flag mi-flag-extra">
-              <i class="fa-solid fa-plus"></i> {{ isEn ? `${item.extras.length} extras` : `${item.extras.length} إضافات` }}
+              <span class="inline-ico" v-html="icon('plus', { size: 11 })"></span> {{ isEn ? `${item.extras.length} extras` : `${item.extras.length} إضافات` }}
             </span>
           </div>
           <!-- سعر مفتوح: لا سعر ثابت يُعرض — الوكيل يحدّده في مودال الصنف -->
-          <div v-if="item.isOpenPrice" class="menu-item-price menu-item-price-sized"><i class="fa-solid fa-tag"></i> {{ isEn ? 'Open price' : 'سعر مفتوح' }}</div>
-          <div v-else-if="hasSizes(item)" class="menu-item-price menu-item-price-sized"><i class="fa-solid fa-layer-group"></i> {{ isEn ? 'Choose size' : 'حسب الحجم' }}</div>
+          <div v-if="item.isOpenPrice" class="menu-item-price menu-item-price-sized"><span class="inline-ico" v-html="icon('tag', { size: 12 })"></span> {{ isEn ? 'Open price' : 'سعر مفتوح' }}</div>
+          <div v-else-if="hasSizes(item)" class="menu-item-price menu-item-price-sized"><span class="inline-ico" v-html="icon('layers', { size: 12 })"></span> {{ isEn ? 'Choose size' : 'حسب الحجم' }}</div>
           <div v-else class="menu-item-price">{{ formatCurrency(item.price) }}</div>
         </div>
       </div>

@@ -3,7 +3,7 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
 import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder } from './store'
-import { t, tx, lang, toggleLang, applyDir } from './lang'
+import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
 
@@ -67,12 +67,12 @@ function tick() {
   const now = trueNow()
   if (tz) {
     try {
-      clock.value = now.toLocaleTimeString('ar-KW', { hour12: false, timeZone: tz })
+      clock.value = now.toLocaleTimeString(locale(), { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: tz })
       clockZone.value = c?.countryNameAr || tz
       return
     } catch { /* منطقة فاسدة — نسقط للجهاز */ }
   }
-  clock.value = now.toLocaleTimeString('ar-KW', { hour12: false })
+  clock.value = now.toLocaleTimeString(locale(), { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit' })
   clockZone.value = null
 }
 

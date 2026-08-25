@@ -1,13 +1,14 @@
 <script setup lang="ts">
 // مودالات شاشة الأوردر الجديد: ملاحظات الطلب · رسوم التوصيل · سجل طلبات العميل ·
 // مراجعة الأوردر. مُجمَّعة في ملف واحد لأنها كلها تخصّ السلة وتُركَّب مرّة واحدة.
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, nextTick } from 'vue'
 import {
   state,
   closeOrderNotesModal, saveOrderNotes,
   closeDeliveryFeeModal, applyDeliveryFeeOverride, resetDeliveryFeeOverride, derivedDeliveryFee, deliveryFeeIsOpen,
   closeHistoryModal, reorderItems,
   closeReviewModal, confirmReview, reviewSummary,
+  closeCartItemNote, saveCartItemNote, cartItemBeingNoted,
 } from '../store'
 import { formatCurrency, formatDate, formatDateTimeLocal } from '../utils'
 import { tx, lang, nameOf } from '../lang'
@@ -24,6 +25,17 @@ watch(() => state.feeModalOpen, (open) => {
   if (open) feeInput.value = String(state.deliveryFeeOverride ?? derivedDeliveryFee())
 })
 const feeOverridden = computed(() => state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined)
+
+// ── ملاحظة صنفٍ في السلّة ──
+const notedItem = computed<any>(() => (state.noteItemId ? cartItemBeingNoted() : null))
+const itemNoteText = ref('')
+const itemNoteBox = ref<HTMLTextAreaElement | null>(null)
+// الوكيل يضغط «ملاحظة» وهو يستمع للعميل — المؤشّر جاهز فيكتب بلا نقرةٍ ثانية
+watch(notedItem, (ci) => {
+  if (!ci) return
+  itemNoteText.value = state.noteItemText
+  void nextTick(() => itemNoteBox.value?.focus())
+})
 
 // ── المراجعة ──
 const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : null))
@@ -64,6 +76,34 @@ function itemMods(i: any): { name: string; price: number }[] {
         <div style="display:flex; gap:8px;">
           <button class="btn btn-secondary" @click="closeOrderNotesModal()">{{ tx('إلغاء', 'Cancel') }}</button>
           <button class="btn btn-primary" @click="saveOrderNotes(noteText)">{{ tx('حفظ', 'Save') }}</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========== ملاحظة صنفٍ في السلّة ========== -->
+  <!-- سطرٌ بعينه لا الطلب كلّه: «بدون بصل» تخصّ ساندويتشاً واحداً، ووضعُها في ملاحظة
+       الطلب يجعل المطبخ يخمّن أيَّها المقصود. -->
+  <div v-if="notedItem" class="modal-overlay" @click.self="closeCartItemNote()">
+    <div class="modal-content" style="max-width:460px;" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">{{ tx('ملاحظة على', 'Note on') }} {{ nameOf(notedItem) }}</h3>
+        <button class="modal-close" @click="closeCartItemNote()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label style="font-weight:700;">{{ tx('تُطبَع على تذكرة المطبخ مع الصنف', 'Printed on the kitchen ticket with the item') }}</label>
+          <textarea ref="itemNoteBox"
+            :placeholder="tx('مثال: بدون بصل · مستوي جداً · الصوص جانباً', 'e.g. no onion · well done · sauce on the side')"
+            style="width:100%; min-height:96px; padding:10px; border:1px solid var(--border); border-radius:6px; resize:vertical; font-family:inherit;"
+            v-model="itemNoteText" @keydown.ctrl.enter="saveCartItemNote(itemNoteText)"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button class="btn btn-secondary" @click="itemNoteText = ''">{{ tx('مسح', 'Clear') }}</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn btn-secondary" @click="closeCartItemNote()">{{ tx('إلغاء', 'Cancel') }}</button>
+          <button class="btn btn-primary" @click="saveCartItemNote(itemNoteText)">{{ tx('حفظ', 'Save') }}</button>
         </div>
       </div>
     </div>

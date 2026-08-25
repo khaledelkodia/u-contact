@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime } from '../store'
+import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
 import { t } from '../lang'
+import { icon } from '../icons'
 
 const disabledItems = computed<any[]>(() => {
   const id = getResolvedOrderBranchId()
@@ -82,12 +83,22 @@ const resLabel = computed(() => {
       </div>
       <div v-else v-for="item in state.cart" :key="item.cartItemId" class="cart-item" :class="{ 'cart-item-disabled': disabledItems.includes(item.itemId) }">
         <div class="cart-item-top">
-          <div class="cart-item-name">{{ item.name }}</div>
+          <div class="cart-item-name">{{ nameOf(item) }}</div>
           <div class="cart-item-price">{{ formatCurrency(item.price * item.quantity) }}</div>
         </div>
         <div v-if="itemDetails(item)" class="cart-item-details" v-html="itemDetails(item)"></div>
         <div class="cart-item-bottom">
-          <button class="cart-item-edit" @click="openItemModal(item.itemId, item.cartItemId)">{{ tx('تعديل', 'Edit') }}</button>
+          <div class="cart-item-actions">
+            <button class="cart-item-edit" @click="openItemModal(item.itemId, item.cartItemId)">{{ tx('تعديل', 'Edit') }}</button>
+            <!-- الملاحظة بزرٍّ يقول ما يفعل: الصنف البسيط لا يفتح مودالاً عند الإضافة،
+                 فكان «تعديل» طريقَها الوحيد ولا يخطر ببال أحد. -->
+            <button class="cart-item-note" :class="{ 'has-note': !!item.note }"
+              @click="openCartItemNote(item.cartItemId)"
+              :title="item.note || tx('أضف ملاحظة على الصنف', 'Add a note on the item')">
+              <span class="cart-item-note-ico" v-html="icon('message-square', { size: 13 })"></span>
+              {{ tx('ملاحظة', 'Note') }}
+            </button>
+          </div>
           <div class="qty-control">
             <button class="qty-btn" @click="updateCartItemQty(item.cartItemId, -1)">-</button>
             <div class="qty-value">{{ item.quantity }}</div>
@@ -148,7 +159,9 @@ const resLabel = computed(() => {
         <span class="summary-row-label">
           <span>{{ t('delivery_fee') }}</span>
           <button v-if="state.orderType === 'delivery'" type="button" class="btn-edit-fee" id="btn-edit-delivery-fee" @click="openDeliveryFeeModal()" :title="tx('تعديل رسوم التوصيل لهذا الطلب', 'Edit the delivery fee for this order')">
-            <i class="fa-solid fa-pen-to-square"></i>
+            <!-- أيقونة من مكتبة المشروع لا Font Awesome: الأخيرة غير محمَّلة في
+                 التطبيق أصلاً، فكان الزرّ مربّعاً منقّطاً فارغاً لا يقول ما يفعل. -->
+            <span class="btn-edit-fee-ico" v-html="icon('edit', { size: 13 })"></span>
           </button>
           <span v-if="state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined" class="fee-override-tag" id="fee-override-tag" :title="tx('تم تعديل الرسوم يدوياً لهذا الطلب', 'Fee was changed manually for this order')">{{ tx('يدوي', 'Manual') }}</span>
         </span>
@@ -167,14 +180,14 @@ const resLabel = computed(() => {
           <span class="bpp-title" id="bpp-title">
             <template v-if="paymentSelected && selectedChannel">
               <span v-if="selectedChannel.logo" class="bpp-channel-mini-logo" v-html="selectedChannel.logo"></span>
-              <i v-else :class="selectedChannel.icon" :style="{ color: selectedChannel.color || 'currentColor' }"></i>
+              <span v-else class="pay-ico" :style="{ color: selectedChannel.color || 'currentColor' }" v-html="icon(selectedChannel.icon, { size: 14 })"></span>
               {{ ' ' + selectedChannel.name }}
             </template>
             <template v-else>{{ tx('طريقة الدفع', 'Payment method') }}</template>
           </span>
           <span class="bpp-sub" id="bpp-sub">
             <template v-if="paymentSelected && selectedMethod">
-              <i :class="selectedMethod.icon" :style="{ color: selectedMethod.color || 'currentColor' }"></i>
+              <span class="pay-ico" :style="{ color: selectedMethod.color || 'currentColor' }" v-html="icon(selectedMethod.icon, { size: 14 })"></span>
               {{ ' ' + selectedMethod.name }}
             </template>
             <template v-else>{{ tx('اضغط للاختيار', 'Click to choose') }}</template>

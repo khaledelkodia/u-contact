@@ -3,7 +3,7 @@ import {
   SAMPLE_CUSTOMERS, SAMPLE_ORDERS, MENU_CATEGORIES, MENU_ITEMS, BRANCHES, EMPLOYEES, DRIVERS, SYSTEM_SETTINGS,
   ORDER_STATUSES, PAYMENT_CHANNELS, PAYMENT_METHODS, CANCELLATION_REASONS, COMPLAINT_CATEGORIES,
 } from './data'
-import { todayISO } from './utils'
+import { todayISO, toCompanyWall, fromCompanyWall } from './utils'
 import { tx, nameOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
@@ -62,6 +62,7 @@ export const state = reactive<any>({
   customers: [],
   orders: [],
   menuCategories: [],
+  activeSubCategory: '',        // الفئة الفرعية المختارة ('' = كل أصناف الرئيسية)
   menuItems: [],
   branches: [],
   employees: [],
@@ -78,6 +79,8 @@ export const state = reactive<any>({
   itemModalOpen: false,        // مودال تخصيص الصنف (حجم/إضافات/كمية/ملاحظة)
   itemModalQty: 1,
   itemModalNote: '',
+  noteItemId: null as string | null,   // سطر السلّة الذي تُحرَّر ملاحظته
+  noteItemText: '',
   itemModalOpenPrice: '',      // سعر الوحدة للصنف مفتوح السعر (نصّ ليقبل الحقل الفراغ)
   posStoppedItems: {},         // أصناف موقوفة من مطبخ الـPOS { branchId: itemId[] } (تُدفع من الكلاود)
 
@@ -210,6 +213,11 @@ export async function loadLiveData() {
     state.menuItems = products.map((p: any) => ({
       id: p.id,
       categoryId: p.categoryId != null ? String(p.categoryId) : 'uncat',
+      // الفئة الفرعية — بها يُبنى المستوى الثاني في المنيو
+      subCategoryId: p.subCategoryId != null ? String(p.subCategoryId) : null,
+      subCategoryName: p.subCategoryNameAr || p.subCategoryNameEn || '',
+      subCategoryNameEn: p.subCategoryNameEn || p.subCategoryNameAr || '',
+      subCategorySort: p.subCategorySort ?? 999,
       name: p.nameAr,
       nameEn: p.nameEn || '',
       price: p.price,
@@ -1310,17 +1318,59 @@ export function showTab(tab: string) {
 }
 
 // ==========================================
-// MENU
+// MENU — تصفّحٌ على مستويين: رئيسية ← فرعية ← أصناف
 // ==========================================
+// كان المستوى الفرعيّ يسقط تماماً: الضغط على «بيتزا» يفتح كل أصنافها دفعةً واحدة —
+// عشرات الكروت في شبكةٍ واحدة يمسحها الوكيل بعينه وهو يتكلّم. والكتالوج يحمل
+// التقسيم أصلاً (Category ← SubCategory ← Product) ولم يكن يصل الواجهة.
+
+/** الفئات الفرعية تحت فئةٍ رئيسية — مشتقّة من أصنافها، مرتّبةً كما في الكتالوج. */
+export function subCategoriesOf(categoryId: string): any[] {
+  if (!categoryId || categoryId === 'all') return []
+  const map = new Map<string, any>()
+  for (const it of state.menuItems) {
+    if (it.categoryId !== categoryId) continue
+    const sid = it.subCategoryId != null ? String(it.subCategoryId) : ''
+    if (!sid) continue                     // صنفٌ بلا فئةٍ فرعية — يظهر في «كل الأصناف»
+    if (!map.has(sid)) map.set(sid, { id: sid, name: it.subCategoryName, nameEn: it.subCategoryNameEn, sort: it.subCategorySort ?? 999 })
+  }
+  return Array.from(map.values()).sort((a, b) => a.sort - b.sort)
+}
+
+/** أصناف الفئة الرئيسية التي لا فئة فرعية لها — وإلا اختفت من الشاشة تماماً. */
+export function looseItemsOf(categoryId: string): any[] {
+  return state.menuItems.filter((i: any) => i.categoryId === categoryId && i.subCategoryId == null)
+}
+
 export function selectCategory(categoryId: string) {
   state.activeCategory = categoryId
+  state.activeSubCategory = ''
+  // «عرض الكل» وفئةٌ بلا تقسيمٍ فرعيّ تذهبان للأصناف مباشرةً: مستوىً بخيارٍ واحد
+  // نقرةٌ زائدة لا فائدة منها.
+  state.menuView = subCategoriesOf(categoryId).length ? 'subcategories' : 'items'
+}
+
+export function selectSubCategory(subId: string) {
+  state.activeSubCategory = subId       // '' = كل أصناف الفئة الرئيسية
   state.menuView = 'items'
+}
+
+/** رجوعٌ خطوةً واحدة — لا قفزةٌ إلى الرأس. */
+export function menuBack() {
+  if (state.menuSearch) { state.menuSearch = ''; state.menuView = state.activeCategory ? 'items' : 'categories'; return }
+  if (state.menuView === 'items' && subCategoriesOf(state.activeCategory).length) {
+    state.activeSubCategory = ''
+    state.menuView = 'subcategories'
+    return
+  }
+  showAllCategories()
 }
 
 export function showAllCategories() {
   state.menuView = 'categories'
   state.menuSearch = ''
   state.activeCategory = ''
+  state.activeSubCategory = ''
 }
 
 export function filterMenuItems(query: string) {
@@ -1768,7 +1818,7 @@ export async function submitOrder() {
   const paymentMode: 'cash_on_delivery' | 'prepaid_online' = isCashPay ? 'cash_on_delivery' : 'prepaid_online'
   // حجز: لازم موعد مستقبلي — الطلب ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده
   if (state.isReservation) {
-    const rt = state.reservationTime ? new Date(state.reservationTime) : null
+    const rt = state.reservationTime ? fromCompanyWall(state.reservationTime) : null
     if (!rt || isNaN(rt.getTime())) { showToast(tx('حدّد موعد الحجز', 'Set the reservation time'), 'warning'); return }
     if (rt.getTime() <= Date.now()) { showToast(tx('موعد الحجز لازم يكون في المستقبل', 'The reservation time must be in the future'), 'warning'); return }
   }
@@ -1802,7 +1852,9 @@ export async function submitOrder() {
     })),
   }
   if (state.isReservation && state.reservationTime) {
-    body.reservationTime = new Date(state.reservationTime).toISOString()
+    // ساعةُ حائط الشركة ⇒ لحظةٌ حقيقية. كان يُقرأ بمنطقة الجهاز، فوكيلٌ في مصر
+    // يحجز «٨م» فينزل الفرعَ العُمانيَّ ١٠م.
+    body.reservationTime = fromCompanyWall(state.reservationTime).toISOString()
     const lead = parseInt(String(state.prepLeadMinutes), 10)
     body.prepLeadMinutes = isNaN(lead) ? null : Math.max(0, lead)
   }
@@ -1842,6 +1894,39 @@ export async function submitOrder() {
 // ==========================================
 export function orderNotesPreview(): string {
   return state.orderNotes ? state.orderNotes : tx('لا توجد ملاحظات', 'No notes')
+}
+
+// ── ملاحظة الصنف من داخل السلّة ──────────────────────────────────────────────
+// كانت تُكتب في مودال الصنف وحده. والصنف البسيط — بلا أحجام ولا إضافات ولا سعر
+// مفتوح — لا يفتح مودالاً أصلاً (يُضاف بضغطة واحدة، وهو المقصود: الوكيل يتكلّم
+// والسرعة تهمّ)، فلم يكن له سبيل إلى ملاحظةٍ إلا بزرّ «تعديل» — وهو لا يَعِد بذلك
+// فلا يخطر ببال أحد. صارت لكل سطرٍ في السلّة بزرٍّ يقول ما يفعل.
+export function openCartItemNote(cartItemId: string) {
+  const ci = state.cart.find((c: any) => c.cartItemId === cartItemId)
+  if (!ci) return
+  state.noteItemId = cartItemId
+  state.noteItemText = ci.note || ''
+}
+
+export function closeCartItemNote() { state.noteItemId = null }
+
+/** سطر السلّة الذي تُحرَّر ملاحظته — والمودال يختفي إن اختفى السطر (مسحُ السلّة مثلاً). */
+export function cartItemBeingNoted(): any {
+  return state.noteItemId ? state.cart.find((c: any) => c.cartItemId === state.noteItemId) || null : null
+}
+
+export function saveCartItemNote(text: string) {
+  const ci = cartItemBeingNoted()
+  state.noteItemId = null
+  if (!ci) return
+  const t = (text || '').trim()
+  if (t === (ci.note || '')) return          // بلا تغيير: لا توست ولا سطر في السجلّ
+  ci.note = t
+  logPendingEvent({
+    type: 'item_edited', itemName: ci.name,
+    note: t ? `ملاحظة على ${ci.name}: ${t}` : `مسح ملاحظة ${ci.name}`,
+  })
+  showToast(t ? tx('تم حفظ الملاحظة', 'Note saved') : tx('تم مسح الملاحظة', 'Note cleared'), 'success')
 }
 
 export function openOrderNotesModal() { state.notesModalOpen = true }
@@ -2125,9 +2210,6 @@ export function clearTabOrderFilters() {
 // ==========================================
 // RESERVATION TIME — الموعد الافتراضي على التاريخ الحقيقي
 // ==========================================
-const pad2 = (n: number) => String(n).padStart(2, '0')
-const dtLocal = (d: Date) =>
-  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
 
 /**
  * الموعد الافتراضي للحجز — على **التاريخ الحقيقي** (٧م اليوم).
@@ -2137,16 +2219,15 @@ const dtLocal = (d: Date) =>
  * الحائط. فربطُه بعدّادٍ منزاح يضع الحجوزات في أيامٍ لا تخصّها.
  */
 export function defaultReservationTime(): string {
-  const base = new Date()
-  base.setHours(19, 0, 0, 0)           // ٧م — ذروة الاستلام، والوكيل يعدّلها
-  // بعد ٧م يصير الافتراضيُّ ماضياً والإرسال يرفض الماضي: نُبقيه صالحاً دائماً
-  // بأقرب موعدٍ معقول بدل حقلٍ لا يُقبَل.
+  // ٧م **بساعة الشركة**: الحقل يعرض ساعة حائطها، فبناؤه من مكوّنات الجهاز يعطي
+  // موعداً آخر عند فرعٍ في بلدٍ آخر.
   const soonest = new Date(Date.now() + 60 * 60 * 1000)
-  return dtLocal(base.getTime() > soonest.getTime() ? base : soonest)
+  const at7pm = fromCompanyWall(toCompanyWall().slice(0, 10) + 'T19:00')
+  return toCompanyWall(at7pm.getTime() > soonest.getTime() ? at7pm : soonest)
 }
 
 /** أقلّ موعدٍ يقبله الإرسال — يمنع المنتقي من عرض ماضٍ يُرفَض بعد الضغط. */
-export function earliestReservationTime(): string { return dtLocal(new Date()) }
+export function earliestReservationTime(): string { return toCompanyWall() }
 
 /**
  * فتح الحجز وإغلاقه — ويُبذَر الموعد عند الفتح بالتاريخ الحقيقي.

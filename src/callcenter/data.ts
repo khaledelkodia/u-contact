@@ -249,16 +249,16 @@ const COMPLAINT_CATEGORIES = [
 ]
 
 const CANCELLATION_REASONS = [
-  { id: 'late',         label: 'الطلب متأخر',           labelEn: 'Order is late',            icon: 'fa-solid fa-clock' },
-  { id: 'taste',        label: 'مشكلة في الطعم',         labelEn: 'Taste problem',            icon: 'fa-solid fa-utensils' },
-  { id: 'wrong_items',  label: 'أصناف خاطئة في الطلب',   labelEn: 'Wrong items in the order',  icon: 'fa-solid fa-circle-exclamation' },
-  { id: 'missing_items',label: 'أصناف ناقصة',            labelEn: 'Missing items',            icon: 'fa-solid fa-rectangle-list' },
-  { id: 'customer',     label: 'رغبة العميل',            labelEn: 'Customer request',         icon: 'fa-solid fa-user' },
-  { id: 'wrong_address',label: 'عنوان خاطئ / غير دقيق',  labelEn: 'Wrong / unclear address',  icon: 'fa-solid fa-location-dot' },
-  { id: 'unavailable',  label: 'صنف غير متوفر',          labelEn: 'Item unavailable',         icon: 'fa-solid fa-ban' },
-  { id: 'duplicate',    label: 'طلب مكرر',               labelEn: 'Duplicate order',          icon: 'fa-solid fa-copy' },
-  { id: 'no_driver',    label: 'لا يوجد سائق متاح',      labelEn: 'No driver available',      icon: 'fa-solid fa-motorcycle' },
-  { id: 'other',        label: 'سبب آخر',                labelEn: 'Another reason',           icon: 'fa-solid fa-pen' }
+  { id: 'late',         label: 'الطلب متأخر',           labelEn: 'Order is late',            icon: 'clock' },
+  { id: 'taste',        label: 'مشكلة في الطعم',         labelEn: 'Taste problem',            icon: 'utensils' },
+  { id: 'wrong_items',  label: 'أصناف خاطئة في الطلب',   labelEn: 'Wrong items in the order',  icon: 'alert-circle' },
+  { id: 'missing_items',label: 'أصناف ناقصة',            labelEn: 'Missing items',            icon: 'list' },
+  { id: 'customer',     label: 'رغبة العميل',            labelEn: 'Customer request',         icon: 'user' },
+  { id: 'wrong_address',label: 'عنوان خاطئ / غير دقيق',  labelEn: 'Wrong / unclear address',  icon: 'map-pin' },
+  { id: 'unavailable',  label: 'صنف غير متوفر',          labelEn: 'Item unavailable',         icon: 'ban' },
+  { id: 'duplicate',    label: 'طلب مكرر',               labelEn: 'Duplicate order',          icon: 'copy' },
+  { id: 'no_driver',    label: 'لا يوجد سائق متاح',      labelEn: 'No driver available',      icon: 'bike' },
+  { id: 'other',        label: 'سبب آخر',                labelEn: 'Another reason',           icon: 'edit' }
 ];
 
 const ORDER_STATUSES = [
@@ -273,39 +273,39 @@ const ORDER_STATUSES = [
 
 // ========== مصادر الطلب (channels) وطرق الدفع المتاحة لكل مصدر ==========
 const PAYMENT_METHODS = [
-  { id: 'cash', name: 'كاش',    nameEn: 'Cash',  icon: 'fa-solid fa-money-bill-wave', color: '#16a34a' },
-  { id: 'knet', name: 'كي نت',  nameEn: 'K-Net', icon: 'fa-solid fa-credit-card',     color: '#2563eb' },
-  { id: 'link', name: 'لينك',   nameEn: 'Link',  icon: 'fa-solid fa-link',            color: '#7c3aed' }
+  { id: 'cash', name: 'كاش',    nameEn: 'Cash',  icon: 'banknote', color: '#16a34a' },
+  { id: 'knet', name: 'كي نت',  nameEn: 'K-Net', icon: 'credit-card',     color: '#2563eb' },
+  { id: 'link', name: 'لينك',   nameEn: 'Link',  icon: 'link',            color: '#7c3aed' }
 ];
 
 const PAYMENT_CHANNELS = [
   {
     id: 'phone', name: 'الفون', nameEn: 'Phone',
-    icon: 'fa-solid fa-phone', color: '#2563eb',
+    icon: 'phone', color: '#2563eb',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#2563eb"/><path d="M14 14h6l2 5-3 2.5c1.5 3 4 5.5 7 7l2.5-3 5 2v6c0 1.5-1 2.5-2.5 2.5C20.5 36 12 27.5 12 17c0-1.5 1-2.5 2-3z" fill="#fff"/></svg>`,
     methods: ['cash', 'knet', 'link']
   },
   {
     id: 'talabat', name: 'طلبات', nameEn: 'Talabat',
-    icon: 'fa-solid fa-bowl-food', color: '#ff5a00',
+    icon: 'bowl', color: '#ff5a00',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#ff5a00"/><circle cx="19" cy="14" r="1.5" fill="#fff" opacity="0.8"/><circle cx="24" cy="11.5" r="1.5" fill="#fff" opacity="0.8"/><circle cx="29" cy="14" r="1.5" fill="#fff" opacity="0.8"/><path d="M12 21h24a2 2 0 0 1 2 2 13 13 0 0 1-26 0 2 2 0 0 1 2-2z" fill="#fff"/><rect x="11" y="36" width="26" height="2" rx="1" fill="#fff"/></svg>`,
     methods: ['cash', 'knet']
   },
   {
     id: 'carriage', name: 'كاري', nameEn: 'Carriage',
-    icon: 'fa-solid fa-bag-shopping', color: '#f4b400',
+    icon: 'shopping-bag', color: '#f4b400',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#f4b400"/><path d="M16 18h16l-1.5 16a3 3 0 0 1-3 2.7H20.5a3 3 0 0 1-3-2.7z" fill="#fff"/><path d="M18 18a6 6 0 0 1 12 0" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>`,
     methods: ['cash', 'knet']
   },
   {
     id: 'jahez', name: 'جاهز', nameEn: 'Jahez',
-    icon: 'fa-solid fa-motorcycle', color: '#00a651',
+    icon: 'bike', color: '#00a651',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#00a651"/><text x="24" y="34" font-family="Tahoma, Arial, sans-serif" font-size="26" font-weight="900" text-anchor="middle" fill="#fff">ج</text></svg>`,
     methods: ['cash', 'knet']
   },
   {
     id: 'deliveroo', name: 'ديليفرو', nameEn: 'Deliveroo',
-    icon: 'fa-solid fa-bicycle', color: '#00ccbc',
+    icon: 'bicycle', color: '#00ccbc',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#00ccbc"/><path d="M28 12c-2.5 0-4.5 1.4-5.5 3.5-2-1.2-4.5-1-6 .5-2 2-2 5 .5 7.5l-3.5 6c-1 1.8 0 4 2 4h2.5l-1 2.5h4.5l2-3.5 5 2c2.5 1 5-1 5-3.5v-7.5c2-1 3.5-3 3.5-5.5 0-3.5-3.5-6.5-8-6.5z" fill="#fff"/></svg>`,
     methods: ['cash', 'knet']
   }

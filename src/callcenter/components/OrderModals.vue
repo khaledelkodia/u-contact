@@ -68,7 +68,7 @@ function doSubmitComplaint() {
         <button class="modal-close" type="button" @click="closeCancelModal()">×</button>
       </div>
       <div class="modal-body cc-body" style="text-align:start;">
-        <div class="cc-icon cc-icon-danger" style="margin: 4px auto 14px;"><i class="fa-solid fa-circle-xmark"></i></div>
+        <div class="cc-icon cc-icon-danger" style="margin: 4px auto 14px;" v-html="icon('x-circle', { size: 22 })"></div>
         <div class="cancel-confirm-body">
           <p class="cancel-confirm-text" style="text-align:center;">{{ tx('هل أنت متأكد من إلغاء هذا الطلب؟', 'Are you sure you want to cancel this order?') }}</p>
           <div class="cancel-confirm-order">
@@ -89,9 +89,9 @@ function doSubmitComplaint() {
           <div class="cancel-reason-step-label">{{ tx('اختر سبب الإلغاء', 'Choose a cancellation reason') }}</div>
           <div class="cancel-reasons-grid" id="cancel-reasons-grid">
             <button v-for="r in cancellationReasons" :key="r.id" type="button" class="cancel-reason-option" :class="{ selected: selectedReason && selectedReason.id === r.id }" @click="pickReason(r)">
-              <span class="cancel-reason-icon"><i :class="r.icon"></i></span>
+              <span class="cancel-reason-icon" v-html="icon(r.icon, { size: 16 })"></span>
               <span class="cancel-reason-label">{{ nameOf(r) }}</span>
-              <span class="cancel-reason-check"><i class="fa-solid fa-check"></i></span>
+              <span class="cancel-reason-check" v-html="icon('check', { size: 12 })"></span>
             </button>
           </div>
 
@@ -100,7 +100,7 @@ function doSubmitComplaint() {
             <textarea id="cancel-other-note" :placeholder="tx('مثال: تأخر التوصيل لأكثر من ساعة...', 'e.g. delivery was over an hour late…')" rows="3" v-model="otherNote"></textarea>
           </div>
 
-          <div class="cancel-confirm-note"><i class="fa-solid fa-circle-info"></i> {{ tx('لا يمكن التراجع عن هذه العملية', 'This action cannot be undone') }}</div>
+          <div class="cancel-confirm-note"><span class="inline-ico" v-html="icon('info', { size: 13 })"></span> {{ tx('لا يمكن التراجع عن هذه العملية', 'This action cannot be undone') }}</div>
         </div>
       </div>
       <div class="modal-footer cc-footer">
