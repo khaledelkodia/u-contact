@@ -7,7 +7,7 @@ import { todayISO, toCompanyWall, fromCompanyWall } from './utils'
 import { tx, nameOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
-  contactBusinessDay, contactOpenDay, contactOrders, contactStoppedItems,
+  contactBusinessDay, contactOpenDay, contactCloseDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes,
   contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
@@ -269,6 +269,31 @@ export async function openBusinessDay() {
     showToast(tx('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'Business day opened — you can place orders now'), 'success')
   } catch (err: any) {
     showToast(err?.response?.data?.message || tx('تعذّر فتح يوم العمل (تحتاج صلاحية فتح اليوم)', 'Could not open the business day (you need the open-day permission)'), 'error')
+  } finally { state.dayLoading = false }
+}
+
+/**
+ * إنهاء يوم الكول‑سنتر.
+ *
+ * الخادم يرفض القفل وفي اليوم أوردرٌ لسه واقف — والرفض يُعرَض كما جاء لأنه يحمل
+ * **العدد**: «فيه ٢ أوردر لسه واقف» يقول للوكيل ما يفعله، بخلاف «تعذّر القفل».
+ *
+ * وبعد القفل يبقى النطاق بلا يوم مفتوح ⇒ تظهر «افتح اليوم» (بصلاحيتها هي). ولا
+ * نفتح تلقائياً هنا: القفلُ فعلٌ والفتحُ فعلٌ آخر بمفتاحٍ آخر، ودمجُهما يفتح يوماً
+ * لمن يملك القفل وحده.
+ */
+export async function closeBusinessDay() {
+  if (!(session.mode === 'agent' && session.companyId)) return
+  if (!confirm(tx('إنهاء يوم العمل؟ لن تقدر تضرب أوردرات جديدة حتى تفتح يوماً جديداً.',
+                  'End the business day? You will not be able to place new orders until a new day is opened.'))) return
+  state.dayLoading = true
+  try {
+    await contactCloseDay()
+    state.onlineDay = null
+    showToast(tx('تم إنهاء يوم العمل', 'Business day ended'), 'success')
+  } catch (err: any) {
+    // رسالة الخادم تحمل سبب المنع وعدد الأوردرات الواقفة — تُعرَض كما هي
+    showToast(err?.response?.data?.message || tx('تعذّر إنهاء اليوم', 'Could not end the day'), 'error')
   } finally { state.dayLoading = false }
 }
 

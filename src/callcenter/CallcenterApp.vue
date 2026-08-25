@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
-import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder } from './store'
+import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder } from './store'
 import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
@@ -51,7 +51,9 @@ const roleLabel = computed(() => {
   if (lang.value === 'en') return r === 'admin' ? 'System Admin' : r === 'supervisor' ? 'Supervisor' : 'Call Center Agent'
   return r === 'admin' ? 'مدير النظام' : r === 'supervisor' ? 'مشرف' : 'موظف كول سنتر'
 })
-const canEod = computed(() => ['admin', 'supervisor'].includes(state.currentUser?.role))
+// الدور هنا كان مشتقّاً من (فتح **أو** قفل) معاً، فمَن يملك الفتح وحده كان يرى زرّ
+// الإنهاء. مفتاحٌ لكل زرّ: هذا الزرّ لـ`callcenter.close` وحدها.
+const canEod = computed(() => can('callcenter.close'))
 
 // ── الساعة (setInterval كل ثانية) ──
 // ساعة **الشركة** لا ساعة الجهاز: الوكيل قد يجلس في مصر ويخدم شركةً في عُمان، فساعته
@@ -359,9 +361,11 @@ onBeforeUnmount(() => {
         <span v-else-if="isCallcenterView && state.live && state.onlineDay === null" class="header-business-date" style="color:var(--danger,#dc2626);">
           <span class="bd-value">{{ tx('اليوم مقفول — لا يمكن ضرب أوردر', 'Day is closed — orders cannot be placed') }}</span>
         </span>
-        <button v-if="canEod && isCallcenterView" class="header-eod-btn">
+<!-- لا يظهر إلا ويومٌ مفتوح فعلاً: «إنهاء اليوم» بلا يومٍ مفتوح زرٌّ لا معنى له -->
+        <button v-if="canEod && isCallcenterView && state.live && state.onlineDay" class="header-eod-btn"
+          :disabled="state.dayLoading" @click="closeBusinessDay()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64A9 9 0 0 1 20.77 15"/><path d="M6.16 6.16a9 9 0 1 0 12.68 12.68"/><path d="M12 2v4"/></svg>
-          <span class="eod-label">{{ tx('إنهاء اليوم', 'End of day') }}</span>
+          <span class="eod-label">{{ state.dayLoading ? tx('جارٍ الإنهاء…', 'Ending…') : tx('إنهاء اليوم', 'End of day') }}</span>
           <span class="eod-badge">EOD</span>
         </button>
       </div>

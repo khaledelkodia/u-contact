@@ -331,6 +331,7 @@ export interface ContactComplaintInput {
 
 // فتح يوم كول‑سنتر (يتطلّب صلاحية callcenter.open)
 export const contactOpenDay = (businessDate?: string) => api.post('/contact/business-day/open', businessDate ? { businessDate } : {}).then((r) => r.data)
+export const contactCloseDay = () => api.post('/contact/business-day/close').then((r) => r.data)
 
 export interface ContactExtra { id: number; name: string; nameEn: string | null; price: number }
 export interface ContactProduct { id: number; nameAr: string; nameEn: string | null; price: number; isAvailable: boolean; categoryId: number | null; categoryNameAr: string | null; categoryNameEn: string | null; categorySort: number; sizes: string[]; sizePrices: number[]; extras: ContactExtra[] }
