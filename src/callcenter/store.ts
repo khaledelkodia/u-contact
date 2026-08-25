@@ -1126,9 +1126,18 @@ async function saveCustomerLive() {
   if (isDelivery && sectionRequired() && !state.form.sectionId) { showToast(tx('يرجى اختيار الحيّ', 'Please choose a district'), 'error'); return }
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
+  // العنوان الذي اختاره الوكيل من قائمة العميل — يُعدَّل هو بعينه.
+  // بدون معرّفه كان الخادم يطابق **بمحتوى** المدينة والحيّ والقطعة والشارع والمبنى،
+  // وتغييرُ أيٍّ منها هو التعديل نفسه: فيُنشأ عنوانٌ ثانٍ ويبقى القديم مكانه.
+  // «عنوان جديد» يصفّر التحديد (-1) فلا يُرسَل معرّف ويُنشأ فعلاً.
+  const editing = state.selectedAddressIndex >= 0
+    ? (state.currentCustomer?.addresses || [])[state.selectedAddressIndex]
+    : null
+  const editingId = Number(editing?.id) || null
   try {
     const saved = await contactSaveCustomer({
       name, phone: phoneE164(phone, companyDial()),
+      addressId: editingId,
       regionName: region ? region.name : null,
       sectionName: section ? section.name : null,
       addressText: state.form.addressText || null,
@@ -1148,7 +1157,11 @@ async function saveCustomerLive() {
       if (list && list.length) {
         loadLiveCustomer(list[0])
         const adr = list[0].addresses || []
-        const i = adr.findIndex((a: any) =>
+        // بالمعرّف الذي ردّه الخادم: المطابقة النصّية تُخطئ متى تشابه عنوانان في
+        // الحقول الخمسة، وتبقى ارتداداً لخادمٍ أقدم لا يردّ المعرّف.
+        const savedAddrId = Number((saved as any)?.addressId) || null
+        let i = savedAddrId ? adr.findIndex((a: any) => Number(a.id) === savedAddrId) : -1
+        if (i < 0) i = adr.findIndex((a: any) =>
           String(a.region || '') === String(region?.name || '') &&
           String(a.section || '') === String(section?.name || '') &&
           String(a.block || '') === String(state.form.block || '') &&

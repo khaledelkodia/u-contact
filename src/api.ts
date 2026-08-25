@@ -199,7 +199,9 @@ export const contactProducts = (q?: string) =>
 export const contactCustomers = (phone: string) =>
   api.get('/contact/lookup/customers', { params: { phone } }).then((r) => r.data as ContactCustomer[])
 // حفظ/تحديث عميل + عنوانه المركّب مستقلاً (بدون أوردر)
-export const contactSaveCustomer = (body: { name: string; phone: string; regionName?: string | null; sectionName?: string | null; addressText?: string | null; block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null }) =>
+// `addressId`: العنوان الذي يعدّله الوكيل. بدونه يطابق الخادم بالمحتوى فيُنشئ عنواناً
+// ثانياً متى غُيّر أحد حقول المطابقة — وهو جوهر التعديل. والردّ يحمله ليُنتقى بالمعرّف.
+export const contactSaveCustomer = (body: { name: string; phone: string; addressId?: number | null; regionName?: string | null; sectionName?: string | null; addressText?: string | null; block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null }) =>
   api.post('/contact/customers', body).then((r) => r.data as { id: number })
 // مناطق التوصيل → الفرع المشتق + الرسوم
 export const contactRegions = () => api.get('/contact/lookup/regions').then((r) => r.data as ContactRegion[])
