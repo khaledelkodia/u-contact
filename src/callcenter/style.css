@@ -1410,36 +1410,45 @@ body.dark-mode .order-page-new-order {
 /* ================================================
    CUSTOMER SEARCH SECTION
    ================================================ */
+/* ── شريط بحث العميل ─────────────────────────────────────────────────────────
+   أربعة عناصر في صفٍّ واحد كانت بثلاثة ارتفاعات (55 · 50 · 52): الحقل يحمل حدّاً
+   وحشوةً وخطّاً أكبر، والأزرار بلا حدّ. فبدت غير مستوية والمفصل بين الحقل و«بحث»
+   مزاحاً. وحقلُ رقم هاتفٍ كان يبتلع **٦٦٪** من عرض الصفّ بلا سقف.
+   ارتفاعٌ واحد لكلٍّ، وسقفٌ لعرض الحقل. */
 .customer-search-section {
   background: var(--white);
   border-radius: var(--radius-lg);
-  padding: 20px 24px;
+  padding: 14px 18px;
   margin-bottom: 16px;
   box-shadow: var(--shadow);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
 .search-box {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0;
-  flex: 1;
-  min-width: 250px;
+  /* يكبر مع الصفّ لكن لا يبتلعه: رقم هاتفٍ لا يحتاج ٨٠٠px */
+  flex: 1 1 300px;
+  min-width: 240px;
+  max-width: 460px;
+  height: 46px;
   position: relative;
 }
 
 .search-box input {
+  height: 100%;
   border-start-start-radius: var(--radius);
   border-end-start-radius: var(--radius);
   border-start-end-radius: 0;
   border-end-end-radius: 0;
   border-inline-end: none;
-  padding: 12px 16px;
-  padding-inline-start: 44px;
-  font-size: 15px;
+  padding: 0 16px;
+  padding-inline-start: 42px;
+  font-size: 14.5px;
 }
 
 .search-box .search-icon {
@@ -1447,12 +1456,15 @@ body.dark-mode .order-page-new-order {
   inset-inline-start: 14px;
   top: 50%;
   transform: translateY(-50%);
+  display: inline-flex;
   color: var(--text-muted);
   pointer-events: none;
 }
+.search-box .search-icon svg { width: 17px; height: 17px; }
 
 .search-box .btn-search {
-  padding: 12px 24px;
+  flex-shrink: 0;
+  padding: 0 22px;
   background: var(--primary);
   color: white;
   border: none;
@@ -1469,7 +1481,8 @@ body.dark-mode .order-page-new-order {
 }
 
 .btn-new-customer {
-  padding: 12px 20px;
+  height: 46px;
+  padding: 0 18px;
   background: var(--primary);
   color: white;
   border: none;
@@ -1495,7 +1508,8 @@ body.dark-mode .order-page-new-order {
 }
 
 .btn-order-history {
-  padding: 12px 20px;
+  height: 46px;
+  padding: 0 18px;
   background: var(--white);
   color: var(--text-primary);
   border: 1.5px solid var(--border);

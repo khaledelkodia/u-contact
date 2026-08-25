@@ -9,7 +9,7 @@ import {
   closeHistoryModal, reorderItems,
   closeReviewModal, confirmReview, reviewSummary,
 } from '../store'
-import { formatCurrency, formatDate } from '../utils'
+import { formatCurrency, formatDate, formatDateTimeLocal } from '../utils'
 import { tx, lang, nameOf } from '../lang'
 import { icon } from '../icons'
 
@@ -27,6 +27,19 @@ const feeOverridden = computed(() => state.deliveryFeeOverride !== null && state
 
 // ── المراجعة ──
 const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : null))
+
+/**
+ * إضافات السطر بأسمائها **وأسعارها**.
+ * كانت تُعرض أسماءً مفصولةً بفواصل بلا سعر: يُراجع الوكيل إجمالياً لا يعرف من أين
+ * جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب.
+ * و`extras` (أسماء فقط) ارتدادٌ لسطرٍ أُضيف قبل أن تُخزَّن الإضافات ببنيتها.
+ */
+function itemMods(i: any): { name: string; price: number }[] {
+  if (Array.isArray(i?.modifiers) && i.modifiers.length) {
+    return i.modifiers.map((m: any) => ({ name: nameOf(m), price: Number(m.price) || 0 }))
+  }
+  return Array.isArray(i?.extras) ? i.extras.map((n: string) => ({ name: String(n), price: 0 })) : []
+}
 </script>
 
 <template>
@@ -144,38 +157,77 @@ const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : nu
         <button class="modal-close" @click="closeReviewModal()">×</button>
       </div>
       <div class="modal-body" style="max-height:62vh; overflow-y:auto;">
-        <!-- العميل والوجهة -->
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; padding:12px; border-radius:8px; background:var(--bg); border:1px solid var(--border); font-size:13px;">
-          <div><span style="color:var(--text-secondary);">{{ tx('العميل:', 'Customer:') }}</span> <strong>{{ review.customerName }}</strong></div>
-          <div dir="ltr" style="text-align:end;"><strong>{{ review.customerPhone }}</strong></div>
-          <div><span style="color:var(--text-secondary);">{{ tx('النوع:', 'Type:') }}</span> <strong>{{ review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</strong></div>
-          <div><span style="color:var(--text-secondary);">{{ tx('الفرع:', 'Branch:') }}</span> <strong>{{ review.branchName }}</strong></div>
-          <div v-if="review.areaName" style="grid-column:1 / -1;">
-            <span style="color:var(--text-secondary);">{{ tx('المنطقة:', 'Area:') }}</span>
-            <strong>{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></strong>
+        <!-- ── العميل والوجهة ──────────────────────────────────────────────────
+             كانت شبكةً من أزواج «تسمية: قيمة» بخطٍّ واحد ولونٍ واحد تقريباً، والتليفون
+             بلا تسمية معلَّقاً في الجهة المقابلة — فتُقرأ بالتفتيش لا بالنظرة. صارت
+             خلايا: التسمية فوق صغيرةً باهتة، والقيمة تحتها بوزنٍ ظاهر. -->
+        <div class="rv-head">
+          <div class="rv-cell">
+            <span class="rv-l">{{ tx('العميل', 'Customer') }}</span>
+            <span class="rv-v">{{ review.customerName }}</span>
           </div>
-          <div v-if="review.orderType === 'delivery'" style="grid-column:1 / -1;">
-            <span style="color:var(--text-secondary);">{{ tx('العنوان:', 'Address:') }}</span> <strong>{{ review.address }}</strong>
+          <div class="rv-cell">
+            <span class="rv-l">{{ tx('رقم الهاتف', 'Phone') }}</span>
+            <span class="rv-v" dir="ltr">{{ review.customerPhone }}</span>
           </div>
-          <div><span style="color:var(--text-secondary);">{{ tx('الدفع:', 'Payment:') }}</span> <strong>{{ review.payment }}</strong></div>
-          <div v-if="review.orderTag">
-            <span style="color:var(--text-secondary);">{{ tx('رقم المنصّة:', 'Platform no.:') }}</span> <strong dir="ltr">{{ review.orderTag }}</strong>
+          <div class="rv-cell">
+            <span class="rv-l">{{ tx('نوع الطلب', 'Order type') }}</span>
+            <span class="rv-v">
+              {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
+              <span v-if="review.orderTypeName" class="rv-sub">· {{ review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</span>
+            </span>
           </div>
-          <div v-if="review.isReservation" style="color:var(--primary); font-weight:700;">{{ tx('حجز:', 'Reservation:') }} {{ review.reservationTime }}</div>
+          <div class="rv-cell">
+            <span class="rv-l">{{ tx('الفرع', 'Branch') }}</span>
+            <span class="rv-v">{{ review.branchName }}</span>
+          </div>
+          <div class="rv-cell">
+            <span class="rv-l">{{ tx('الدفع', 'Payment') }}</span>
+            <span class="rv-v">{{ review.payment }}</span>
+          </div>
+          <div v-if="review.orderTag" class="rv-cell">
+            <span class="rv-l">{{ tx('رقم المنصّة', 'Platform no.') }}</span>
+            <span class="rv-v" dir="ltr">{{ review.orderTag }}</span>
+          </div>
+          <div v-if="review.areaName" class="rv-cell rv-wide">
+            <span class="rv-l">{{ tx('المنطقة', 'Area') }}</span>
+            <span class="rv-v">{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></span>
+          </div>
+          <div v-if="review.orderType === 'delivery'" class="rv-cell rv-wide">
+            <span class="rv-l">{{ tx('العنوان', 'Address') }}</span>
+            <span class="rv-v">{{ review.address }}</span>
+          </div>
+          <!-- الحجز: موعدٌ يُقرأ لا سلسلة ISO — كان يُطبع «2026-08-23T13:00» -->
+          <div v-if="review.isReservation" class="rv-cell rv-wide rv-accent">
+            <span class="rv-l">{{ tx('حجز — موعد الاستلام', 'Reservation — pickup time') }}</span>
+            <span class="rv-v">
+              {{ formatDateTimeLocal(review.reservationTime) }}
+              <template v-if="review.prepLeadMinutes">
+                <span class="rv-sub">· {{ tx('يبدأ التحضير قبله بـ', 'starts prep') }} {{ review.prepLeadMinutes }} {{ tx('دقيقة', 'min before') }}</span>
+              </template>
+            </span>
+          </div>
         </div>
 
-        <!-- الأصناف -->
-        <table class="orders-table" style="margin-top:14px;">
+        <!-- ── الأصناف: الإضافات بأسعارها ──────────────────────────────────────
+             كانت أسماءً مفصولةً بفواصل بلا أسعار: يُراجع الوكيل إجمالياً لا يعرف من
+             أين جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب. -->
+        <table class="orders-table rv-items">
           <thead><tr><th>{{ tx('الصنف', 'Item') }}</th><th>{{ tx('الكمية', 'Qty') }}</th><th>{{ tx('السعر', 'Price') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th></tr></thead>
           <tbody>
             <tr v-for="i in review.items" :key="i.cartItemId">
               <td>
-                {{ i.name }}
-                <span v-if="i.size" style="color:var(--text-muted); font-size:11px;"> · {{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
-                <div v-if="(i.modifiers && i.modifiers.length) || (i.extras && i.extras.length)" style="font-size:11px; color:var(--text-muted);">
-                  {{ (i.modifiers && i.modifiers.length ? i.modifiers.map((m: any) => nameOf(m)) : i.extras).join(tx('، ', ', ')) }}
+                <div class="rv-item-name">
+                  {{ nameOf(i) }}
+                  <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
                 </div>
-                <div v-if="i.note" style="font-size:11px; color:var(--warning, #b45309);">{{ i.note }}</div>
+                <div v-if="itemMods(i).length" class="rv-mods">
+                  <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
+                    {{ m.name }}
+                    <b :class="{ free: !m.price }">{{ m.price ? '+' + formatCurrency(m.price) : tx('مجاني', 'Free') }}</b>
+                  </span>
+                </div>
+                <div v-if="i.note" class="rv-note">{{ tx('ملاحظة: ', 'Note: ') }}{{ i.note }}</div>
               </td>
               <td>{{ i.quantity }}</td>
               <td>{{ formatCurrency(i.price) }}</td>
@@ -213,3 +265,55 @@ const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : nu
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ── ترويسة المراجعة: تسميةٌ فوق وقيمةٌ تحت ─────────────────────────────────
+   كانت أزواج «تسمية: قيمة» بخطٍّ واحد ولونٍ متقارب في شبكةٍ ضيّقة — تُقرأ
+   بالتفتيش لا بالنظرة. والتليفون بلا تسمية معلَّقاً في الجهة المقابلة. */
+.rv-head {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px 18px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--bg, #f8fafc);
+  border: 1px solid var(--border, #e5e7eb);
+}
+.rv-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.rv-wide { grid-column: 1 / -1; }
+.rv-l { font-size: 11px; font-weight: 600; color: #4b5563; }
+.rv-v {
+  font-size: 13.5px; font-weight: 700; line-height: 1.55;
+  color: var(--text-primary, #0f172a);
+  overflow-wrap: anywhere;
+}
+.rv-accent .rv-v { color: var(--primary, #1a56db); }
+.rv-sub { font-size: 11.5px; font-weight: 600; color: #4b5563; }
+
+/* ── الأصناف ── */
+.rv-items { margin-top: 14px; }
+.rv-item-name { font-weight: 700; color: var(--text-primary, #0f172a); }
+.rv-size {
+  margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px;
+  background: var(--primary-light, #dbeafe); color: var(--primary-dark, #1242b0);
+  font-size: 10.5px; font-weight: 800;
+}
+.rv-mods { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.rv-mod {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 2px 8px; border-radius: 7px;
+  background: var(--bg, #f1f5f9); border: 1px solid var(--border-light, #eef1f6);
+  font-size: 11px; font-weight: 600; color: #4b5563;
+}
+.rv-mod b { font-weight: 800; color: var(--text-primary, #0f172a); }
+.rv-mod b.free { color: #166534; }
+.rv-note { margin-top: 5px; font-size: 11px; font-weight: 700; color: #b45309; }
+
+:global(body.dark-mode) .rv-note { color: #fbbf24; }
+:global(body.dark-mode) .rv-l,
+:global(body.dark-mode) .rv-sub,
+:global(body.dark-mode) .rv-mod { color: #cbd5e1; }
+:global(body.dark-mode) .rv-mod b.free { color: #4ade80; }
+:global(body.dark-mode) .rv-head,
+:global(body.dark-mode) .rv-mod { background: rgba(255, 255, 255, 0.04); }
+</style>

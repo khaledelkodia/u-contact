@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { state, selectItemSize, changeItemModalQty, itemModalUnitPrice, itemModalTotal, itemModalValid,
          closeItemModal, confirmItemModal, itemGroups, groupRule, groupSelectedCount, groupAtMax,
-         toggleGroupOption, missingGroups, isModalExtraSelected, toggleModalExtra } from '../store'
+         toggleGroupOption, missingGroups, isModalExtraSelected, toggleModalExtra, isGroupRequired } from '../store'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
 
@@ -87,7 +87,7 @@ const optSelected = (o: any) => state.selectedExtras.some((e: any) => e.id === o
         <template v-for="g in groups" :key="g.id">
           <div class="im-grp-head">
             <span class="im-grp-name">{{ nameOf(g) }}</span>
-            <span v-if="Number(g.minSelect || 0) > 0" class="im-badge req">{{ tx('مطلوب', 'Required') }}</span>
+            <span v-if="isGroupRequired(g)" class="im-badge req">{{ tx('مطلوب', 'Required') }}</span>
             <span v-if="Number(g.maxSelect || 0) > 1" class="im-badge count">{{ groupSelectedCount(g) }}/{{ g.maxSelect }}</span>
             <span class="im-rule">{{ groupRule(g) }}</span>
           </div>

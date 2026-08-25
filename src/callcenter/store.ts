@@ -685,8 +685,9 @@ export function infoAddress(): string {
   if (state.live) {
     const area = currentArea()
     const sec = (area?.sections || []).find((x: any) => x.id === f.sectionId) || null
-    if (area) parts.push(area.name)
-    if (sec) parts.push(sec.name)
+    // المرجع يحمل الاسمين (`name` عربيّ و`nameEn`) — فيتبع العرض لغة الواجهة
+    if (area) parts.push(nameOf(area))
+    if (sec) parts.push(nameOf(sec))
   }
   if (f.area) parts.push(f.area)
   if (f.block) parts.push(tx(`ق ${f.block}`, `Block ${f.block}`))
@@ -694,7 +695,7 @@ export function infoAddress(): string {
   if (f.building) parts.push(tx(`مبنى ${f.building}`, `Bldg ${f.building}`))
   if (f.floor) parts.push(tx(`ط ${f.floor}`, `Floor ${f.floor}`))
   if (f.apartment) parts.push(tx(`شقة ${f.apartment}`, `Apt ${f.apartment}`))
-  return parts.length > 0 ? parts.join('، ') : '-'
+  return parts.length > 0 ? parts.join(tx('، ', ', ')) : '-'
 }
 
 export function onAreaChange() {
@@ -1410,6 +1411,20 @@ export function openItemModal(itemId: number, cartItemId?: string) {
 // كانت الإضافات تصل كتلةً مسطّحة بلا قواعد: يختار الوكيل صوصين حيث يُسمح بواحد،
 // ويُغفل إضافةً إلزامية فينزل الطلب للفرع ناقصاً. المجموعة تحمل قاعدتها الآن.
 
+/**
+ * المجموعة إلزامية؟ **`isRequired` وحدها**.
+ *
+ * كان الحكم على `minSelect > 0`، و`minSelect` عددٌ أدنى لا إعلانُ إلزام: مجموعة
+ * «صوصات» عند العميل `isRequired=false` و`minSelect=1` — أي «إن اخترتَ فواحدٌ على
+ * الأكثر»، لا «لا بدّ أن تختار». فصارت الصوصاتُ إجباريةً في الكول‑سنتر وهي
+ * اختياريةٌ في U‑Serve. وداشبورد U‑Serve صريح: `isRequired` = «إلزامية (لازم
+ * العميل يختار)»، و`minSelect` = «أقل عدد اختيار».
+ */
+export const isGroupRequired = (g: any) => !!g?.isRequired
+
+/** أقلّ عددٍ يُلزَم به فعلاً — صفرٌ لغير الإلزامية مهما كان `minSelect`. */
+export const groupMin = (g: any) => (isGroupRequired(g) ? Math.max(1, Number(g?.minSelect || 0)) : 0)
+
 /** مجموعات الصنف (مرتّبة كما جاءت من الخادم). */
 export function itemGroups(item?: any): any[] {
   const it = item ?? state.selectedMenuItem
@@ -1424,7 +1439,7 @@ export function groupSelectedCount(g: any): number {
 
 /** `maxSelect = 0` = بلا حدّ (اصطلاح الخادم). «مطلوب» تُعرض شارةً منفصلة. */
 export function groupRule(g: any): string {
-  const min = Number(g?.minSelect || 0)
+  const min = groupMin(g)
   const max = Number(g?.maxSelect || 0)
   if (max === 1) return tx('اختيار واحد', 'Choose one')
   if (max > 1) return tx(`حتى ${max} خيارات`, `Up to ${max}`)
@@ -1447,7 +1462,7 @@ export function groupAtMax(g: any): boolean {
 export function toggleGroupOption(g: any, opt: any) {
   const i = state.selectedExtras.findIndex((e: any) => e.id === opt.id)
   if (i >= 0) {
-    const min = Number(g?.minSelect || 0)
+    const min = groupMin(g)
     if (min > 0 && groupSelectedCount(g) <= min) {
       showToast(tx(`${nameOf(g)}: لازم تختار ${min} على الأقل`, `${nameOf(g)}: choose at least ${min}`), 'warning')
       return
@@ -1474,7 +1489,7 @@ function pickOpt(g: any, o: any) {
 
 /** المجموعات التي لم يُستوفَ حدُّها الأدنى — تمنع التأكيد وتُسمّى للوكيل. */
 export function missingGroups(): any[] {
-  return itemGroups().filter((g: any) => groupSelectedCount(g) < Number(g?.minSelect || 0))
+  return itemGroups().filter((g: any) => groupSelectedCount(g) < groupMin(g))
 }
 
 /**
@@ -1486,7 +1501,7 @@ export function missingGroups(): any[] {
  */
 function autoSelectRequired(item: any) {
   for (const g of itemGroups(item)) {
-    const min = Number(g?.minSelect || 0)
+    const min = groupMin(g)   // غير الإلزامية = صفر ⇒ لا تُملأ من نفسها
     if (min <= 0) continue
     for (const o of (g.options || [])) {
       if (groupSelectedCount(g) >= min) break
@@ -1574,6 +1589,7 @@ export function addToCart(item: any, opts: any = {}) {
     if (idx > -1) {
       state.cart[idx] = {
         ...state.cart[idx],
+        nameEn: item.nameEn || null,
         size,
         variantId: variant?.id ?? null,
         sizeAr: variant?.nameAr ?? (typeof size === 'string' ? size : null),
@@ -1612,6 +1628,7 @@ export function addToCart(item: any, opts: any = {}) {
       cartItemId: Date.now().toString(),
       itemId: item.id,
       name: item.name,
+      nameEn: item.nameEn || null,
       size,
       quantity: qty,
       price: unitPrice,
@@ -1736,7 +1753,6 @@ export async function submitOrder() {
     ? !!payMethod.isCash
     : String(state.paymentMethod ?? '') === 'cash'
   const paymentMode: 'cash_on_delivery' | 'prepaid_online' = isCashPay ? 'cash_on_delivery' : 'prepaid_online'
-  const payLabel = getPaymentLabel(state.paymentChannel, state.paymentMethod)
   // حجز: لازم موعد مستقبلي — الطلب ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده
   if (state.isReservation) {
     const rt = state.reservationTime ? new Date(state.reservationTime) : null
@@ -1752,7 +1768,7 @@ export async function submitOrder() {
     orderTypeCode: state.selectedOrderType?.code ?? (isDelivery ? 5 : 6),
     // معرّف طريقة الدفع كما عرّفتها الشركة — لم يكن يُرسَل إطلاقاً
     paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
-    notes: [state.orderNotes, payLabel ? `الدفع: ${payLabel}` : ''].filter(Boolean).join(' — ') || null,
+    notes: (state.orderNotes || '').trim() || null,
     orderTag: (state.orderTag || '').trim() || null,
     // التجاوز اليدوي فقط — بلا تجاوز يشتقّ الخادم الرسوم من ربط (فرع ↔ مكان)
     deliveryFeeOverride: state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined
@@ -2029,9 +2045,10 @@ export function reviewSummary(): any {
     customerName: state.form.name || state.currentCustomer?.name || '—',
     customerPhone: state.form.phone || state.currentCustomer?.phone || '—',
     orderType: state.orderType,
+    orderTypeName: state.selectedOrderType ? nameOf(state.selectedOrderType) : '',
     branchName: infoBranchName(),
-    areaName: area?.name || null,
-    sectionName: sec?.name || null,
+    areaName: area ? nameOf(area) : null,
+    sectionName: sec ? nameOf(sec) : null,
     address: infoAddress(),
     payment: getPaymentLabel(state.paymentChannel, state.paymentMethod) || '—',
     items: state.cart,
@@ -2044,6 +2061,8 @@ export function reviewSummary(): any {
     orderTag: (state.orderTag || '').trim(),
     isReservation: !!state.isReservation,
     reservationTime: state.reservationTime || '',
+    // زمن التحضير المسبق: يُراجَع مع الموعد لا بعد نزول الطلب
+    prepLeadMinutes: parseInt(String(state.prepLeadMinutes), 10) || 0,
   }
 }
 
@@ -2088,6 +2107,49 @@ export function clearTabOrderFilters() {
   state.filterInvoice = ''
   state.filterPhone = ''
   state.filterStatus = ''
+}
+
+// ==========================================
+// ==========================================
+// RESERVATION TIME — الموعد الافتراضي مبنيّ على يوم العمل
+// ==========================================
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const dtLocal = (d: Date) =>
+  `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+
+/**
+ * الموعد الافتراضي للحجز — على **يوم العمل** لا على ساعة الحائط.
+ *
+ * كان الحقل يُفتح فارغاً، فمنتقي المتصفّح يبدأ من التاريخ الحقيقي. والفرع الذي يشتغل
+ * بعد منتصف الليل ما زال على يوم عمل الأمس: فيقصد الوكيل «الليلة» فيُحجَز ليلةً
+ * أخرى، ووقتُ التحضير محسوبٌ من الموعد فينزاح معه — والحجز ينزل الفرع في يومٍ
+ * لا أحد يشتغل عليه.
+ *
+ * يوم العمل نصّ `YYYY-MM-DD` يُبنى **بأجزائه**: `new Date('2026-08-25')` تُقرأ UTC
+ * فتزيح التاريخ يوماً في التوقيتات الموجبة.
+ */
+export function defaultReservationTime(): string {
+  const parts = String(state.businessDate || '').split('-').map(Number)
+  const base = parts.length === 3 && parts.every(Number.isFinite)
+    ? new Date(parts[0], parts[1] - 1, parts[2])
+    : new Date()                       // بلا يومِ عملٍ محمَّل: التاريخ الحقيقي كما كان
+  base.setHours(19, 0, 0, 0)           // ٧م — ذروة الاستلام، والوكيل يعدّلها
+  // يومُ عملٍ متأخّرٌ عن الساعة الحقيقية يجعل الافتراضيَّ ماضياً، والإرسال يرفض الماضي:
+  // نُبقيه صالحاً دائماً بأقرب موعدٍ معقول بدل حقلٍ لا يُقبَل.
+  const soonest = new Date(Date.now() + 60 * 60 * 1000)
+  return dtLocal(base.getTime() > soonest.getTime() ? base : soonest)
+}
+
+/** أقلّ موعدٍ يقبله الإرسال — يمنع المنتقي من عرض ماضٍ يُرفَض بعد الضغط. */
+export function earliestReservationTime(): string { return dtLocal(new Date()) }
+
+/**
+ * فتح الحجز وإغلاقه — ويُبذَر الموعد عند الفتح من يوم العمل.
+ * الموعد القائم لا يُمسّ: إغلاقٌ ثم فتحٌ (أو تحريرُ حجزٍ قائم) لا يمحو ما اختاره الوكيل.
+ */
+export function toggleReservation() {
+  state.isReservation = !state.isReservation
+  if (state.isReservation && !state.reservationTime) state.reservationTime = defaultReservationTime()
 }
 
 // ==========================================

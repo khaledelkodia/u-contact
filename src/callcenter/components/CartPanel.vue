@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder } from '../store'
+import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
-import { formatCurrency } from '../utils'
+import { formatCurrency, formatBusinessDate } from '../utils'
 import { tx, nameOf } from '../lang'
 import { t } from '../lang'
 
@@ -55,8 +55,6 @@ function toggleTag() {
   tagOpen.value = !tagOpen.value
   if (tagOpen.value) nextTick(() => tagInput.value?.focus())
 }
-/** الحبّة تفتح الحجز وتغلقه — نفس ما كان يفعله مربّع الاختيار. */
-function toggleReservation() { state.isReservation = !state.isReservation }
 
 /** نصٌّ مختصر داخل الحبّة: القيمة إن وُجدت وإلا الاسم. */
 const resLabel = computed(() => {
@@ -134,7 +132,12 @@ const resLabel = computed(() => {
       <!-- حقول الحجز — تظهر ما دام الحجز مفعّلاً (فالموعد إلزاميّ حينها) -->
       <div v-if="state.isReservation" class="ce-panel ce-panel-res">
         <label class="ce-lbl">{{ tx('موعد الاستلام', 'Pickup time') }}</label>
-        <input type="datetime-local" v-model="state.reservationTime" class="ce-input">
+        <input type="datetime-local" v-model="state.reservationTime" class="ce-input"
+          :min="earliestReservationTime()">
+        <!-- اليوم الذي يُحتسَب عليه الحجز والتحضير — يُرى قبل الاختيار لا بعد نزوله -->
+        <span v-if="state.businessDate" class="ce-hint">
+          {{ tx('يوم العمل', 'Business day') }}: {{ formatBusinessDate(state.businessDate) }}
+        </span>
         <label class="ce-lbl">{{ tx('يبدأ التحضير قبل الموعد بـ (دقيقة)', 'Start preparing before the time by (minutes)') }}</label>
         <input type="number" min="0" :placeholder="tx('افتراضي الفرع', 'Branch default')" v-model="state.prepLeadMinutes" class="ce-input">
       </div>

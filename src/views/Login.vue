@@ -111,6 +111,7 @@ async function submit() {
     }
     pickedCompany.value = session.companyId
     pickedFranchise.value = session.franchiseId
+    autoPickFranchise()   // أوّل امتيازٍ جاهز، والوكيل يغيّره أو يدخل فوراً
     step.value = 'scope'
   } catch (e: any) {
     err.value = e?.response?.data?.message || t('فشل الدخول — راجع البيانات', 'Sign-in failed — check your details')
