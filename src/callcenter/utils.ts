@@ -73,20 +73,6 @@ export function formatDateTimeLocal(v: any): string {
   })
 }
 
-/**
- * يوم العمل (`YYYY-MM-DD`) — تاريخٌ وحده بلغة الواجهة.
- *
- * لا يمرّ على `formatDate`: تلك تعطي `new Date('2026-08-25')` وهي تُقرأ **UTC**،
- * فتزيح اليوم في التوقيتات السالبة — وهو الخطأ نفسه الذي يُصلَح هنا. ثم إنها تُلحق
- * ساعةً ودقيقةً وثانية، ويوم العمل تاريخٌ لا لحظة.
- */
-export function formatBusinessDate(ymd: any): string {
-  const parts = String(ymd || '').split('-').map(Number)
-  if (parts.length !== 3 || !parts.every(Number.isFinite)) return String(ymd ?? '-')
-  const d = new Date(parts[0], parts[1] - 1, parts[2])
-  return d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-}
-
 export function todayISO(): string {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
