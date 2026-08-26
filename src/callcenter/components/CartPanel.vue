@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote } from '../store'
+import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -167,6 +167,11 @@ const resLabel = computed(() => {
       </div>
     </div>
 
+    <!-- شريطٌ يقول إنك تعدّل لا تنشئ — وإلا حُفظ التعديل ظنّاً أنه أوردر جديد -->
+    <div v-if="state.editingOrderId" class="cart-edit-bar">
+      <span>{{ tx('تعديل أوردر قائم — العنوان والفرع لا يتغيّران', 'Editing an existing order — address and branch stay as they are') }}</span>
+      <button type="button" class="cart-edit-cancel" @click="cancelOrderEdit()">{{ tx('إلغاء التعديل', 'Cancel edit') }}</button>
+    </div>
     <div class="cart-actions">
       <button type="button" class="btn-payment-picker" :class="{ 'is-selected': paymentSelected }" id="btn-payment-picker" @click="openPaymentModal()">
         <span class="bpp-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg></span>
@@ -192,7 +197,11 @@ const resLabel = computed(() => {
         </span>
       </button>
 
-      <button class="btn-submit-order" id="btn-submit-order" @click="checkout()" :disabled="!canSubmitOrder()">
+      <!-- وضع التعديل: الزرّ يحفظ على الأوردر القائم لا ينشئ جديداً -->
+      <button v-if="state.editingOrderId" class="btn-submit-order" @click="saveOrderEdit()" :disabled="!state.cart.length">
+        <span>{{ tx('حفظ التعديل', 'Save changes') }}</span>
+      </button>
+      <button v-else class="btn-submit-order" id="btn-submit-order" @click="checkout()" :disabled="!canSubmitOrder()">
         <span>{{ state.isReservation ? tx('تأكيد الحجز', 'Confirm reservation') : t('confirm_order') }}</span>
       </button>
     </div>
@@ -200,6 +209,24 @@ const resLabel = computed(() => {
 </template>
 
 <style scoped>
+/* وضع التعديل: لونٌ تحذيريّ هادئ — الوكيل لازم يعرف أنه لا ينشئ أوردراً جديداً */
+.cart-edit-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  margin: 0 12px 10px; padding: 8px 11px;
+  border-radius: var(--radius, 10px);
+  background: var(--warning-light, #fffbeb);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 11.5px; font-weight: 700; line-height: 1.5; color: #b45309;
+}
+.cart-edit-cancel {
+  padding: 4px 9px; border-radius: 999px;
+  border: 1px solid rgba(245, 158, 11, 0.55);
+  background: transparent; color: #b45309;
+  font-family: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap;
+}
+:global(body.dark-mode) .cart-edit-bar { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+:global(body.dark-mode) .cart-edit-cancel { color: #fbbf24; }
+
 /* ── تفاصيل الطلب ────────────────────────────────────────────────────────────
    كانت ثلاث كتل ثابتة تلتهم ~١٩٠px من اللوحة ولو لم يُستعمل منها شيء. صارت شريطاً
    بارتفاع صفٍّ واحد (~٤٤px)، وما زاد عليه يظهر عند الاستعمال وحده. */

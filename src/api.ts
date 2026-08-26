@@ -339,6 +339,10 @@ export const contactFixDay = (businessDate: string) => api.post('/contact/busine
 
 // إعدادات يوم الشركة: block = امنع القفل وفيه أوردر واقف · carry = اقفل ورحّل
 // سياسة أخذ الأوردر — القراءة لمن يأخذ الأوردر، والتغيير بمفتاحه المستقلّ.
+// تعديل محتوى أوردرٍ قائم — الخادم يرفض ما تجاوز التحضير، والفرع يطبع الفرق وحده.
+export const contactUpdateOrder = (id: number, payload: any) =>
+  api.put(`/contact/orders/${id}`, payload).then((r) => r.data)
+
 export const contactOrderPolicy = () => api.get('/contact/lookup/order-policy').then((r) => r.data)
 export const contactSetOrderPolicy = (paymentRequired: boolean) =>
   api.put('/contact/order-settings', { paymentRequired }).then((r) => r.data)

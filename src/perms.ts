@@ -16,6 +16,9 @@ export const PERMS = [
   { key: 'callcenter.create', group: 'orders', ar: 'إنشاء أوردر', en: 'Create order' },
   { key: 'callcenter.edit', group: 'orders', ar: 'تعديل / تعيين فرع', en: 'Edit / assign branch' },
   { key: 'callcenter.cancel', group: 'orders', ar: 'إلغاء أوردر', en: 'Cancel order' },
+  // تعديل محتوى أوردرٍ قائم قبل أن يصير جاهزاً — مستقلٌّ عن «تعديل/تعيين فرع»:
+  // تغيير ما يُطبخ قرارٌ آخر غير توجيه الأوردر.
+  { key: 'callcenter.edit_order', group: 'orders', ar: 'تعديل أوردر قائم', en: 'Edit an open order' },
   { key: 'callcenter.open', group: 'day', ar: 'فتح اليوم', en: 'Open day' },
   { key: 'callcenter.close', group: 'day', ar: 'قفل اليوم', en: 'Close day' },
   { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },

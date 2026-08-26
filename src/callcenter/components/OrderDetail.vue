@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder } from '../store'
+import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency, formatDate, formatTransactionTime } from '../utils'
@@ -74,6 +74,10 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 
       <!-- الحالة والسائق يملكهما الفرع: تُحدَّث عنده وتصل هنا لحظياً عبر SSE. -->
       <div class="dt-actions">
+        <!-- التعديل قبل «جاهز» فقط — الفرع يستلم الفرق ويطبعه تذكرةَ تعديل -->
+        <button v-if="canEditOrder() && canEditThisOrder(order)" class="btn btn-primary btn-sm dt-btn-edit" @click="startEditOrder(order.id)">
+          <span v-html="icon('edit', { size: 13 })"></span> {{ tx('تعديل الطلب', 'Edit order') }}
+        </button>
         <button v-if="canCancelOrder() && canCancelThisOrder(order)" class="btn btn-danger btn-sm" @click="openCancelModal(order.id)">
           {{ tx('إلغاء الطلب', 'Cancel order') }}
         </button>
@@ -213,6 +217,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
   display: inline-flex; align-items: center;
 }
 .dt-btn-log { display: inline-flex; align-items: center; }
+.dt-btn-edit { display: inline-flex; align-items: center; }
 .dt-daily { font-size: 17px; font-weight: 800; color: var(--primary, #1a56db); }
 .dt-wide { grid-column: 1 / -1; }
 

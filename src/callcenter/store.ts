@@ -9,7 +9,7 @@ import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
-  contactPaymentMethods, contactOrderTypes, contactOrderPolicy,
+  contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -2679,6 +2679,8 @@ export async function viewOrderDetail(orderId: number, _source?: string) {
     const d = await contactOrder(orderId)
     const items = (d?.items || []).map((it: any) => ({
       id: it.id,
+      productId: it.productId ?? null,   // لازمٌ للتعديل — كان يسقط فيعود الصنف بلا هويّة
+      variantId: it.variantId ?? null,
       name: it.productName,
       nameEn: it.productNameEn || null,
       // الحجم والإضافات كما خزّنهما الخادم — بالاسمين فيتبع العرضُ لغةَ الواجهة
@@ -2859,6 +2861,107 @@ export function canCancelOrder(): boolean {
  * الإلغاء ممكن **قبل نزول الطلب الفرع فقط**؛ بعدها يملكه الفرع (الخادم يرفض صراحةً).
  * الحالة `sent` = لم يصل الفرع بعد. نُخفي الزرّ بدل أن يضغطه الوكيل فيُرفَض.
  */
+/** صلاحية تعديل أوردرٍ قائم — مفتاحٌ مستقلّ عن الإلغاء وعن تعيين الفرع. */
+export function canEditOrder(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.edit_order')
+}
+/**
+ * هذا الأوردر بعينه: قبل «جاهز» فقط.
+ * ما إن يصير جاهزاً فقد خرج من المطبخ — والخادم يرفضه كذلك، وهذا حارس الشاشة
+ * كي لا يبني الوكيل تعديلاً يُرفض بعد بنائه.
+ */
+export function canEditThisOrder(order: any): boolean {
+  if (!order) return false
+  return ['sent', 'new', 'preparing'].includes(String(order.status))
+}
+
+/**
+ * فتح أوردرٍ قائم للتعديل: يُحمَّل محتواه في السلّة وتتبدّل الشاشة لوضع التعديل.
+ *
+ * **العنوان والفرع لا يُعدَّلان** (الخادم لا يقبلهما): تغييرهما يُعيد اشتقاق الفرع
+ * ويوم العمل لأوردرٍ يمسكه فرعٌ بالفعل. العنوان الخطأ يُلغى ويُعاد إنشاؤه.
+ */
+export function startEditOrder(orderId: number) {
+  if (!canEditOrder()) { showToast(tx('لا تملك صلاحية تعديل الأوردرات', 'You do not have permission to edit orders'), 'warning'); return }
+  const order = state.orders.find((o: any) => o.id === orderId)
+  if (!order) { showToast(tx('الأوردر غير موجود', 'Order not found'), 'error'); return }
+  if (!canEditThisOrder(order)) { showToast(tx('الأوردر بقى جاهز — التعديل يكون من الفرع', 'The order is ready — edit it at the branch'), 'warning'); return }
+  if (!order.itemsLoaded || !Array.isArray(order.items) || !order.items.length) {
+    showToast(tx('جارٍ تحميل أصناف الأوردر — افتح تفاصيله ثم أعد المحاولة', 'Loading the order items — open its details and try again'), 'warning')
+    void viewOrderDetail(orderId)
+    return
+  }
+
+  resetOrderDraft()            // يُخرج من أي تعديلٍ سابق ويُفرغ المسوّدة
+  state.editingOrderId = orderId
+  // السلّة من بنود الأوردر — بنفس شكل سطر السلّة كي تعمل عليها كل أدوات الشاشة
+  state.cart = order.items.map((it: any, k: number) => ({
+    cartItemId: 'e' + orderId + '-' + k,
+    itemId: it.productId ?? null,
+    name: it.name,
+    nameEn: it.nameEn || null,
+    size: it.sizeAr ?? it.size ?? null,
+    quantity: Number(it.quantity) || 1,
+    price: Number(it.price) || 0,
+    extras: [],
+    variantId: it.variantId ?? null,
+    sizeAr: it.sizeAr ?? it.size ?? null,
+    sizeEn: it.sizeEn ?? null,
+    modifiers: Array.isArray(it.modifiers) ? it.modifiers : [],
+    extrasPrice: 0,
+    note: it.note || '',
+  }))
+  state.orderNotes = order.notes || ''
+  state.orderTag = order.orderTag || ''
+  state.paymentMethod = order.paymentMethodId ?? null
+  state.orderType = order.type === 'delivery' ? 'delivery' : 'pickup'
+  state.openOrderId = null     // لوحة التفاصيل تُطوى — الشاشة انتقلت للتعديل
+  state.activeView = 'new-order'
+  state.activeTab = 'menu'
+  showToast(tx(`تعديل الأوردر #${order.invoiceNo} — العنوان والفرع لا يتغيّران`, `Editing order #${order.invoiceNo} — address and branch stay as they are`), 'info')
+}
+
+export function cancelOrderEdit() {
+  resetOrderDraft()
+  state.activeView = 'orders'
+}
+
+/** حفظ التعديل — البنود والملاحظات والدفع فقط (الخادم يرفض غيرها). */
+export async function saveOrderEdit() {
+  const id = state.editingOrderId
+  if (!id) return
+  if (!state.cart.length) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
+  const payMethod = companyPaymentMethods().find((m: any) => String(m.id) === String(state.paymentMethod)) || null
+  const isCashPay = !state.paymentMethod ? true
+    : payMethod && 'isCash' in payMethod ? !!payMethod.isCash
+    : String(state.paymentMethod ?? '') === 'cash'
+  try {
+    await contactUpdateOrder(id, {
+      paymentMode: isCashPay ? 'cash_on_delivery' : 'prepaid_online',
+      paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
+      notes: (state.orderNotes || '').trim() || null,
+      orderTag: (state.orderTag || '').trim() || null,
+      items: state.cart.map((i: any) => ({
+        productId: i.itemId,
+        productName: i.name,
+        productNameEn: i.nameEn || null,
+        variantId: i.variantId ?? null,
+        variantName: i.sizeAr ?? i.size ?? null,
+        quantity: i.quantity,
+        unitPrice: i.price,
+        modifiers: Array.isArray(i.modifiers) && i.modifiers.length ? i.modifiers : undefined,
+        notes: (i.note || '').trim() || null,
+      })),
+    })
+    showToast(tx('تم حفظ التعديل — الفرع هيستلم الفرق', 'Saved — the branch will get the difference'), 'success')
+    resetOrderDraft()
+    await loadOrders()
+    state.activeView = 'orders'
+  } catch (err: any) {
+    showToast(err?.response?.data?.message || tx('تعذّر حفظ التعديل', 'Could not save the edit'), 'error')
+  }
+}
+
 export function canCancelThisOrder(order: any): boolean {
   if (!order || order.status === 'cancelled') return false
   if (!state.live) return true
