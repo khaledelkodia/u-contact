@@ -2355,60 +2355,49 @@ body.dark-mode .searchable-select-search input {
    الكتالوج الحقيقي بلا صور أصناف وبلا أيقونات، فكتلة الـ100px كانت مربعاً رمادياً
    فارغاً فوق كل تصنيف. البديل: شارة حرف بتدرّج التصنيف + اسم بارز + عدّاد الأصناف.
    اللونان يأتيان من `catVars()` كمتغيّرَين (--acc / --acc2) فتقرأهما القواعد كلها. */
+/* ── بطاقة التصنيف ───────────────────────────────────────────────────────────
+   كانت كلُّ بطاقةٍ تلبس تدرّج لونها: خلفيّةٌ ملوّنة وشريطٌ على الحافّة وشارةٌ
+   متدرّجة وظِلٌّ ملوّن — صفٌّ من ألوانٍ متنافرة يتعب العين، والمختارة تغرق فيه.
+   اللون الآن **لمسةٌ واحدة**: مربّع الشارة. والسطح واحدٌ لكل البطاقات، والمختارة
+   وحدها تلبس لون النظام — «أنت هنا» رسالةٌ واحدة لا سبعة ألوان. */
 .category-card.compact {
   --acc: #6366f1;
   --acc2: #4338ca;
-  padding: 13px 14px;
-  min-height: 76px;
-  border-radius: 16px;
-  border: 1.5px solid color-mix(in srgb, var(--acc) 22%, transparent);
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--acc) 7%, #fff) 0%, #fff 62%);
+  padding: 12px 14px;
+  min-height: 72px;
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  background: var(--white);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 11px;
   text-align: start;
   position: relative;
   overflow: hidden;
 }
-/* شريط التدرّج على الحافّة — يعطي البطاقة هويّتها حتى قبل قراءة الاسم */
-.category-card.compact::before {
-  content: '';
-  position: absolute;
-  inset-block: 0;
-  inset-inline-start: 0;
-  width: 4px;
-  background: linear-gradient(180deg, var(--acc) 0%, var(--acc2) 100%);
-  opacity: .85;
-}
+.category-card.compact::before { content: none; }
 .category-card.compact .cat-avatar {
-  width: 42px;
-  height: 42px;
+  width: 38px;
+  height: 38px;
   flex-shrink: 0;
-  border-radius: 13px;
+  border-radius: 11px;
   display: grid;
   place-items: center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   line-height: 1;
   color: #fff;
-  background: linear-gradient(135deg, var(--acc) 0%, var(--acc2) 100%);
-  box-shadow: 0 4px 12px color-mix(in srgb, var(--acc) 38%, transparent);
-  transition: var(--transition);
+  background: var(--acc);
 }
-.category-card.compact .category-card-info {
-  padding: 0;
-  min-width: 0;
-  flex: 1;
-}
-/* الاسم هو الهدف: أكبر وأثقل من السطر الثانوي بفارق واضح */
+.cat-avatar svg { width: 15px; height: 15px; display: block; }
+.category-card.compact .category-card-info { padding: 0; min-width: 0; flex: 1; }
 .category-card.compact .category-card-name {
-  font-size: 16px;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--text-primary);
-  letter-spacing: -0.2px;
-  margin-bottom: 3px;
-  line-height: 1.25;
+  line-height: 1.3;
+  margin-bottom: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2421,49 +2410,36 @@ body.dark-mode .searchable-select-search input {
   color: var(--text-muted);
   min-width: 0;
 }
-.category-card.compact .cat-sub {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-/* العدّاد داخل سطر الوصف — في طرف البطاقة كان يزاحم الاسم فيُقصّ */
+.category-card.compact .cat-sub { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .category-card.compact .cat-count {
   flex-shrink: 0;
   margin-inline-start: auto;
-  background: color-mix(in srgb, var(--acc) 13%, transparent);
-  color: var(--acc2);
+  background: var(--bg);
+  color: var(--text-secondary);
   font-weight: 800;
   border-radius: 999px;
   padding: 2px 8px;
   font-size: 10.5px;
-  transition: var(--transition);
+  font-variant-numeric: tabular-nums;
 }
+/* بلا قفزةٍ عند المرور: سبع بطاقاتٍ تقفز تحت المؤشّر حركةٌ لا معنى لها */
 .category-card.compact:hover {
-  transform: translateY(-3px);
-  border-color: color-mix(in srgb, var(--acc) 45%, transparent);
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--acc) 20%, transparent);
+  transform: none;
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
 }
-/* المحدَّد: البطاقة كلها تلبس التدرّج — تمييز لا يحتاج بحثاً عن إطار رفيع */
 .category-card.compact.active {
-  background: linear-gradient(135deg, var(--acc) 0%, var(--acc2) 100%);
-  border-color: transparent;
-  box-shadow: 0 10px 24px color-mix(in srgb, var(--acc) 42%, transparent);
+  border-color: var(--primary);
+  background: var(--primary-lighter);
+  box-shadow: inset 0 0 0 1px var(--primary);
 }
-.category-card.compact.active::before { opacity: 0; }
-/* شارة «كل الأصناف» أيقونةٌ لا حرف — الشبكة نفسها تخدم المستوى الفرعيّ */
-.cat-avatar svg { width: 15px; height: 15px; display: block; }
+.category-card.compact.active .category-card-name { color: var(--primary-dark); }
+.category-card.compact.active .cat-count { background: var(--white); color: var(--primary-dark); }
 
-.category-card.compact.active .cat-avatar {
-  background: rgba(255, 255, 255, 0.22);
-  box-shadow: none;
-}
-.category-card.compact.active .category-card-name { color: #fff; }
-.category-card.compact.active .cat-sub { color: rgba(255, 255, 255, 0.72); }
-.category-card.compact.active .cat-count {
-  background: rgba(255, 255, 255, 0.25);
-  color: #fff;
-}
-
+/* الوضع الليلي: --primary-lighter تساوي لون البطاقة هناك، فتذوب المختارة */
+body.dark-mode .category-card.compact.active { background: rgba(96, 165, 250, 0.14); }
+body.dark-mode .category-card.compact.active .category-card-name { color: #bfdbfe; }
+body.dark-mode .category-card.compact.active .cat-count { background: rgba(255, 255, 255, 0.1); color: #bfdbfe; }
 /* ========== Menu Items Grid ========== */
 .menu-items-header {
   display: flex;
@@ -6978,48 +6954,43 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
 .pay-ico svg { display: block; }
 
 /* ================================================
-   Orders master–detail + paging (شاشات الأوردرات)
+   Orders — inline row detail + paging (شاشات الأوردرات)
    ------------------------------------------------
-   لوحة التفاصيل كانت **تحت** الجدول: الوكيل يضغط «تفاصيل» فلا يحدث شيءٌ أمام عينه،
-   ثم ينزل بالتمرير ليجدها — ومع مئة أوردرٍ يصير النزول رحلة. صارت عموداً **بجانب**
-   الجدول يلتصق بأعلى الشاشة، والجدول ينكمش ويمرّر أفقياً بدل أن يُدفَع لأسفل.
+   اللوحة كانت تحت الجدول (تمريرٌ للوصول إليها)، ثم عموداً بجانبه (يضغط الجدول
+   ويمرّره أفقياً). صارت **تنسدل تحت الصفّ نفسه**: لا شكّ في أيّ طلبٍ تخصّ، ولا
+   عمودَ يأكل من عرض الجدول، والصفّ نفسه يبقى في العين فوقها.
    ================================================ */
-.od-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-.od-split.has-detail { grid-template-columns: minmax(0, 1fr) 420px; }
-.od-main { min-width: 0; }
-.od-detail {
-  position: sticky;
-  top: 16px;
-  align-self: start;
-  max-height: calc(100vh - 120px);
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-/* الجدول ينكمش فيمرّر أفقياً — لا يُقصّ ولا يُخرِج الصفحة عن عرضها */
-.od-main .orders-table-wrapper { overflow-x: auto; }
-/* داخل اللوحة الجانبية: حشوةٌ أقلّ، وحقولٌ في عمودين — التصميم الأصلي كان
-   يفترض عرض الصفحة كاملاً (ثلاثة أعمدة وجدولٌ بأربعة) فانكسر في ٤٢٠px. */
-.od-detail .order-detail-panel { padding: 16px; margin-top: 0; box-shadow: var(--shadow-sm); }
-.od-detail .order-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
-/* الصفّ المفتوحة تفاصيله: يُعرَف بالنظر أيّ سطرٍ يقابل اللوحة */
+/* الجدول قد يفوق عرض الشاشة (اثنا عشر عموداً) — يمرّر أفقياً داخل إطاره */
+.od-wrap { overflow-x: auto; }
+
+/* الصفّ المفتوحة تفاصيله: يُعرَف بالنظر، ويلتحم بلوحته تحته */
 .orders-table tbody tr.row-open {
   background: var(--primary-lighter) !important;
   box-shadow: inset 3px 0 0 0 var(--primary);
 }
 [dir="rtl"] .orders-table tbody tr.row-open { box-shadow: inset -3px 0 0 0 var(--primary); }
+.orders-table tbody tr.row-open > td { border-bottom-color: transparent; }
 
-/* تحت 1200px: عمودٌ واحد واللوحة **فوق** الجدول — الغرض ألّا يُضطرّ لتمرير */
-@media (max-width: 1200px) {
-  .od-split.has-detail { grid-template-columns: minmax(0, 1fr); }
-  .od-split.has-detail .od-detail { order: -1; position: static; max-height: none; }
-  .od-detail .order-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+/* صفّ اللوحة: ليس صفَّ بيانات — لا يُنقر ولا يُضيء عند المرور */
+.orders-table tbody tr.od-inline,
+.orders-table tbody tr.od-inline:hover { cursor: default; background: var(--primary-lighter); }
+.orders-table tbody tr.od-inline > td {
+  padding: 0 14px 14px;
+  border-bottom: 2px solid var(--primary);
 }
-
+.od-inline .order-detail-panel {
+  margin-top: 0;
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+}
+/* اللوحة تلتصق ببداية المنطقة المرئيّة حين يمرّر الجدول أفقياً، فتبقى مقروءة */
+.od-inline .od-inline-box {
+  position: sticky;
+  inset-inline-start: 0;
+  /* 100% هنا = عرض الجدول لا عرض المنطقة المرئيّة، فكانت اللوحة تتجاوزها عند
+     التمرير الأفقيّ. الحدّ من الشاشة نفسها ناقصاً السايدبار وحشوة المحتوى. */
+  max-width: min(1100px, calc(100vw - var(--sidebar-width) - 60px));
+}
 /* ── شريط الصفحات ── */
 .uc-pager {
   display: flex;

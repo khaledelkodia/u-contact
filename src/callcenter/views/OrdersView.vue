@@ -63,102 +63,104 @@ function typeCell(order: any): string {
       </div>
 
 
-      <!-- الجدول ولوحة التفاصيل جنباً إلى جنب — كانت اللوحة تحت الجدول فلا تُرى إلا بتمرير -->
-      <div class="od-split" :class="{ 'has-detail': state.openOrderId }">
-        <div class="od-main">
-          <div class="orders-table-wrapper">
-            <table class="orders-table">
-              <thead>
-                <tr>
-                  <th>{{ tx('الرقم اليومي', 'Daily no.') }}</th>
-                  <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
-                  <th>{{ tx('العميل', 'Customer') }}</th>
-                  <th>{{ tx('الفرع', 'Branch') }}</th>
-                  <th>{{ tx('الموظف', 'Agent') }}</th>
-                  <th>{{ tx('النوع', 'Type') }}</th>
-                  <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
-                  <th>{{ tx('المجموع', 'Subtotal') }}</th>
-                  <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
-                  <th>{{ tx('الحالة', 'Status') }}</th>
-                  <th>{{ tx('السائق', 'Driver') }}</th>
-                  <th>{{ tx('إجراءات', 'Actions') }}</th>
-                </tr>
-                <!-- صفّ الفلترة: خانةٌ تحت رأس العمود الذي تخصّه — لا شريطٌ منفصل
-                     يفلتر أربعة أعمدةٍ من اثني عشر ولا يقول أيَّ خانةٍ تخصّ أيَّ عمود. -->
-                <tr class="uc-frow">
-                  <th><input class="uc-fcell" v-model="state.allFilterDaily" :placeholder="tx('رقم', 'No.')"></th>
-                  <th><input class="uc-fcell" v-model="state.allFilterInvoice" :placeholder="tx('فاتورة', 'Invoice')"></th>
-                  <th><input class="uc-fcell" v-model="state.allFilterPhone" :placeholder="tx('اسم أو رقم', 'Name or no.')"></th>
-                  <th>
-                    <select class="uc-fcell" v-model="state.allFilterBranch">
-                      <option value="">{{ tx('الكل', 'All') }}</option>
-                      <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
-                    </select>
-                  </th>
-                  <th><input class="uc-fcell" v-model="state.allFilterEmployee" :placeholder="tx('الموظف', 'Agent')"></th>
-                  <th>
-                    <select class="uc-fcell" v-model="state.allFilterType">
-                      <option value="">{{ tx('الكل', 'All') }}</option>
-                      <option value="delivery">{{ tx('توصيل', 'Delivery') }}</option>
-                      <option value="pickup">{{ tx('استلام', 'Pickup') }}</option>
-                    </select>
-                  </th>
-                  <th><input class="uc-fcell" v-model="state.allFilterTag" :placeholder="tx('رقم خارجي', 'External')"></th>
-                  <th></th>
-                  <th v-if="showTotals"></th>
-                  <th>
-                    <select class="uc-fcell" v-model="state.allFilterStatus">
-                      <option value="">{{ tx('الكل', 'All') }}</option>
-                      <option value="new">{{ tx('جديد', 'New') }}</option>
-                      <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
-                      <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
-                      <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
-                      <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
-                      <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
-                    </select>
-                  </th>
-                  <th><input class="uc-fcell" v-model="state.allFilterDriver" :placeholder="tx('السائق', 'Driver')"></th>
-                  <th><button type="button" class="uc-fclear" @click="clearAllOrderFilters()">{{ tx('مسح الفلاتر', 'Clear') }}</button></th>
-                </tr>
-              </thead>
-              <tbody id="all-orders-table-body">
-                <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
-                <tr v-for="order in orders" :key="order.id"
-                    :class="{ 'order-row-cancelled': order.status === 'cancelled', 'row-open': state.openOrderId === order.id }"
-                    @click="viewOrderDetail(order.id, 'all')">
-                  <td style="font-weight:700;">{{ order.dailyNo }}</td>
-                  <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
-                  <td>
-                    <div class="order-customer-cell">
-                      <div class="order-customer-phone">{{ order.customerPhone }}</div>
-                      <div class="order-customer-name">{{ order.customerName }}</div>
-                    </div>
-                  </td>
-                  <td>{{ order.branchName }}</td>
-                  <td>{{ order.employeeName }}</td>
-                  <td><span v-html="typeCell(order)"></span></td>
-                  <td>
-                    <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
-                    <span v-else style="color:var(--text-muted);">—</span>
-                  </td>
-                  <td>{{ formatCurrency(order.subtotal) }}</td>
-                  <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
-                  <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
-                  <td><span v-html="driverCell(order)"></span></td>
-                  <td>
-                    <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'all')">{{ tx('تفاصيل', 'Details') }}</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
-        </div>
-
-        <div v-if="state.openOrderId" id="all-order-detail-container" class="od-detail">
-          <OrderDetail :order-id="state.openOrderId" />
-        </div>
+      <!-- التفاصيل تنسدل تحت صفّها داخل الجدول — لا عمودَ جانبيّ يأكل من عرضه -->
+      <div class="orders-table-wrapper od-wrap">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>{{ tx('الرقم اليومي', 'Daily no.') }}</th>
+              <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
+              <th>{{ tx('العميل', 'Customer') }}</th>
+              <th>{{ tx('الفرع', 'Branch') }}</th>
+              <th>{{ tx('الموظف', 'Agent') }}</th>
+              <th>{{ tx('النوع', 'Type') }}</th>
+              <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
+              <th>{{ tx('المجموع', 'Subtotal') }}</th>
+              <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
+              <th>{{ tx('الحالة', 'Status') }}</th>
+              <th>{{ tx('السائق', 'Driver') }}</th>
+              <th>{{ tx('إجراءات', 'Actions') }}</th>
+            </tr>
+            <!-- صفّ الفلترة: خانةٌ تحت رأس العمود الذي تخصّه — لا شريطٌ منفصل
+                 يفلتر أربعة أعمدةٍ من اثني عشر ولا يقول أيَّ خانةٍ تخصّ أيَّ عمود. -->
+            <tr class="uc-frow">
+              <th><input class="uc-fcell" v-model="state.allFilterDaily" :placeholder="tx('رقم', 'No.')"></th>
+              <th><input class="uc-fcell" v-model="state.allFilterInvoice" :placeholder="tx('فاتورة', 'Invoice')"></th>
+              <th><input class="uc-fcell" v-model="state.allFilterPhone" :placeholder="tx('اسم أو رقم', 'Name or no.')"></th>
+              <th>
+                <select class="uc-fcell" v-model="state.allFilterBranch">
+                  <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+                </select>
+              </th>
+              <th><input class="uc-fcell" v-model="state.allFilterEmployee" :placeholder="tx('الموظف', 'Agent')"></th>
+              <th>
+                <select class="uc-fcell" v-model="state.allFilterType">
+                  <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option value="delivery">{{ tx('توصيل', 'Delivery') }}</option>
+                  <option value="pickup">{{ tx('استلام', 'Pickup') }}</option>
+                </select>
+              </th>
+              <th><input class="uc-fcell" v-model="state.allFilterTag" :placeholder="tx('رقم خارجي', 'External')"></th>
+              <th></th>
+              <th v-if="showTotals"></th>
+              <th>
+                <select class="uc-fcell" v-model="state.allFilterStatus">
+                  <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option value="new">{{ tx('جديد', 'New') }}</option>
+                  <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
+                  <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
+                  <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
+                  <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
+                  <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
+                </select>
+              </th>
+              <th><input class="uc-fcell" v-model="state.allFilterDriver" :placeholder="tx('السائق', 'Driver')"></th>
+              <th><button type="button" class="uc-fclear" @click="clearAllOrderFilters()">{{ tx('مسح الفلاتر', 'Clear') }}</button></th>
+            </tr>
+          </thead>
+          <tbody id="all-orders-table-body">
+            <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
+            <template v-for="order in orders" :key="order.id">
+            <tr
+                :class="{ 'order-row-cancelled': order.status === 'cancelled', 'row-open': state.openOrderId === order.id }"
+                @click="viewOrderDetail(order.id, 'all')">
+              <td style="font-weight:700;">{{ order.dailyNo }}</td>
+              <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
+              <td>
+                <div class="order-customer-cell">
+                  <div class="order-customer-phone">{{ order.customerPhone }}</div>
+                  <div class="order-customer-name">{{ order.customerName }}</div>
+                </div>
+              </td>
+              <td>{{ order.branchName }}</td>
+              <td>{{ order.employeeName }}</td>
+              <td><span v-html="typeCell(order)"></span></td>
+              <td>
+                <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+                <span v-else style="color:var(--text-muted);">—</span>
+              </td>
+              <td>{{ formatCurrency(order.subtotal) }}</td>
+              <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
+              <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
+              <td><span v-html="driverCell(order)"></span></td>
+              <td>
+                <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'all')">{{ tx('تفاصيل', 'Details') }}</button>
+              </td>
+            </tr>
+            <!-- لوحة التفاصيل: صفٌّ يمتدّ على الأعمدة كلها تحت صفّه مباشرةً -->
+            <tr v-if="state.openOrderId === order.id" class="od-inline">
+              <td :colspan="colCount">
+                <div class="od-inline-box" id="all-order-detail-container">
+                  <OrderDetail :order-id="order.id" />
+                </div>
+              </td>
+            </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
+      <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
     </div>
   </section>
 </template>

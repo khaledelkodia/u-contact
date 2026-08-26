@@ -56,6 +56,7 @@ const BRANCHES = [
 
 // ========== تصنيفات المنيو ==========
 const MENU_CATEGORIES = [
+  { id: 'all',        name: 'عرض الكل',    nameEn: 'View All',     icon: '📋', color: '#6b7280' },
   { id: 'juices',     name: 'عصائر طازجة', nameEn: 'Fresh Juices', icon: '🍊', color: '#f97316',
     imageUrl: 'https://images.unsplash.com/photo-1600271886742-f049cd451bba?w=240&h=240&fit=crop&q=80' },
   { id: 'cocktails',  name: 'كوكتيلات',    nameEn: 'Cocktails',    icon: '🍹', color: '#ec4899',
@@ -73,8 +74,7 @@ const MENU_CATEGORIES = [
   { id: 'coffee',     name: 'قهوة',        nameEn: 'Coffee',        icon: '☕', color: '#78350f',
     imageUrl: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=240&h=240&fit=crop&q=80' },
   { id: 'molten',     name: 'مولتن كيك',   nameEn: 'Molten Cake',   icon: '🍰', color: '#7c2d12',
-    imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=240&h=240&fit=crop&q=80' },
-  { id: 'all',        name: 'عرض الكل',    nameEn: 'View All',     icon: '📋', color: '#6b7280' }
+    imageUrl: 'https://images.unsplash.com/photo-1606313564200-e75d5e30476c?w=240&h=240&fit=crop&q=80' }
 ];
 
 // ========== أصناف المنيو ==========

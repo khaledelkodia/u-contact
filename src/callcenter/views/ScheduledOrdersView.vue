@@ -37,71 +37,73 @@ function typeCell(order: any): string {
       </div>
 
 
-      <!-- الجدول ولوحة التفاصيل جنباً إلى جنب — كانت اللوحة تحت الجدول فلا تُرى إلا بتمرير -->
-      <div class="od-split" :class="{ 'has-detail': state.openOrderId }">
-        <div class="od-main">
-          <div class="orders-table-wrapper">
-            <table class="orders-table">
-              <thead>
-                <tr>
-                  <th>{{ tx('تاريخ الجدولة', 'Scheduled for') }}</th>
-                  <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
-                  <th>{{ tx('العميل', 'Customer') }}</th>
-                  <th>{{ tx('الفرع', 'Branch') }}</th>
-                  <th>{{ tx('النوع', 'Type') }}</th>
-                  <th>{{ tx('الإجمالي', 'Total') }}</th>
-                  <th>{{ tx('إجراءات', 'Actions') }}</th>
-                </tr>
-                <!-- صفّ الفلترة تحت رأس الجدول — لا شريطٌ منفصل فوقه -->
-                <tr class="uc-frow">
-                  <th></th>
-                  <th><input class="uc-fcell" v-model="state.schedFilterInvoice" :placeholder="tx('فاتورة', 'Invoice')"></th>
-                  <th><input class="uc-fcell" v-model="state.schedFilterPhone" :placeholder="tx('اسم أو رقم', 'Name or no.')"></th>
-                  <th>
-                    <select class="uc-fcell" v-model="state.schedFilterBranch">
-                      <option value="">{{ tx('الكل', 'All') }}</option>
-                      <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
-                    </select>
-                  </th>
-                  <th>
-                    <select class="uc-fcell" v-model="state.schedFilterType">
-                      <option value="">{{ tx('الكل', 'All') }}</option>
-                      <option value="delivery">{{ tx('توصيل', 'Delivery') }}</option>
-                      <option value="pickup">{{ tx('استلام', 'Pickup') }}</option>
-                    </select>
-                  </th>
-                  <th></th>
-                  <th><button type="button" class="uc-fclear" @click="clearScheduledFilters()">{{ tx('مسح الفلاتر', 'Clear') }}</button></th>
-                </tr>
-              </thead>
-              <tbody id="scheduled-orders-table-body">
-                <tr v-if="orders.length === 0"><td colspan="7" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات مجدولة', 'No scheduled orders') }}</td></tr>
-                <tr v-for="order in orders" :key="order.id"
-                    :class="{ 'row-open': state.openOrderId === order.id }"
-                    @click="viewOrderDetail(order.id, 'scheduled')">
-                  <td style="font-weight:700; color:var(--primary);">{{ formatDate(order.scheduledDate) }}</td>
-                  <td style="font-weight:700;">#{{ order.invoiceNo }}</td>
-                  <td>
-                    <div style="font-weight:600;">{{ order.customerName }}</div>
-                    <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ order.customerPhone }}</div>
-                  </td>
-                  <td>{{ order.branchName }}</td>
-                  <td><span v-html="typeCell(order)"></span></td>
-                  <td style="font-weight:700;">{{ formatCurrency(order.total) }}</td>
-                  <td>
-                    <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'scheduled')">{{ tx('تفاصيل', 'Details') }}</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
-        </div>
-
-        <div v-if="state.openOrderId" id="scheduled-order-detail-container" class="od-detail">
-          <OrderDetail :order-id="state.openOrderId" />
-        </div>
+      <!-- التفاصيل تنسدل تحت صفّها داخل الجدول — لا عمودَ جانبيّ يأكل من عرضه -->
+      <div class="orders-table-wrapper od-wrap">
+        <table class="orders-table">
+          <thead>
+            <tr>
+              <th>{{ tx('تاريخ الجدولة', 'Scheduled for') }}</th>
+              <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
+              <th>{{ tx('العميل', 'Customer') }}</th>
+              <th>{{ tx('الفرع', 'Branch') }}</th>
+              <th>{{ tx('النوع', 'Type') }}</th>
+              <th>{{ tx('الإجمالي', 'Total') }}</th>
+              <th>{{ tx('إجراءات', 'Actions') }}</th>
+            </tr>
+            <!-- صفّ الفلترة تحت رأس الجدول — لا شريطٌ منفصل فوقه -->
+            <tr class="uc-frow">
+              <th></th>
+              <th><input class="uc-fcell" v-model="state.schedFilterInvoice" :placeholder="tx('فاتورة', 'Invoice')"></th>
+              <th><input class="uc-fcell" v-model="state.schedFilterPhone" :placeholder="tx('اسم أو رقم', 'Name or no.')"></th>
+              <th>
+                <select class="uc-fcell" v-model="state.schedFilterBranch">
+                  <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+                </select>
+              </th>
+              <th>
+                <select class="uc-fcell" v-model="state.schedFilterType">
+                  <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option value="delivery">{{ tx('توصيل', 'Delivery') }}</option>
+                  <option value="pickup">{{ tx('استلام', 'Pickup') }}</option>
+                </select>
+              </th>
+              <th></th>
+              <th><button type="button" class="uc-fclear" @click="clearScheduledFilters()">{{ tx('مسح الفلاتر', 'Clear') }}</button></th>
+            </tr>
+          </thead>
+          <tbody id="scheduled-orders-table-body">
+            <tr v-if="orders.length === 0"><td colspan="7" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات مجدولة', 'No scheduled orders') }}</td></tr>
+            <template v-for="order in orders" :key="order.id">
+            <tr
+                :class="{ 'row-open': state.openOrderId === order.id }"
+                @click="viewOrderDetail(order.id, 'scheduled')">
+              <td style="font-weight:700; color:var(--primary);">{{ formatDate(order.scheduledDate) }}</td>
+              <td style="font-weight:700;">#{{ order.invoiceNo }}</td>
+              <td>
+                <div style="font-weight:600;">{{ order.customerName }}</div>
+                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ order.customerPhone }}</div>
+              </td>
+              <td>{{ order.branchName }}</td>
+              <td><span v-html="typeCell(order)"></span></td>
+              <td style="font-weight:700;">{{ formatCurrency(order.total) }}</td>
+              <td>
+                <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'scheduled')">{{ tx('تفاصيل', 'Details') }}</button>
+              </td>
+            </tr>
+            <!-- لوحة التفاصيل: صفٌّ يمتدّ على الأعمدة كلها تحت صفّه مباشرةً -->
+            <tr v-if="state.openOrderId === order.id" class="od-inline">
+              <td colspan="7">
+                <div class="od-inline-box" id="scheduled-order-detail-container">
+                  <OrderDetail :order-id="order.id" />
+                </div>
+              </td>
+            </tr>
+            </template>
+          </tbody>
+        </table>
       </div>
+      <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
     </div>
   </section>
 </template>

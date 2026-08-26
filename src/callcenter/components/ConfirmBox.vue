@@ -19,13 +19,13 @@ watch(() => state.confirmBox.open, (open) => {
 })
 
 function onKey(e: KeyboardEvent) {
-  if (e.key === 'Escape') { e.preventDefault(); answerConfirm(false) }
-  else if (e.key === 'Enter') { e.preventDefault(); answerConfirm(true) }
+  if (e.key === 'Escape') { e.preventDefault(); answerConfirm('cancel') }
+  else if (e.key === 'Enter') { e.preventDefault(); answerConfirm('ok') }
 }
 </script>
 
 <template>
-  <div v-if="state.confirmBox.open" class="modal-overlay cb-overlay" @click.self="answerConfirm(false)" @keydown="onKey" tabindex="-1">
+  <div v-if="state.confirmBox.open" class="modal-overlay cb-overlay" @click.self="answerConfirm('cancel')" @keydown="onKey" tabindex="-1">
     <div class="modal-content cb-box" :class="`cb-${state.confirmBox.kind}`" @click.stop @keydown="onKey">
       <div class="cb-body">
         <div class="cb-ico" v-html="icon(state.confirmBox.kind === 'danger' ? 'alert-triangle' : 'alert-circle', { size: 22 })"></div>
@@ -35,10 +35,15 @@ function onKey(e: KeyboardEvent) {
         </div>
       </div>
       <div class="cb-actions">
-        <button ref="cancelBtn" type="button" class="btn btn-secondary cb-btn" @click="answerConfirm(false)">
+        <!-- البديل أوّلاً: الزرّان القديمان يبقيان في موضعيهما فلا تتبدّل عادة اليد -->
+        <button v-if="state.confirmBox.altLabel" type="button" class="btn btn-primary cb-btn cb-alt"
+                @click="answerConfirm('alt')">
+          {{ state.confirmBox.altLabel }}
+        </button>
+        <button ref="cancelBtn" type="button" class="btn btn-secondary cb-btn" @click="answerConfirm('cancel')">
           {{ state.confirmBox.cancelLabel }}
         </button>
-        <button ref="okBtn" type="button" class="btn cb-btn cb-ok" @click="answerConfirm(true)">
+        <button ref="okBtn" type="button" class="btn cb-btn cb-ok" @click="answerConfirm('ok')">
           {{ state.confirmBox.okLabel }}
         </button>
       </div>
@@ -86,9 +91,11 @@ function onKey(e: KeyboardEvent) {
 }
 
 .cb-actions {
-  display: flex; gap: 10px; justify-content: flex-end;
+  display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap;
   margin-top: 20px;
 }
+/* ثلاثة أزرارٍ في 420px قد تضيق — الصندوق يتّسع قليلاً حين يوجد بديل */
+.cb-box:has(.cb-alt) { max-width: 520px; }
 .cb-btn { min-width: 104px; padding: 10px 18px; font-weight: 700; }
 
 /* زرّ الفعل بلون الخطر — يُقرأ قبل الضغط لا بعده */

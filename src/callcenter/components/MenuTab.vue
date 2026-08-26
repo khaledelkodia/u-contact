@@ -142,15 +142,6 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
         </button>
       </div>
       <div class="menu-categories">
-        <!-- «كل الأصناف»: الوكيل يعرف الصنف ولا يعرف قسمه — فلا يُحبَس في التقسيم -->
-        <div class="category-card compact sub-card" :class="{ active: !state.activeSubCategory }"
-          :style="catVars({ id: state.activeCategory })" @click="selectSubCategory('')">
-          <div class="cat-avatar" v-html="icon('layers', { size: 15 })"></div>
-          <div class="category-card-info">
-            <div class="category-card-name">{{ isEn ? 'All items' : 'كل الأصناف' }}</div>
-            <div class="category-card-meta"><span class="cat-count">{{ catCount({ id: state.activeCategory }) }}</span></div>
-          </div>
-        </div>
         <div v-for="sub in subCats" :key="sub.id" class="category-card compact sub-card"
           :class="{ active: state.activeSubCategory === sub.id }" :style="catVars(sub)"
           @click="selectSubCategory(sub.id)">

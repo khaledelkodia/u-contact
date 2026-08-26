@@ -83,7 +83,7 @@ export const state = reactive<any>({
   itemModalNote: '',
   noteItemId: null as string | null,   // سطر السلّة الذي تُحرَّر ملاحظته
   // صندوق التأكيد (بديل `confirm()` المتصفّح) — انظر `askConfirm`
-  confirmBox: { open: false, title: '', body: '', okLabel: '', cancelLabel: '', kind: 'danger' as 'danger' | 'warning' },
+  confirmBox: { open: false, title: '', body: '', okLabel: '', altLabel: '', cancelLabel: '', kind: 'danger' as 'danger' | 'warning' },
   // شاشة فتح يوم العمل — التاريخ يختاره الوكيل وأمامه أيام فروعه
   dayModal: { open: false, date: '', branches: [] as any[], loading: false, error: '', mode: 'normal' as 'normal' | 'fix' },
   noteItemText: '',
@@ -227,7 +227,9 @@ export async function loadLiveData() {
       }
     })
     const cats = Array.from(catMap.values()).sort((a: any, b: any) => a.sort - b.sort)
-    cats.push({ id: 'all', name: 'عرض الكل', nameEn: 'View All', icon: '', color: '#6b7280', imageUrl: '' })
+    // «عرض الكل» أوّل البطاقات لا آخرها: هي مدخل الوكيل حين لا يعرف قسم الصنف،
+    // وكانت تقع خلف سبع بطاقاتٍ في آخر الصفّ.
+    cats.unshift({ id: 'all', name: 'عرض الكل', nameEn: 'View All', icon: '', color: '#6b7280', imageUrl: '' })
     state.menuCategories = cats
 
     // المنتجات → شكل صنف الواجهة: بدون صور، مع الأحجام (variants) والإضافات (modifiers)
@@ -1083,11 +1085,22 @@ export function resetDraftForNewCustomer() {
 }
 
 export async function startNewOrder() {
-  if (hasOrderDraft() && !(await askConfirm({
-    title: tx('في طلب شغّال دلوقتي', 'There is an order in progress'),
-    body: tx('تبدأ واحداً جديداً وتمسح اللي قبله؟', 'Start a new one and discard it?'),
-    okLabel: tx('ابدأ جديداً', 'Start new'),
-  }))) return
+  if (hasOrderDraft()) {
+    // ثلاثة أبواب لا بابان: كان على الوكيل أن يمسح ما بناه أو يبقى مكانه — ولا
+    // سبيل للعودة إلى طلبه المفتوح من زرّ «طلب جديد» إلا بإعادة إدخاله كلّه.
+    const a = await askConfirm3({
+      title: tx('في طلب شغّال دلوقتي', 'There is an order in progress'),
+      body: tx('تكمّل الطلب المفتوح، ولا تبدأ واحداً جديداً وتمسح اللي قبله؟',
+               'Continue the open order, or start a new one and discard it?'),
+      okLabel: tx('ابدأ جديداً', 'Start new'),
+      altLabel: tx('كمّل الطلب المفتوح', 'Continue the open order'),
+    })
+    if (a === 'cancel') return
+    if (a === 'ok') { resetOrderDraft(); state.activeTab = 'menu' }
+    // «كمّل» ⇒ لا مسحَ ولا تبديلَ تبويب: يعود إلى حيث ترك تماماً
+    state.activeView = 'new-order'
+    return
+  }
   resetOrderDraft()
   state.activeTab = 'menu'
   state.activeView = 'new-order'
@@ -2103,34 +2116,49 @@ export function saveCartItemNote(text: string) {
 // خارج تصميم التطبيق ولغته واتجاهه، ويُجمّد الصفحة حتى يُجاب. صار مودالاً من
 // مودالات التطبيق نفسها — بوعدٍ (`Promise`) فيبقى نداؤه سطراً واحداً كما كان.
 export type ConfirmKind = 'danger' | 'warning'
-let confirmResolve: ((ok: boolean) => void) | null = null
+let confirmResolve: ((v: ConfirmAnswer) => void) | null = null
 
 /**
  * سؤالٌ بنعم/لا. يُنتظَر بـ`await`:
  *   `if (!(await askConfirm({ title, body }))) return`
  */
-export function askConfirm(opts: {
-  title: string; body?: string; okLabel?: string; cancelLabel?: string; kind?: ConfirmKind
-}): Promise<boolean> {
-  // سؤالٌ سابقٌ ما زال مفتوحاً (نقرتان سريعتان): نُغلقه بـ«لا» فلا يبقى وعدٌ معلّقاً
-  if (confirmResolve) { confirmResolve(false); confirmResolve = null }
+/**
+ * صندوقٌ **ثلاثيّ**: فِعلٌ (غالباً خطر) · بديلٌ آمن · إلغاء.
+ *
+ * `altLabel` فارغٌ ⇒ زرّان كما كان. والبديل ليس «إلغاءً بثوبٍ آخر»: الإلغاء يترك
+ * الوكيل مكانه، والبديل فِعلٌ مختلف (مثال: «كمّل الطلب المفتوح» يذهب إليه بلا مسح).
+ */
+export type ConfirmAnswer = 'ok' | 'alt' | 'cancel'
+export function askConfirm3(opts: {
+  title: string; body?: string; okLabel?: string; altLabel?: string; cancelLabel?: string; kind?: ConfirmKind
+}): Promise<ConfirmAnswer> {
+  // سؤالٌ سابقٌ ما زال مفتوحاً (نقرتان سريعتان): نُغلقه بالإلغاء فلا يبقى وعدٌ معلّقاً
+  if (confirmResolve) { confirmResolve('cancel'); confirmResolve = null }
   state.confirmBox = {
     open: true,
     title: opts.title,
     body: opts.body || '',
     okLabel: opts.okLabel || tx('تأكيد', 'Confirm'),
+    altLabel: opts.altLabel || '',
     cancelLabel: opts.cancelLabel || tx('إلغاء', 'Cancel'),
     kind: opts.kind || 'danger',
   }
-  return new Promise<boolean>((resolve) => { confirmResolve = resolve })
+  return new Promise<ConfirmAnswer>((resolve) => { confirmResolve = resolve })
 }
 
-/** إجابة الصندوق — يستدعيها المودال وحده. */
-export function answerConfirm(ok: boolean) {
+/** الشكل الثنائيّ — «إلغاء» والبديل كلاهما `false`. */
+export function askConfirm(opts: {
+  title: string; body?: string; okLabel?: string; cancelLabel?: string; kind?: ConfirmKind
+}): Promise<boolean> {
+  return askConfirm3(opts).then((a) => a === 'ok')
+}
+
+/** إجابة الصندوق — يستدعيها المودال وحده. (يقبل القديم `true/false` تسامحاً.) */
+export function answerConfirm(answer: ConfirmAnswer | boolean) {
   state.confirmBox = { ...state.confirmBox, open: false }
   const r = confirmResolve
   confirmResolve = null
-  if (r) r(ok)
+  if (r) r(typeof answer === 'boolean' ? (answer ? 'ok' : 'cancel') : answer)
 }
 
 export function openOrderNotesModal() { state.notesModalOpen = true }
