@@ -7121,3 +7121,37 @@ select.uc-fcell { min-width: 104px; cursor: pointer; }
   transition: var(--transition);
 }
 .uc-fclear:hover { border-color: var(--danger); color: var(--danger); }
+
+/* ================================================
+   Inner scroll areas — a scrollbar you can actually see
+   ------------------------------------------------
+   الشريط العامّ 6px بمقبضٍ رماديٍّ فاتح على أرضيّةٍ بيضاء: لا يكاد يُرى، فتبدو القائمة
+   **مقطوعةً** لا قابلةً للتمرير — «فين باقي الأصناف؟». هذه المناطق تمرّر داخلها،
+   فلها شريطٌ أعرض بمقبضٍ ظاهر، وظلٌّ داخليٌّ أسفل قائمة الأصناف يقول «تحته المزيد».
+   ================================================ */
+.rv-list,
+.od-detail {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 var(--bg);
+}
+.rv-list::-webkit-scrollbar,
+.od-detail::-webkit-scrollbar { width: 10px; }
+.rv-list::-webkit-scrollbar-track,
+.od-detail::-webkit-scrollbar-track { background: var(--bg); border-radius: 999px; }
+.rv-list::-webkit-scrollbar-thumb,
+.od-detail::-webkit-scrollbar-thumb {
+  background: #94a3b8;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 999px;
+}
+.rv-list::-webkit-scrollbar-thumb:hover,
+.od-detail::-webkit-scrollbar-thumb:hover { background: #64748b; background-clip: padding-box; }
+/* الظلّ على صندوق العنصر لا على محتواه، فلا يمرّ معه ويبقى دليلاً ثابتاً */
+.rv-list { box-shadow: inset 0 -14px 12px -12px rgba(15, 23, 42, 0.22); }
+
+body.dark-mode .rv-list,
+body.dark-mode .od-detail { scrollbar-color: #64748b rgba(255, 255, 255, 0.06); }
+body.dark-mode .rv-list::-webkit-scrollbar-track,
+body.dark-mode .od-detail::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
+body.dark-mode .rv-list { box-shadow: inset 0 -14px 12px -12px rgba(0, 0, 0, 0.55); }

@@ -1,11 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import {
   state, availabilityGroups, toggleBranchItemAvailability,
   onAvailabilityBranchChange, onAvailabilityCategoryChange, onAvailabilitySearchChange,
+  canOrderSettings, showToast,
 } from '../store'
+import { contactSetOrderPolicy } from '../../api'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
+
+// ── سياسة أخذ الأوردر: هل طريقة الدفع إلزاميّة قبل نزوله للفرع؟ ─────────────
+// الافتراضي **اختياريّة**: كثيرٌ من التشغيل يحصّل على الباب، فتُحدَّد الطريقة عند
+// التسليم لا عند أخذ الأوردر. والشركة تُلزِم بها إن أرادت — قرارها لا حكمٌ نفرضه.
+const paySaving = ref(false)
+const payErr = ref('')
+async function setPayRequired(v: boolean) {
+  if (paySaving.value || v === state.paymentRequired) return
+  const prev = state.paymentRequired
+  state.paymentRequired = v; paySaving.value = true; payErr.value = ''
+  try {
+    await contactSetOrderPolicy(v)
+    showToast(v ? tx('طريقة الدفع صارت إلزاميّة', 'Payment method is now required')
+                : tx('طريقة الدفع صارت اختياريّة', 'Payment method is now optional'), 'success')
+  } catch (e: any) {
+    state.paymentRequired = prev   // الخادم رفض ⇒ الشاشة تعود لما هو محفوظ فعلاً
+    payErr.value = e?.response?.data?.message || tx('تعذّر الحفظ', 'Could not save')
+  } finally { paySaving.value = false }
+}
 
 const groups = computed<any[]>(() => availabilityGroups())
 const totalShown = computed<number>(() => groups.value.reduce((sum, g) => sum + g.items.length, 0))
@@ -23,6 +44,28 @@ function onToggle(row: any, ev: Event) {
   <section id="view-settings" class="view active">
     <div class="settings-section">
       <h2 class="dashboard-title" style="margin-bottom: 24px;">{{ tx('الإعدادات', 'Settings') }}</h2>
+
+      <!-- سياسة أخذ الأوردر — بمفتاحها المستقلّ: من يفتح اليوم لا يغيّر سياسة التحصيل -->
+      <div v-if="canOrderSettings()" class="settings-card">
+        <h3 class="settings-card-title">{{ tx('سياسة أخذ الأوردر', 'Order-taking policy') }}</h3>
+        <p style="color: var(--text-secondary); margin-bottom: 16px;">
+          {{ tx('طريقة الدفع اختياريّة افتراضياً — الوكيل يبعت الأوردر للفرع ويُحدَّد التحصيل عند التسليم. فعّل الإلزام لو شركتك تريد الطريقة محدَّدةً قبل نزول الأوردر.', 'The payment method is optional by default — the agent sends the order and collection is decided on delivery. Turn on the requirement if your company wants it set before the order reaches the branch.') }}
+        </p>
+        <div class="pay-req-row">
+          <label class="availability-switch" :style="paySaving ? 'opacity:.5; cursor:progress;' : ''">
+            <input type="checkbox" :checked="state.paymentRequired" :disabled="paySaving"
+                   @change="setPayRequired(($event.target as HTMLInputElement).checked)">
+            <span class="availability-slider"></span>
+          </label>
+          <div class="pay-req-txt">
+            <strong>{{ tx('إلزام اختيار طريقة الدفع', 'Require a payment method') }}</strong>
+            <span>{{ state.paymentRequired
+              ? tx('الأوردر لا ينزل للفرع بلا طريقة دفع.', 'The order will not reach the branch without a payment method.')
+              : tx('الوكيل يقدر يبعت الأوردر بلا طريقة دفع.', 'The agent may send the order without a payment method.') }}</span>
+          </div>
+        </div>
+        <p v-if="payErr" class="pay-req-err">{{ payErr }}</p>
+      </div>
 
       <div class="settings-card">
         <h3 class="settings-card-title">{{ tx('إدارة الأصناف', 'Item management') }}</h3>
@@ -108,3 +151,16 @@ function onToggle(row: any, ev: Event) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.pay-req-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pay-req-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pay-req-txt strong { font-size: 13.5px; font-weight: 800; line-height: 1.35; }
+.pay-req-txt span { font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--text-secondary); }
+.pay-req-err {
+  margin: 10px 0 0; padding: 8px 11px;
+  border-radius: var(--radius-sm);
+  background: var(--danger-light); color: var(--danger);
+  font-size: 12px; font-weight: 700;
+}
+</style>

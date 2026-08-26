@@ -2,7 +2,7 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
-import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
+import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, applyBranchDay, applyCcDay, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
 import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { icon } from './icons'
@@ -113,6 +113,18 @@ function openOrdersStream() {
       const d = JSON.parse(ev.data)
       if (d && typeof d.branchId === 'number') applyBranchPresence(d.branchId, !!d.online)
     } catch { /* حمولة غير متوقّعة — نتجاهلها بلا ضجيج */ }
+  })
+  // يوم الفرع تغيّر (قفل/فتح على الـPOS) — يصل لحظياً: الـPOS يبثّ محلياً ← الكونكتور
+  // يسمعه فيبدأ دورةً فوراً ← الهاندشيك يحمل اليوم الجديد ← الكلاود يبثّه هنا.
+  ordersES.addEventListener('branchDay', (ev: any) => {
+    try {
+      const d = JSON.parse(ev.data)
+      if (d && typeof d.branchId === 'number') applyBranchDay(d.branchId, d.businessDate ?? null)
+    } catch { /* حمولة غير متوقّعة — نتجاهلها بلا ضجيج */ }
+  })
+  // يوم الكول‑سنتر نفسه — وكيلٌ آخر فتحه أو أنهاه
+  ordersES.addEventListener('ccDay', (ev: any) => {
+    try { applyCcDay(JSON.parse(ev.data)) } catch { /* كما فوق */ }
   })
   // (نبضة keepalive «ping» تُتجاهل — مجرد إبقاء القناة حيّة)
 }

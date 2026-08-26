@@ -31,6 +31,8 @@ export const PERMS = [
   // مستقلٌّ عن «فتح اليوم»: ذاك عملٌ يوميّ، وهذا قرارٌ إداريّ.
   { key: 'callcenter.fix_day', group: 'day', ar: 'إصلاح يوم', en: 'Fix a day' },
   { key: 'callcenter.day_settings', group: 'day', ar: 'إعدادات اليوم', en: 'Day settings' },
+  // سياسة أخذ الأوردر (إلزام طريقة الدفع) — قرارٌ تشغيليٌّ مستقلّ عن إعدادات اليوم
+  { key: 'callcenter.order_settings', group: 'admin', ar: 'سياسة أخذ الأوردر', en: 'Order-taking policy' },
   { key: 'callcenter.roles', group: 'admin', ar: 'إدارة الأدوار', en: 'Manage roles' },
   // قيمة الطلب النهائية في القائمة — مفتاحٌ مستقلّ: من يتابع الحالات ليس بالضرورة
   // من يرى الأرقام. ولا يُمنَح لأحدٍ افتراضياً.

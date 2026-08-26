@@ -9,7 +9,7 @@ import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
-  contactPaymentMethods, contactOrderTypes,
+  contactPaymentMethods, contactOrderTypes, contactOrderPolicy,
   contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -34,6 +34,9 @@ export const state = reactive<any>({
   cart: [],
   paymentChannel: null,        // phone | talabat | carriage | jahez | walkin
   paymentMethod: null,         // cash | knet | link
+  // سياسة الشركة: هل طريقة الدفع إلزاميّة قبل نزول الأوردر للفرع؟ الافتراضي **لا**
+  // (تُقرأ من الخادم؛ فشلُ القراءة يبقى على الاختياريّ فلا يُقفَل الأوردر بخطأ شبكة).
+  paymentRequired: false,
   paymentModalOpen: false,     // مودال اختيار الدفع
   orderType: 'delivery',
   editingOrderId: null,
@@ -182,12 +185,14 @@ export async function loadLiveData() {
   if (!(session.mode === 'agent' && session.companyId)) return
   try {
     // طرق الدفع وأنواع الطلب من الشركة — فشلُها لا يُسقط الشاشة: نرتدّ لقوائم data.ts
-    const [branches, regions, products, payMethods, orderTypes] = await Promise.all([
+    const [branches, regions, products, payMethods, orderTypes, policy] = await Promise.all([
       contactBranches(), contactRegions(), contactProducts(),
       contactPaymentMethods().catch(() => []),
       contactOrderTypes().catch(() => []),
+      contactOrderPolicy().catch(() => ({ paymentRequired: false })),
     ])
     state.companyPaymentMethods = Array.isArray(payMethods) ? payMethods : []
+    state.paymentRequired = !!(policy as any)?.paymentRequired
     state.companyOrderTypes = Array.isArray(orderTypes) ? orderTypes : []
     // نوعٌ مختار افتراضاً: أوّل نوعٍ يوافق الشكل البنيويّ الحالي (توصيل/استلام)
     syncSelectedOrderType()
@@ -262,6 +267,41 @@ export async function loadLiveData() {
     // فشل التحميل → نبقى على المووك بدون كسر الشاشة
     showToast(tx('تعذّر تحميل بيانات الشركة — سيتم استخدام بيانات تجريبية', 'Could not load company data — demo data will be used'), 'warning')
   }
+}
+
+/**
+ * يوم **الفرع** تغيّر (فتح/إقفال على الـPOS) — يصل لحظياً عبر البثّ.
+ *
+ * يومُ الفرع شرطُ نزول الأوردر، فتأخّرُ خبره يعني وكيلاً يَعِد العميل وأوردره واقف —
+ * أو يظنّه واقفاً وقد نزل. نعيد حساب جاهزيّة الفروع فوراً بدل انتظار الدورة.
+ */
+export function applyBranchDay(branchId: number, businessDate: string | null) {
+  const b = state.branches.find((x: any) => Number(x.id) === Number(branchId))
+  if (!b) return
+  b.posBusinessDate = businessDate
+  b.dayKnown = businessDate !== null
+  // الجاهزيّة تُحتسب في الخادم؛ نعيد الجلب لنأخذ السبب والرسالة كما يصوغهما هو
+  void loadLiveData()
+}
+
+/**
+ * يوم **الكول‑سنتر** تغيّر — وكيلٌ آخر فتحه أو أنهاه.
+ *
+ * كان الباقون يرون اليوم القديم ويَعِدون عليه حتى يُحدّثوا الصفحة. النطاق يُفحَص:
+ * فرنشايزٌ آخر لا يخصّنا.
+ */
+export function applyCcDay(e: { franchiseId?: number; businessDate?: string | null; status?: string; mode?: string }) {
+  const mine = Number(e?.franchiseId ?? 0) === Number(session.franchiseId ?? 0)
+  if (!mine) return
+  if (e.status === 'open') {
+    state.onlineDay = { businessDate: e.businessDate, status: 'open', mode: e.mode ?? 'normal' } as any
+    if (e.businessDate) state.businessDate = String(e.businessDate).slice(0, 10)
+  } else {
+    // أُقفل: الخادم يفتح التالي فوراً ويبثّه، فلا نصفّر هنا كيلا تومض الشاشة «مقفول»
+    // بين الحدثين. إعادةُ الجلب تحسم الحالة النهائية.
+    void loadBusinessDay()
+  }
+  void loadLiveData()   // جاهزيّة الفروع تُحتسب مقابل اليوم الجديد
 }
 
 // ── يوم عمل الكول‑سنتر (لازم يكون مفتوح لضرب أوردر) ──
@@ -1926,7 +1966,8 @@ export async function submitOrder() {
   if (isDelivery && !getResolvedOrderBranchId()) {
     showToast(tx('مفيش فرع بيخدم المنطقة دي — اختر منطقة تانية أو حدّد الفرع يدوياً', 'No branch serves this area — pick another area or set the branch manually'), 'error'); return
   }
-  if (!state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'Choose a payment method (press the payment button under the cart)'), 'warning'); return }
+  // طريقة الدفع اختياريّة افتراضياً — تُلزَم فقط إن ضبطت الشركة ذلك في الإعدادات
+  if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'Choose a payment method (press the payment button under the cart)'), 'warning'); return }
   // منع إرسال أوردر فيه صنف موقوف لفرع الطلب (محلي أو مطبخ POS)
   {
     const bid = getResolvedOrderBranchId()
@@ -1941,8 +1982,10 @@ export async function submitOrder() {
   const payMethod = companyPaymentMethods().find((m: any) => String(m.id) === String(state.paymentMethod)) || null
   // قائمة `data.ts` الاحتياطية لا تحمل `isCash` أصلاً: `!!undefined` كان يجعل الكاش
   // «مدفوعاً مسبقاً» فيُسجَّل الطلب بوضع دفعٍ خاطئ. نسأل عن وجود الحقل لا عن قيمته.
-  const isCashPay = payMethod && 'isCash' in payMethod
-    ? !!payMethod.isCash
+  // **بلا طريقةٍ أصلاً** (السياسة اختياريّة) ⇒ التحصيل عند التسليم. بدون هذا كان
+  // الفرع الأخير يعطي false فيُسجَّل الأوردر «مدفوعاً أونلاين» وهو لم يُحصَّل بعد.
+  const isCashPay = !state.paymentMethod ? true
+    : payMethod && 'isCash' in payMethod ? !!payMethod.isCash
     : String(state.paymentMethod ?? '') === 'cash'
   const paymentMode: 'cash_on_delivery' | 'prepaid_online' = isCashPay ? 'cash_on_delivery' : 'prepaid_online'
   // حجز: لازم موعد مستقبلي — الطلب ينزل الفرع فوراً ويظهر في قائمة الحجوزات بموعده
@@ -2236,7 +2279,7 @@ export async function reorderItems(orderId: number) {
 export function reviewOrder() {
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   if (!state.currentCustomer) { showToast(tx('يرجى إضافة بيانات العميل أولاً', 'Add the customer details first'), 'warning'); return }
-  if (!state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
+  if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
 
   const orderBranchId = getResolvedOrderBranchId()
   const disabledItems = orderBranchId ? (state.disabledBranchItems[orderBranchId] || []) : []
@@ -2266,7 +2309,7 @@ function liveReviewBlocker(): string | null {
     if (sectionRequired() && !state.form.sectionId) return tx('اختر الحيّ — الفرع بيتحدد منه', 'Choose the district — the branch is derived from it')
     if (!getResolvedOrderBranchId()) return tx('مفيش فرع بيخدم المنطقة دي', 'No branch serves this area')
   }
-  if (!state.paymentMethod) return tx('يرجى تحديد طريقة الدفع', 'Choose a payment method')
+  if (state.paymentRequired && !state.paymentMethod) return tx('يرجى تحديد طريقة الدفع', 'Choose a payment method')
   const bid = getResolvedOrderBranchId()
   const bad = state.cart.filter((i: any) => isItemStoppedForBranch(bid, i.itemId))
   if (bad.length) return tx(`الطلب فيه أصناف موقوفة: ${bad.map((i: any) => i.name).join('، ')}`, `The order contains stopped items: ${bad.map((i: any) => i.name).join(', ')}`)
@@ -2520,6 +2563,11 @@ export function stoppedItemsGroups(): any[] {
 
 // صلاحية إيقاف/تشغيل الأصناف — مفتاح مستقلّ (`callcenter.stop_items`) لا `manage`:
 // إيقاف صنف قرار تشغيليّ يومي، بينما `manage` مفتاح إدارة عام لا يُمنح لكل مشرف وردية.
+/** تغيير سياسة أخذ الأوردر — مفتاحٌ مستقلّ لا يرثه من يفتح اليوم. */
+export function canOrderSettings(): boolean {
+  return (currentCompany()?.permissions || []).includes('callcenter.order_settings')
+}
+
 export function canManageItemAvailability(): boolean {
   const perms: string[] = currentCompany()?.permissions || []
   return !state.live || perms.includes('callcenter.stop_items')

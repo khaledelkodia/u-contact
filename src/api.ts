@@ -338,6 +338,11 @@ export const contactBranchDays = () => api.get('/contact/business-day/branches')
 export const contactFixDay = (businessDate: string) => api.post('/contact/business-day/fix', { businessDate }).then((r) => r.data)
 
 // إعدادات يوم الشركة: block = امنع القفل وفيه أوردر واقف · carry = اقفل ورحّل
+// سياسة أخذ الأوردر — القراءة لمن يأخذ الأوردر، والتغيير بمفتاحه المستقلّ.
+export const contactOrderPolicy = () => api.get('/contact/lookup/order-policy').then((r) => r.data)
+export const contactSetOrderPolicy = (paymentRequired: boolean) =>
+  api.put('/contact/order-settings', { paymentRequired }).then((r) => r.data)
+
 export const contactDaySettings = () => api.get('/contact/day-settings').then((r) => r.data)
 export const contactSetDaySettings = (closeWithOpenOrders: 'block' | 'carry') =>
   api.put('/contact/day-settings', { closeWithOpenOrders }).then((r) => r.data)

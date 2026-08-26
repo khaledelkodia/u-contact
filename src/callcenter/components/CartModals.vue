@@ -428,11 +428,13 @@ function itemMods(i: any): { name: string; price: number }[] {
   flex: 0 1 auto;
   min-height: 132px;
   max-height: 44vh;
+  /* الاختصار overflow كان بعدها فيدهس overflow-y ويعيدها hidden — فالقائمة
+     لا تمرّر إطلاقاً وباقي الأصناف لا سبيل إليه. المحور الأفقيّ وحده يُقصّ. */
+  overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: var(--radius-lg, 14px);
-  overflow: hidden;
 }
 .rv-row {
   display: flex; align-items: flex-start; gap: 11px;
