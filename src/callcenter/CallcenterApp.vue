@@ -329,19 +329,24 @@ function toastIcon(type: string) {
 
       <nav class="sidebar-nav">
         <template v-for="n in NAV" :key="n.view">
-          <a v-show="!n.anyOf || hasAny(n.anyOf)" class="nav-item" :class="{ active: navActive(n) }" @click="clickNav(n)">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="n.svg" />
-            <span>{{ navLabel(n) }}</span>
-            <!-- سهم الدروب‑داون (للأب فقط) — يتقلب حسب حالة الفتح -->
-            <svg v-if="n.children" class="nav-caret" :class="{ open: isOpen(n) }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </a>
-          <!-- عناصر فرعية (طلبات التوصيل/المجدولة) — دروب‑داون تحت الكول‑سنتر -->
-          <template v-if="n.children && (!n.anyOf || hasAny(n.anyOf)) && isOpen(n)">
-            <a v-for="c in n.children" :key="c.view" v-show="!c.anyOf || hasAny(c.anyOf)" class="nav-item nav-sub" :class="{ active: state.activeView === c.view }" @click="showView(c.view)">
-              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="c.svg" />
-              <span>{{ navLabel(c) }}</span>
+          <!-- كل مدخلٍ في غلافه. المجموعة المفتوحة تصير كتلةً واحدة (رأسٌ وبنودُه)
+               بدل ثلاثة صفوفٍ سائبة لا يربطها برأسها شيء — وغلاف المدخل المفرد
+               شفّافٌ بلا أنماط، فلا يتغيّر شكل بقيّة القائمة. -->
+          <div v-show="!n.anyOf || hasAny(n.anyOf)" class="nav-group" :class="{ open: n.children && isOpen(n) }">
+            <a class="nav-item" :class="{ active: navActive(n), 'nav-parent': n.children }" @click="clickNav(n)">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="n.svg" />
+              <span>{{ navLabel(n) }}</span>
+              <!-- سهم الدروب‑داون (للأب فقط) — يتقلب حسب حالة الفتح -->
+              <svg v-if="n.children" class="nav-caret" :class="{ open: isOpen(n) }" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
             </a>
-          </template>
+            <!-- عناصر فرعية (طلب جديد/التوصيل/المجدولة) — يجمعها قضيبٌ رأسيّ -->
+            <div v-if="n.children && isOpen(n)" class="nav-children">
+              <a v-for="c in n.children" :key="c.view" v-show="!c.anyOf || hasAny(c.anyOf)" class="nav-item nav-sub" :class="{ active: state.activeView === c.view }" @click="showView(c.view)">
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" v-html="c.svg" />
+                <span>{{ navLabel(c) }}</span>
+              </a>
+            </div>
+          </div>
         </template>
       </nav>
       <div class="sidebar-footer" style="display:flex; flex-direction:column; gap:10px;">
@@ -469,14 +474,61 @@ function toastIcon(type: string) {
 .cc-switch select:hover { background: rgba(255, 255, 255, 0.18); }
 .cc-switch select option { color: #1e293b; }  /* عناصر القائمة على خلفية بيضاء */
 
+/* ── مجموعة القائمة الجانبية ─────────────────────────────────────────────────
+   البنود الفرعية كانت تطفو تحت رأسها بلا رابطٍ بصريّ: ثلاثة صفوفٍ شكلُها شكلُ
+   بقيّة القائمة تماماً، فلا يُعرف أين تبدأ المجموعة وأين تنتهي ولا أنها تابعةٌ
+   للكول‑سنتر أصلاً. المفتوحة الآن **كتلةٌ واحدة**: أرضيّةٌ أفتح بحدٍّ شعريّ،
+   ورأسٌ بوزنه، وقضيبٌ رأسيّ يجمع البنود ويضيء عند بندك الحاليّ. */
+.nav-group.open {
+  margin: 6px 8px;
+  padding: 4px;
+  border-radius: var(--radius, 12px);
+  background: rgba(255, 255, 255, 0.07);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+}
+/* داخل الكتلة الهوامش من الكتلة نفسها — لا هامشٌ فوق هامش */
+.nav-group.open .nav-item { margin-inline: 0 !important; }
+.nav-group.open .nav-parent { opacity: 1; font-weight: 700; }
+/* رأس المجموعة لا يحمل شريط «أنت هنا»: الكتلة كلها هي الإشارة، والشريط للبند */
+.nav-group.open .nav-parent.active::before { display: none; }
+.nav-children { margin-top: 2px; }
+
 /* عناصر فرعية تحت الكول‑سنتر — مسافة بادئة وحجم أصغر */
 .nav-sub {
-  padding-inline-start: 46px !important;
+  position: relative;
+  padding-inline-start: 42px !important;
   margin-block: 0 !important;
   font-size: 13px;
-  opacity: 0.9;
+  opacity: 0.78;
 }
 .nav-sub span { font-size: 13px; }
+.nav-sub:hover { opacity: 1; }
+/* القضيب: قِطَعٌ متلاصقة (هوامش البنود صفر) فتبدو خطاً واحداً متّصلاً.
+   المُحدِّد يبدأ بـ.nav-children عمداً: ورقة الشِل تُحقَن وقت التركيب — أي **بعد**
+   أنماط المكوّن — فتغلب عند تساوي الأولويّة، وكان شريط .nav-item.active::before
+   يسحب قضيب البند الحاليّ إلى -8px خارج الكتلة. */
+.nav-children .nav-sub::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  height: auto;
+  transform: none;
+  inset-inline-start: 18px;
+  width: 2px;
+  border-radius: 0;
+  background: rgba(255, 255, 255, 0.22);
+}
+.nav-children > .nav-sub:first-child::before { border-start-start-radius: 2px; border-start-end-radius: 2px; }
+.nav-children > .nav-sub:last-child::before { border-end-start-radius: 2px; border-end-end-radius: 2px; }
+/* البند الحاليّ: قضيبه يضيء ويثخن — «أنت هنا» على الخيط نفسه لا خارج الكتلة */
+.nav-sub.active { opacity: 1; }
+.nav-children .nav-sub.active::before {
+  inset-inline-start: 18px;   /* لا -8px الموروثة من شريط «أنت هنا» العامّ */
+  top: 0; bottom: 0; height: auto; transform: none;
+  width: 3px;
+  background: var(--white, #fff);
+}
 
 /* سهم الدروب‑داون */
 .nav-caret { margin-inline-start: auto; flex-shrink: 0; opacity: 0.75; transition: transform 0.2s ease; }

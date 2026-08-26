@@ -150,102 +150,120 @@ function itemMods(i: any): { name: string; price: number }[] {
       </div>
       <div class="modal-body" style="max-height:62vh; overflow-y:auto;">
         <!-- ── العميل والوجهة ──────────────────────────────────────────────────
-             كانت شبكةً من أزواج «تسمية: قيمة» بخطٍّ واحد ولونٍ واحد تقريباً، والتليفون
-             بلا تسمية معلَّقاً في الجهة المقابلة — فتُقرأ بالتفتيش لا بالنظرة. صارت
-             خلايا: التسمية فوق صغيرةً باهتة، والقيمة تحتها بوزنٍ ظاهر. -->
+             خانتان في الصفّ لا ثلاث: بثلاثٍ كان يبقى ثقبٌ في آخر صفٍّ كلما لم يكن
+             عدد الحقول من مضاعفاتها — «الدفع» وحده وسط صفٍّ نصفه فراغ. والوجهة
+             (منطقة · عنوان · موعد حجز) صفوفٌ كاملة تحت خطٍّ فاصل: هويّةٌ فوق ووجهةٌ
+             تحت، فتُقرأ الشاشة بالنظرة لا بالتفتيش. -->
         <div class="rv-head">
-          <div class="rv-cell">
-            <span class="rv-l">{{ tx('العميل', 'Customer') }}</span>
-            <span class="rv-v">{{ review.customerName }}</span>
+          <div class="rv-grid">
+            <div class="rv-cell">
+              <span class="rv-l">{{ tx('العميل', 'Customer') }}</span>
+              <span class="rv-v">{{ review.customerName }}</span>
+            </div>
+            <div class="rv-cell">
+              <span class="rv-l">{{ tx('رقم الهاتف', 'Phone') }}</span>
+              <span class="rv-v" dir="ltr">{{ review.customerPhone }}</span>
+            </div>
+            <div class="rv-cell">
+              <span class="rv-l">{{ tx('نوع الطلب', 'Order type') }}</span>
+              <span class="rv-v">
+                {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
+                <span v-if="review.orderTypeName" class="rv-sub">· {{ review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</span>
+              </span>
+            </div>
+            <div class="rv-cell">
+              <span class="rv-l">{{ tx('الفرع', 'Branch') }}</span>
+              <span class="rv-v">{{ review.branchName }}</span>
+            </div>
+            <div class="rv-cell">
+              <span class="rv-l">{{ tx('الدفع', 'Payment') }}</span>
+              <span class="rv-v">{{ review.payment }}</span>
+            </div>
+            <div v-if="review.orderTag" class="rv-cell">
+              <span class="rv-l">{{ tx('رقم المنصّة', 'Platform no.') }}</span>
+              <span class="rv-v" dir="ltr">{{ review.orderTag }}</span>
+            </div>
           </div>
-          <div class="rv-cell">
-            <span class="rv-l">{{ tx('رقم الهاتف', 'Phone') }}</span>
-            <span class="rv-v" dir="ltr">{{ review.customerPhone }}</span>
-          </div>
-          <div class="rv-cell">
-            <span class="rv-l">{{ tx('نوع الطلب', 'Order type') }}</span>
-            <span class="rv-v">
-              {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
-              <span v-if="review.orderTypeName" class="rv-sub">· {{ review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</span>
-            </span>
-          </div>
-          <div class="rv-cell">
-            <span class="rv-l">{{ tx('الفرع', 'Branch') }}</span>
-            <span class="rv-v">{{ review.branchName }}</span>
-          </div>
-          <div class="rv-cell">
-            <span class="rv-l">{{ tx('الدفع', 'Payment') }}</span>
-            <span class="rv-v">{{ review.payment }}</span>
-          </div>
-          <div v-if="review.orderTag" class="rv-cell">
-            <span class="rv-l">{{ tx('رقم المنصّة', 'Platform no.') }}</span>
-            <span class="rv-v" dir="ltr">{{ review.orderTag }}</span>
-          </div>
-          <div v-if="review.areaName" class="rv-cell rv-wide">
-            <span class="rv-l">{{ tx('المنطقة', 'Area') }}</span>
-            <span class="rv-v">{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></span>
-          </div>
-          <div v-if="review.orderType === 'delivery'" class="rv-cell rv-wide">
-            <span class="rv-l">{{ tx('العنوان', 'Address') }}</span>
-            <span class="rv-v">{{ review.address }}</span>
-          </div>
-          <!-- الحجز: موعدٌ يُقرأ لا سلسلة ISO — كان يُطبع «2026-08-23T13:00» -->
-          <div v-if="review.isReservation" class="rv-cell rv-wide rv-accent">
-            <span class="rv-l">{{ tx('حجز — موعد الاستلام', 'Reservation — pickup time') }}</span>
-            <span class="rv-v">
-              {{ formatDateTimeLocal(review.reservationTime) }}
-              <template v-if="review.prepLeadMinutes">
-                <span class="rv-sub">· {{ tx('يبدأ التحضير قبله بـ', 'starts prep') }} {{ review.prepLeadMinutes }} {{ tx('دقيقة', 'min before') }}</span>
-              </template>
-            </span>
+
+          <div v-if="review.areaName || review.orderType === 'delivery' || review.isReservation" class="rv-rows">
+            <div v-if="review.areaName" class="rv-cell">
+              <span class="rv-l">{{ tx('المنطقة', 'Area') }}</span>
+              <span class="rv-v">{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></span>
+            </div>
+            <div v-if="review.orderType === 'delivery'" class="rv-cell">
+              <span class="rv-l">{{ tx('العنوان', 'Address') }}</span>
+              <span class="rv-v">{{ review.address }}</span>
+            </div>
+            <!-- الحجز: موعدٌ يُقرأ لا سلسلة ISO — كان يُطبع «2026-08-23T13:00» -->
+            <div v-if="review.isReservation" class="rv-cell rv-accent">
+              <span class="rv-l">{{ tx('حجز — موعد الاستلام', 'Reservation — pickup time') }}</span>
+              <span class="rv-v">
+                {{ formatDateTimeLocal(review.reservationTime) }}
+                <template v-if="review.prepLeadMinutes">
+                  <span class="rv-sub">· {{ tx('يبدأ التحضير قبله بـ', 'starts prep') }} {{ review.prepLeadMinutes }} {{ tx('دقيقة', 'min before') }}</span>
+                </template>
+              </span>
+            </div>
           </div>
         </div>
 
         <!-- ── الأصناف: الإضافات بأسعارها ──────────────────────────────────────
              كانت أسماءً مفصولةً بفواصل بلا أسعار: يُراجع الوكيل إجمالياً لا يعرف من
-             أين جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب. -->
-        <table class="orders-table rv-items">
-          <thead><tr><th>{{ tx('الصنف', 'Item') }}</th><th>{{ tx('الكمية', 'Qty') }}</th><th>{{ tx('السعر', 'Price') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th></tr></thead>
-          <tbody>
-            <tr v-for="i in review.items" :key="i.cartItemId">
-              <td>
-                <div class="rv-item-name">
-                  {{ nameOf(i) }}
-                  <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
-                </div>
-                <div v-if="itemMods(i).length" class="rv-mods">
-                  <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
-                    {{ m.name }}
-                    <b :class="{ free: !m.price }">{{ m.price ? '+' + formatCurrency(m.price) : tx('مجاني', 'Free') }}</b>
-                  </span>
-                </div>
-                <div v-if="i.note" class="rv-note">{{ tx('ملاحظة: ', 'Note: ') }}{{ i.note }}</div>
-              </td>
-              <td>{{ i.quantity }}</td>
-              <td>{{ formatCurrency(i.price) }}</td>
-              <td style="font-weight:700;">{{ formatCurrency(i.price * i.quantity) }}</td>
-            </tr>
-          </tbody>
-        </table>
+             أين جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب.
+             والجدول كان عارياً بحوافّ حادّة بين بطاقتين مدوّرتين — فأُطِّر مثلهما. -->
+        <div class="rv-items-wrap">
+          <table class="orders-table rv-items">
+            <thead>
+              <tr>
+                <th>{{ tx('الصنف', 'Item') }}</th>
+                <th class="rv-qty">{{ tx('الكمية', 'Qty') }}</th>
+                <th class="rv-num">{{ tx('السعر', 'Price') }}</th>
+                <th class="rv-num">{{ tx('الإجمالي', 'Total') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="i in review.items" :key="i.cartItemId">
+                <td>
+                  <div class="rv-item-name">
+                    {{ nameOf(i) }}
+                    <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
+                  </div>
+                  <div v-if="itemMods(i).length" class="rv-mods">
+                    <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
+                      {{ m.name }}
+                      <b :class="{ free: !m.price }">{{ m.price ? '+' + formatCurrency(m.price) : tx('مجاني', 'Free') }}</b>
+                    </span>
+                  </div>
+                  <div v-if="i.note" class="rv-note">{{ tx('ملاحظة: ', 'Note: ') }}{{ i.note }}</div>
+                </td>
+                <td class="rv-qty">{{ i.quantity }}</td>
+                <td class="rv-num">{{ formatCurrency(i.price) }}</td>
+                <td class="rv-num rv-strong">{{ formatCurrency(i.price * i.quantity) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-        <!-- الإجماليات -->
-        <div style="margin-top:14px; padding:12px; border-radius:8px; background:var(--bg); border:1px solid var(--border); font-size:13px;">
-          <div style="display:flex; justify-content:space-between; padding:3px 0;">
-            <span style="color:var(--text-secondary);">{{ tx('المجموع', 'Subtotal') }}</span><span>{{ formatCurrency(review.subtotal) }}</span>
+        <!-- الإجماليات — الأرقام على محورٍ واحد بأرقامٍ متساوية العرض، فتُقارَن بالنظر -->
+        <div class="rv-totals">
+          <div class="rv-total-row">
+            <span class="rv-total-l">{{ tx('المجموع', 'Subtotal') }}</span>
+            <span class="rv-total-v">{{ formatCurrency(review.subtotal) }}</span>
           </div>
-          <div v-if="review.orderType === 'delivery'" style="display:flex; justify-content:space-between; padding:3px 0;">
-            <span style="color:var(--text-secondary);">
+          <div v-if="review.orderType === 'delivery'" class="rv-total-row">
+            <span class="rv-total-l">
               {{ tx('رسوم التوصيل', 'Delivery fee') }}
-              <span v-if="review.feeIsOpen" style="color:var(--warning, #b45309); font-weight:700;">({{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }})</span>
+              <span v-if="review.feeIsOpen" class="rv-open-fee">({{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }})</span>
             </span>
-            <span>{{ formatCurrency(review.deliveryFee) }}</span>
+            <span class="rv-total-v">{{ formatCurrency(review.deliveryFee) }}</span>
           </div>
-          <div style="display:flex; justify-content:space-between; padding:8px 0 0; margin-top:6px; border-top:1px solid var(--border); font-weight:800; font-size:15px;">
-            <span>{{ tx('الإجمالي', 'Total') }}</span><span>{{ formatCurrency(review.total) }}</span>
+          <div class="rv-total-row rv-grand">
+            <span class="rv-total-l">{{ tx('الإجمالي', 'Total') }}</span>
+            <span class="rv-total-v">{{ formatCurrency(review.total) }}</span>
           </div>
         </div>
 
-        <div v-if="review.notes" style="margin-top:12px; padding:10px 12px; border-radius:8px; background:var(--warning-light, #fffbeb); border:1px solid var(--warning, #f59e0b); font-size:12px;">
+        <div v-if="review.notes" class="rv-notes">
           <strong>{{ tx('ملاحظات:', 'Notes:') }}</strong> {{ review.notes }}
         </div>
       </div>
@@ -262,16 +280,28 @@ function itemMods(i: any): { name: string; price: number }[] {
    كانت أزواج «تسمية: قيمة» بخطٍّ واحد ولونٍ متقارب في شبكةٍ ضيّقة — تُقرأ
    بالتفتيش لا بالنظرة. والتليفون بلا تسمية معلَّقاً في الجهة المقابلة. */
 .rv-head {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 12px 18px;
   padding: 14px 16px;
   border-radius: 12px;
   background: var(--bg, #f8fafc);
   border: 1px solid var(--border, #e5e7eb);
 }
+/* خانتان في الصفّ لا ثلاث: بثلاثٍ يبقى ثقبٌ في آخر صفٍّ كلما لم يكن عدد الحقول
+   من مضاعفاتها — «الدفع» وحده وسط صفٍّ نصفه فراغ. */
+.rv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 18px;
+}
+/* الوجهة صفوفٌ كاملة تحت خطٍّ فاصل — العنوان طويل فلا يُحشَر في نصف صفّ */
+.rv-rows {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #e5e7eb);
+}
+@media (max-width: 430px) { .rv-grid { grid-template-columns: minmax(0, 1fr); } }
 .rv-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.rv-wide { grid-column: 1 / -1; }
 .rv-l { font-size: 11px; font-weight: 600; color: #4b5563; }
 .rv-v {
   font-size: 13.5px; font-weight: 700; line-height: 1.55;
@@ -282,7 +312,27 @@ function itemMods(i: any): { name: string; price: number }[] {
 .rv-sub { font-size: 11.5px; font-weight: 600; color: #4b5563; }
 
 /* ── الأصناف ── */
-.rv-items { margin-top: 14px; }
+/* الجدول داخل إطارٍ مدوّر كبقيّة البطاقات، ورأسه هادئ: كان شريطاً رماديّاً بحروفٍ
+   كبيرة ومتباعدة يسحب العين من الأصناف نفسها. */
+.rv-items-wrap {
+  margin-top: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.rv-items th { padding: 10px 14px; text-transform: none; letter-spacing: 0; font-size: 11.5px; }
+.rv-items td { padding: 11px 14px; }
+/* صفوف المراجعة لا تُنقَر — مؤشّر اليد والإضاءة عند المرور كانا يَعِدان بفعلٍ لا يقع */
+.rv-items tbody tr { cursor: default; }
+.rv-items tbody tr:hover { background: transparent; }
+/* الأرقام على محورٍ واحد وبعرضٍ ثابت، فتُقارَن بالنظر لا بالقراءة */
+.rv-items th.rv-num, .rv-items td.rv-num {
+  text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums;
+}
+.rv-items th.rv-qty, .rv-items td.rv-qty {
+  text-align: center; white-space: nowrap; width: 1%; font-variant-numeric: tabular-nums;
+}
+.rv-items td.rv-strong { font-weight: 800; }
 .rv-item-name { font-weight: 700; color: var(--text-primary, #0f172a); }
 .rv-size {
   margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px;
@@ -300,11 +350,38 @@ function itemMods(i: any): { name: string; price: number }[] {
 .rv-mod b.free { color: #166534; }
 .rv-note { margin-top: 5px; font-size: 11px; font-weight: 700; color: #b45309; }
 
+/* ── الإجماليات ── */
+.rv-totals {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--bg, #f8fafc);
+  border: 1px solid var(--border, #e5e7eb);
+  font-size: 13px;
+}
+.rv-total-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 0; }
+.rv-total-l { color: var(--text-secondary, #64748b); }
+.rv-total-v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.rv-open-fee { color: var(--warning, #b45309); font-weight: 700; }
+/* الإجمالي هو الرقم الذي يُقرأ للعميل — فله وزنه ولونه وخطُّه الفاصل */
+.rv-grand { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border, #e5e7eb); font-size: 15px; }
+.rv-grand .rv-total-l { color: var(--text-primary, #0f172a); font-weight: 800; }
+.rv-grand .rv-total-v { font-weight: 800; color: var(--primary, #1a56db); }
+
+.rv-notes {
+  margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+  background: var(--warning-light, #fffbeb);
+  border: 1px solid var(--warning, #f59e0b);
+  font-size: 12px; line-height: 1.6;
+}
 :global(body.dark-mode) .rv-note { color: #fbbf24; }
 :global(body.dark-mode) .rv-l,
 :global(body.dark-mode) .rv-sub,
 :global(body.dark-mode) .rv-mod { color: #cbd5e1; }
 :global(body.dark-mode) .rv-mod b.free { color: #4ade80; }
 :global(body.dark-mode) .rv-head,
+:global(body.dark-mode) .rv-totals,
 :global(body.dark-mode) .rv-mod { background: rgba(255, 255, 255, 0.04); }
+:global(body.dark-mode) .rv-total-l { color: #cbd5e1; }
+:global(body.dark-mode) .rv-notes { background: rgba(245, 158, 11, 0.12); }
 </style>
