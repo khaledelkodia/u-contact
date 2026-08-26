@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openDeliveryFeeModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote } from '../store'
+import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -158,12 +158,6 @@ const resLabel = computed(() => {
       <div class="summary-row summary-row-delivery">
         <span class="summary-row-label">
           <span>{{ t('delivery_fee') }}</span>
-          <button v-if="state.orderType === 'delivery'" type="button" class="btn-edit-fee" id="btn-edit-delivery-fee" @click="openDeliveryFeeModal()" :title="tx('تعديل رسوم التوصيل لهذا الطلب', 'Edit the delivery fee for this order')">
-            <!-- أيقونة من مكتبة المشروع لا Font Awesome: الأخيرة غير محمَّلة في
-                 التطبيق أصلاً، فكان الزرّ مربّعاً منقّطاً فارغاً لا يقول ما يفعل. -->
-            <span class="btn-edit-fee-ico" v-html="icon('edit', { size: 13 })"></span>
-          </button>
-          <span v-if="state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined" class="fee-override-tag" id="fee-override-tag" :title="tx('تم تعديل الرسوم يدوياً لهذا الطلب', 'Fee was changed manually for this order')">{{ tx('يدوي', 'Manual') }}</span>
         </span>
         <span id="cart-delivery-fee">{{ formatCurrency(getAppliedDeliveryFee()) }}</span>
       </div>

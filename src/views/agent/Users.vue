@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
-import { currentCompany, listUsers, createUser, updateUser, setUserPassword } from '../../api'
+import { currentCompany, listUsers, createUser, updateUser, setUserPassword, contactRoles } from '../../api'
 import { t, isAr } from '../../i18n'
 import { PERMS, permLabel, intersect } from '../../perms'
 import Icon from '../../components/Icon.vue'
@@ -15,13 +15,34 @@ const grantable = computed(() => {
 })
 const grantablePerms = computed(() => PERMS.filter((p) => grantable.value.includes(p.key)))
 
+// ── الأدوار ─────────────────────────────────────────────────────────────────
+// اختيارُ دورٍ يملأ الحبّات دفعةً واحدة بدل ضغطها واحدةً واحدة. والحبّات تبقى قابلةً
+// للتعديل بعده: الدور بدايةٌ لا قفل، ومن ضُبط فوق دوره يظهر «مُعدَّل».
+const roles = ref<any[]>([])
+async function loadRoles() { try { roles.value = await contactRoles() } catch { roles.value = [] } }
+const roleName = (r: any) => (isAr() ? (r.nameAr || r.name) : (r.name || r.nameAr))
+function pickRole(id: number | null) {
+  form.roleId = id
+  if (id == null) return
+  const r = roles.value.find((x) => x.id === id)
+  if (r) form.permissions = intersect(r.permissions || [], grantable.value)
+}
+/** ضُبطت صلاحياته فوق دوره؟ — يُقال صراحةً وإلا ظُنّ الاسمُ حقيقةً كاملة. */
+const offRole = computed(() => {
+  if (!form.roleId) return false
+  const r = roles.value.find((x) => x.id === form.roleId)
+  if (!r) return false
+  const want = intersect(r.permissions || [], grantable.value)
+  return want.length !== form.permissions.length || want.some((k: string) => !form.permissions.includes(k))
+})
+
 const users = ref<any[]>([])
 const loading = ref(true)
 const err = ref('')
 const show = ref(false)
 const editingId = ref<number | null>(null)
 const saving = ref(false)
-const form = reactive<any>({ name: '', email: '', phone: '', password: '', permissions: [] as string[], isActive: true })
+const form = reactive<any>({ name: '', email: '', phone: '', password: '', permissions: [] as string[], isActive: true, roleId: null as number | null })
 
 async function load() {
   loading.value = true; err.value = ''
@@ -29,10 +50,10 @@ async function load() {
   catch (e: any) { err.value = e?.response?.data?.message || t('تعذّر التحميل', 'Failed to load') }
   finally { loading.value = false }
 }
-onMounted(() => { if (canManage.value) load(); else loading.value = false })
+onMounted(() => { if (canManage.value) { load(); void loadRoles() } else loading.value = false })
 
-function openCreate() { editingId.value = null; Object.assign(form, { name: '', email: '', phone: '', password: '', permissions: [], isActive: true }); show.value = true; err.value = '' }
-function openEdit(u: any) { editingId.value = u.agentId; Object.assign(form, { name: u.name, email: u.email, phone: u.phone || '', password: '', permissions: [...(u.permissions || [])], isActive: u.isActive }); show.value = true; err.value = '' }
+function openCreate() { editingId.value = null; Object.assign(form, { name: '', email: '', phone: '', password: '', permissions: [], isActive: true, roleId: null }); show.value = true; err.value = '' }
+function openEdit(u: any) { editingId.value = u.agentId; Object.assign(form, { name: u.name, email: u.email, phone: u.phone || '', password: '', permissions: [...(u.permissions || [])], isActive: u.isActive, roleId: u.roleId ?? null }); show.value = true; err.value = '' }
 function togglePerm(k: string) { const i = form.permissions.indexOf(k); if (i >= 0) form.permissions.splice(i, 1); else form.permissions.push(k) }
 
 async function save() {
@@ -40,9 +61,9 @@ async function save() {
   try {
     const perms = intersect(form.permissions, grantable.value)
     if (editingId.value == null) {
-      await createUser({ name: form.name, email: form.email, phone: form.phone, password: form.password, permissions: perms })
+      await createUser({ name: form.name, email: form.email, phone: form.phone, password: form.password, permissions: perms, roleId: form.roleId ?? null })
     } else {
-      await updateUser(editingId.value, { permissions: perms, isActive: form.isActive })
+      await updateUser(editingId.value, { permissions: perms, isActive: form.isActive, roleId: form.roleId ?? null })
       if (form.password) await setUserPassword(editingId.value, form.password)
     }
     show.value = false; await load()
@@ -104,6 +125,17 @@ async function save() {
 
             <div class="field">
               <label>{{ t('الصلاحيات (من صلاحياتك)', 'Permissions (from yours)') }}</label>
+              <!-- الدور يملأ الحبّات بضغطة؛ وتبقى قابلةً للضبط بعده -->
+              <div v-if="roles.length" style="margin-bottom:10px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <select class="input" style="max-width:240px;" :value="form.roleId ?? ''"
+                  @change="pickRole(($event.target as HTMLSelectElement).value ? Number(($event.target as HTMLSelectElement).value) : null)">
+                  <option value="">{{ t('بلا دور — صلاحيات مخصّصة', 'No role — custom permissions') }}</option>
+                  <option v-for="r in roles" :key="r.id" :value="r.id">{{ roleName(r) }}</option>
+                </select>
+                <span v-if="offRole" class="muted" style="font-size:11.5px; font-weight:700; color:#b45309;">
+                  {{ t('مُعدَّل فوق الدور', 'Adjusted above the role') }}
+                </span>
+              </div>
               <div v-if="grantablePerms.length" class="pills">
                 <div v-for="p in grantablePerms" :key="p.key" class="pill" :class="{ on: form.permissions.includes(p.key) }" @click="togglePerm(p.key)">
                   <Icon v-if="form.permissions.includes(p.key)" name="check" />{{ permLabel(p.key, isAr()) }}

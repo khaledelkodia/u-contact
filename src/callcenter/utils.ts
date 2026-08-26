@@ -151,6 +151,19 @@ export function formatDateTimeLocal(v: any): string {
 }
 
 /** تاريخ اليوم — **عند الشركة** لا عند الجهاز (يُقارَن بيوم عمل الفرع). */
+/**
+ * يوم عمل (`YYYY-MM-DD`) — تاريخٌ وحده بلغة الواجهة.
+ *
+ * يُبنى **بأجزائه**: `new Date('2026-08-25')` تُقرأ UTC فتزيح اليوم في التوقيتات
+ * السالبة. وهو تاريخٌ لا لحظة، فلا منطقةَ له ولا ساعة.
+ */
+export function formatBusinessDate(ymd: any): string {
+  const parts = String(ymd || '').split('-').map(Number)
+  if (parts.length !== 3 || !parts.every(Number.isFinite)) return String(ymd ?? '-')
+  const d = new Date(parts[0], parts[1] - 1, parts[2])
+  return d.toLocaleDateString(locale(), { weekday: 'short', day: 'numeric', month: 'short' })
+}
+
 export function todayISO(): string { return companyToday() }
 
 // نفس formatTransactionTime الأصلي (وقت تعيين السائق في لوحة التفاصيل)

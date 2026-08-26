@@ -5,7 +5,6 @@ import { ref, watch, computed, nextTick } from 'vue'
 import {
   state,
   closeOrderNotesModal, saveOrderNotes,
-  closeDeliveryFeeModal, applyDeliveryFeeOverride, resetDeliveryFeeOverride, derivedDeliveryFee, deliveryFeeIsOpen,
   closeHistoryModal, reorderItems,
   closeReviewModal, confirmReview, reviewSummary,
   closeCartItemNote, saveCartItemNote, cartItemBeingNoted,
@@ -18,13 +17,6 @@ import { icon } from '../icons'
 const noteText = ref('')
 watch(() => state.notesModalOpen, (open) => { if (open) noteText.value = state.orderNotes || '' })
 
-// ── رسوم التوصيل ──
-const feeInput = ref('')
-watch(() => state.feeModalOpen, (open) => {
-  // نبدأ من القيمة السارية فعلاً (تجاوزٌ سابق إن وُجد، وإلا المشتقّة من المنطقة)
-  if (open) feeInput.value = String(state.deliveryFeeOverride ?? derivedDeliveryFee())
-})
-const feeOverridden = computed(() => state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined)
 
 // ── ملاحظة صنفٍ في السلّة ──
 const notedItem = computed<any>(() => (state.noteItemId ? cartItemBeingNoted() : null))
@@ -104,46 +96,6 @@ function itemMods(i: any): { name: string; price: number }[] {
         <div style="display:flex; gap:8px;">
           <button class="btn btn-secondary" @click="closeCartItemNote()">{{ tx('إلغاء', 'Cancel') }}</button>
           <button class="btn btn-primary" @click="saveCartItemNote(itemNoteText)">{{ tx('حفظ', 'Save') }}</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ========== رسوم التوصيل ========== -->
-  <div v-if="state.feeModalOpen" class="modal-overlay" @click.self="closeDeliveryFeeModal()">
-    <div class="modal-content" @click.stop>
-      <div class="modal-header">
-        <h3 class="modal-title">{{ tx('رسوم التوصيل', 'Delivery fee') }}</h3>
-        <button class="modal-close" @click="closeDeliveryFeeModal()">×</button>
-      </div>
-      <div class="modal-body">
-        <!-- المشتقّة من ربط (الفرع ↔ المنطقة) — مرجع الوكيل قبل أن يتجاوزها -->
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 12px; border-radius:8px; background:var(--bg); border:1px solid var(--border); margin-bottom:14px;">
-          <span style="color:var(--text-secondary); font-size:13px;">{{ tx('رسوم المنطقة', 'Area fee') }}</span>
-          <span style="font-weight:700;">{{ formatCurrency(derivedDeliveryFee()) }}</span>
-        </div>
-
-        <div v-if="deliveryFeeIsOpen()" style="display:flex; gap:8px; align-items:flex-start; padding:10px 12px; border-radius:8px; background:var(--warning-light, #fffbeb); border:1px solid var(--warning, #f59e0b); font-size:12px; margin-bottom:14px;">
-          <span v-html="icon('alert-triangle', { size: 14 })"></span>
-          <span v-if="lang === 'ar'">المنطقة دي رسومها <strong>مفتوحة</strong> — يعني بتتحدد لكل مشوار. اكتب الرسوم هنا، وإلا الفرع هو اللي هيحددها.</span>
-            <span v-else>This area has an <strong>open</strong> fee — it is set per trip. Enter it here, otherwise the branch will set it.</span>
-        </div>
-
-        <div class="form-group">
-          <label style="font-weight:700;">{{ tx('رسوم هذا الطلب', 'Fee for this order') }}</label>
-          <input type="number" step="0.01" min="0" v-model="feeInput"
-            style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; font-family:inherit;" />
-        </div>
-
-        <p v-if="feeOverridden" style="font-size:12px; color:var(--text-secondary); margin-top:8px;">
-          {{ tx('الرسوم دلوقتي متغيّرة يدوياً لهذا الطلب. «رجوع للافتراضي» يرجّعها لرسوم المنطقة.', 'The fee is currently overridden for this order. “Back to default” restores the area fee.') }}
-        </p>
-      </div>
-      <div class="modal-footer" style="justify-content:space-between;">
-        <button class="btn btn-secondary" :disabled="!feeOverridden" @click="resetDeliveryFeeOverride()">{{ tx('رجوع للافتراضي', 'Back to default') }}</button>
-        <div style="display:flex; gap:8px;">
-          <button class="btn btn-secondary" @click="closeDeliveryFeeModal()">{{ tx('إلغاء', 'Cancel') }}</button>
-          <button class="btn btn-primary" @click="applyDeliveryFeeOverride(feeInput)">{{ tx('حفظ', 'Save') }}</button>
         </div>
       </div>
     </div>
@@ -284,8 +236,7 @@ function itemMods(i: any): { name: string; price: number }[] {
           <div v-if="review.orderType === 'delivery'" style="display:flex; justify-content:space-between; padding:3px 0;">
             <span style="color:var(--text-secondary);">
               {{ tx('رسوم التوصيل', 'Delivery fee') }}
-              <span v-if="review.feeIsOverridden" style="color:var(--warning, #b45309); font-weight:700;">({{ tx('متغيّرة يدوياً', 'manually overridden') }})</span>
-              <span v-else-if="review.feeIsOpen" style="color:var(--warning, #b45309); font-weight:700;">({{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }})</span>
+              <span v-if="review.feeIsOpen" style="color:var(--warning, #b45309); font-weight:700;">({{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }})</span>
             </span>
             <span>{{ formatCurrency(review.deliveryFee) }}</span>
           </div>

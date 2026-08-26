@@ -99,6 +99,8 @@ const translations = {
     "call_center": "Call Center",
     "complaints": "Complaints",
     "users": "Users",
+    "day_settings": "Day settings",
+    "roles": "Roles",
     "app_title": "Restaurant Call Center System",
     "app_subtitle": "Restaurant Call Center System",
     "login_title": "U-Contact",

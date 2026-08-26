@@ -332,6 +332,21 @@ export interface ContactComplaintInput {
 // فتح يوم كول‑سنتر (يتطلّب صلاحية callcenter.open)
 export const contactOpenDay = (businessDate?: string) => api.post('/contact/business-day/open', businessDate ? { businessDate } : {}).then((r) => r.data)
 export const contactCloseDay = () => api.post('/contact/business-day/close').then((r) => r.data)
+// أيام فروع النطاق — إرشادُ شاشة فتح اليوم قبل اختيار التاريخ (شرط التطابق لم يتغيّر)
+export const contactBranchDays = () => api.get('/contact/business-day/branches').then((r) => r.data)
+// «إصلاح يوم»: يفتح تاريخاً بعينه (جديداً أو قديماً) للمراجعة — لا تُضرَب عليه أوردرات
+export const contactFixDay = (businessDate: string) => api.post('/contact/business-day/fix', { businessDate }).then((r) => r.data)
+
+// إعدادات يوم الشركة: block = امنع القفل وفيه أوردر واقف · carry = اقفل ورحّل
+export const contactDaySettings = () => api.get('/contact/day-settings').then((r) => r.data)
+export const contactSetDaySettings = (closeWithOpenOrders: 'block' | 'carry') =>
+  api.put('/contact/day-settings', { closeWithOpenOrders }).then((r) => r.data)
+
+// أدوار الوكلاء — مجموعة صلاحياتٍ باسمٍ واحد
+export const contactRoles = () => api.get('/contact/roles').then((r) => r.data)
+export const contactCreateRole = (body: any) => api.post('/contact/roles', body).then((r) => r.data)
+export const contactUpdateRole = (id: number, body: any) => api.put(`/contact/roles/${id}`, body).then((r) => r.data)
+export const contactDeleteRole = (id: number) => api.delete(`/contact/roles/${id}`).then((r) => r.data)
 
 export interface ContactExtra { id: number; name: string; nameEn: string | null; price: number }
 export interface ContactProduct { id: number; nameAr: string; nameEn: string | null; price: number; isAvailable: boolean; categoryId: number | null; categoryNameAr: string | null; categoryNameEn: string | null; categorySort: number; sizes: string[]; sizePrices: number[]; extras: ContactExtra[] }
@@ -375,8 +390,6 @@ export interface ContactOrderInput {
   discountAmount?: number; notes?: string | null
   // رقم الطلب على المنصّة الخارجية (طلبات/جاهز/كاريدج…)
   orderTag?: string | null
-  // تجاوز رسوم التوصيل المشتقّة — يتطلّب صلاحية callcenter.delivery_fee على الخادم
-  deliveryFeeOverride?: number | null
   // حجز (طلب مجدول): وجود reservationTime ينزّل الطلب في «قائمة الحجوزات» بالفرع
   // ويبدأ تحضيره قبل الموعد بـprepLeadMinutes (فارغ = افتراضي الفرع)
   reservationTime?: string | null; prepLeadMinutes?: number | null

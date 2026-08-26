@@ -2,13 +2,18 @@
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ccStyles from './style.css?inline'
-import { state, initData, loadLiveData, loadBusinessDay, openBusinessDay, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder } from './store'
+import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
 import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
+import { icon } from './icons'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
 
 const router = useRouter()
+import ConfirmBox from './components/ConfirmBox.vue'
+import OpenDayModal from './components/OpenDayModal.vue'
 import DashboardView from './views/DashboardView.vue'
+import DaySettingsView from './views/DaySettingsView.vue'
+import RolesView from './views/RolesView.vue'
 import NewOrderView from './views/NewOrderView.vue'
 import OrdersView from './views/OrdersView.vue'
 import ScheduledOrdersView from './views/ScheduledOrdersView.vue'
@@ -178,6 +183,9 @@ const NAV = [
   ] },
   { view: 'complaints', label: 'complaints', fallback: 'الشكاوى', anyOf: ['complaints.view', 'complaints.manage'], svg: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>' },
   { view: 'settings', label: 'settings', fallback: 'الإعدادات', anyOf: ['callcenter.manage', 'callcenter.open', 'callcenter.close'], svg: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>' },
+  // إعدادات اليوم والأدوار — كلٌّ بمفتاحه المستقلّ، فلا يظهر لمن لا يملكه
+  { view: 'day-settings', label: 'day_settings', fallback: 'إعدادات اليوم', anyOf: ['callcenter.day_settings'], svg: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>' },
+  { view: 'cc-roles', label: 'roles', fallback: 'الأدوار', anyOf: ['callcenter.roles'], svg: '<path d="M12 2 3 6v6c0 5 3.8 9.3 9 10 5.2-.7 9-5 9-10V6z"/><polyline points="9 12 11 14 15 10"/>' },
   { view: 'users', label: 'users', fallback: 'المستخدمون', anyOf: ['callcenter.users'], svg: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
 ]
 // «أوردر جديد» ليس تبديلَ شاشة: يبدأ مسوّدةً نظيفة (بند القائمة وزرّ الهيدر سواء)
@@ -201,6 +209,8 @@ const viewComponent = computed(() => {
     case 'stopped-items': return StoppedItemsView
     case 'complaints': return ComplaintsView
     case 'users': return UsersView
+    case 'day-settings': return DaySettingsView
+    case 'cc-roles': return RolesView
     default: return NewOrderView
   }
 })
@@ -239,6 +249,10 @@ watch(() => [session.companyId, session.franchiseId], () => { void loadLiveData(
 watch(() => session.token, (t, prev) => { if (t && prev && t !== prev) openOrdersStream() })
 // عند دخول شاشة الأوردرات → حدّث من الكلاود
 watch(() => state.activeView, (v) => { if (state.live && (v === 'orders' || v === 'scheduled-orders')) void loadOrders() })
+// مغادرة القسم أو التبويب ⇒ تفاصيل الطلب المفتوحة تُطوى والفلاتر تُمسح. الحالة عامّة
+// تتشاركها شاشات الأوردرات الثلاث، فكان الوكيل ينتقل فيجد تفاصيل طلبٍ من شاشةٍ أخرى
+// مفتوحةً أمامه، وفلتراً لم يكتبه هنا يُخفي صفوفاً بلا أن يرى سببها.
+watch(() => [state.activeView, state.activeTab], () => resetOrdersBrowsing())
 onBeforeUnmount(() => {
   if (clockTimer) clearInterval(clockTimer)
   closeOrdersStream()
@@ -246,6 +260,15 @@ onBeforeUnmount(() => {
   document.body.classList.remove('dark-mode')
   document.documentElement.dir = prevDir
 })
+
+// ── الإشعارات: مضيفان — الركن للنجاح/المعلومة، ووسط الشاشة لما يوقف الوكيل ───────
+// تحذير «اختر من: …» كان ينزل أسفل الركن خلف عتمة المودال، فيضغط الوكيل «إضافة»
+// ولا يحدث شيء ولا يرى السبب. ما يمنع إتمام الخطوة يظهر في بؤرة نظره.
+const cornerToasts = computed(() => (state.toasts || []).filter((x: any) => !x.center))
+const centerToasts = computed(() => (state.toasts || []).filter((x: any) => x.center))
+function toastIcon(type: string) {
+  return type === 'success' ? '✓' : type === 'error' ? '✕' : type === 'warning' ? '⚠' : 'ℹ'
+}
 </script>
 
 <template>
@@ -353,9 +376,17 @@ onBeforeUnmount(() => {
         </span>
         <span v-if="isCallcenterView" class="header-divider" aria-hidden="true"></span>
         <!-- يوم العمل مقفول → زر فتح (يظهر لمن يملك صلاحية الفتح) -->
-        <button v-if="isCallcenterView && state.live && state.onlineDay === null && can('callcenter.open')" class="header-eod-btn" style="background:var(--success,#16a34a); color:#fff;" :disabled="state.dayLoading" @click="openBusinessDay()">
+        <button v-if="isCallcenterView && state.live && state.onlineDay === null && can('callcenter.open')" class="header-eod-btn" style="background:var(--success,#16a34a); color:#fff;" :disabled="state.dayLoading" @click="openDayModal()">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
           <span class="eod-label">{{ state.dayLoading ? tx('جارٍ الفتح…', 'Opening…') : tx('افتح اليوم', 'Open day') }}</span>
+        </button>
+        <!-- «إصلاح يوم» — تاريخٌ بعينه للمراجعة، بلا ضربِ أوردرات. مفتاحٌ مستقلّ. -->
+        <button v-if="isCallcenterView && state.live && can('callcenter.fix_day')" class="header-eod-btn"
+          style="background:#d97706; color:#fff;" :disabled="state.dayLoading"
+          :title="tx('افتح تاريخاً بعينه للمراجعة — لا تُضرَب عليه أوردرات', 'Open a specific date for review — no orders can be placed on it')"
+          @click="openDayModal('fix')">
+          <span class="inline-ico" v-html="icon('edit', { size: 15 })"></span>
+          <span class="eod-label">{{ tx('إصلاح يوم', 'Fix a day') }}</span>
         </button>
         <!-- يوم مقفول ومفيش صلاحية فتح → تنبيه -->
         <span v-else-if="isCallcenterView && state.live && state.onlineDay === null" class="header-business-date" style="color:var(--danger,#dc2626);">
@@ -386,14 +417,28 @@ onBeforeUnmount(() => {
     <PaymentModal />
     <ItemModal />
 
-    <!-- الإشعارات: عودة فرع، فشل فتح اليوم، تعذّر التحميل… كانت تُكتب في الكونسول وحده -->
+    <!-- الإشعارات — ركن الشاشة: النجاح والمعلومة (عودة فرع، حفظ تمّ…) فلا تحجب ما يعمل عليه الوكيل -->
     <div class="uc-toasts" aria-live="polite">
-      <div v-for="tst in (state.toasts || [])" :key="tst.id" class="uc-toast" :class="'is-' + tst.type"
+      <div v-for="tst in cornerToasts" :key="tst.id" class="uc-toast" :class="'is-' + tst.type"
            role="status" @click="dismissToast(tst.id)">
-        <span class="uc-toast-icon">{{ tst.type === 'success' ? '✓' : tst.type === 'error' ? '✕' : tst.type === 'warning' ? '⚠' : 'ℹ' }}</span>
+        <span class="uc-toast-icon">{{ toastIcon(tst.type) }}</span>
         <span class="uc-toast-msg">{{ tst.msg }}</span>
       </div>
     </div>
+
+    <!-- وسط الشاشة: ما يوقف الوكيل — خانة ناقصة، اختيار مطلوب، خطأ. كان يظهر في ركنٍ
+         بعيد خلف عتمة المودال، فيضغط الوكيل «إضافة» ولا يحدث شيء ولا يعرف السبب. -->
+    <div v-if="centerToasts.length" class="uc-toasts is-center" aria-live="assertive">
+      <div v-for="tst in centerToasts" :key="tst.id" class="uc-toast is-big" :class="'is-' + tst.type"
+           role="alert" @click="dismissToast(tst.id)">
+        <span class="uc-toast-icon">{{ toastIcon(tst.type) }}</span>
+        <span class="uc-toast-msg">{{ tst.msg }}</span>
+      </div>
+    </div>
+
+    <!-- صندوق التأكيد — على مستوى التطبيق فيُسأل من أي شاشة، وفوق أي مودالٍ مفتوح -->
+    <OpenDayModal />
+    <ConfirmBox />
   </div>
 </template>
 
@@ -482,6 +527,29 @@ onBeforeUnmount(() => {
 .uc-toast.is-warning .uc-toast-icon { color: #b45309; }
 .uc-toast.is-info    { border-inline-start: 4px solid #3b82f6; }
 .uc-toast.is-info    .uc-toast-icon { color: #2563eb; }
+/* وسط الشاشة: التحذير الذي يوقف الوكيل (خانة ناقصة/اختيار مطلوب) في بؤرة نظره، فوق المودال */
+.uc-toasts.is-center {
+  inset: 0;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  padding: 24px;
+  z-index: 10050;   /* فوق المودالات (5000) وصفحة الدخول (10000) */
+}
+.uc-toast.is-big {
+  font-size: 15px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  max-width: min(460px, calc(100vw - 48px));
+  border-inline-start-width: 5px;
+  box-shadow: 0 18px 48px rgba(15, 23, 42, 0.28);
+  animation: uc-toast-pop 0.16s ease-out;
+}
+.uc-toast.is-big .uc-toast-icon { font-size: 17px; }
+@keyframes uc-toast-pop {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
 :global(body.dark-mode) .uc-toast {
   color: #e2e8f0;
   background: #1e293b;

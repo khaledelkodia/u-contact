@@ -3,11 +3,11 @@ import {
   SAMPLE_CUSTOMERS, SAMPLE_ORDERS, MENU_CATEGORIES, MENU_ITEMS, BRANCHES, EMPLOYEES, DRIVERS, SYSTEM_SETTINGS,
   ORDER_STATUSES, PAYMENT_CHANNELS, PAYMENT_METHODS, CANCELLATION_REASONS, COMPLAINT_CATEGORIES,
 } from './data'
-import { todayISO, toCompanyWall, fromCompanyWall } from './utils'
+import { todayISO, toCompanyWall, fromCompanyWall, companyToday, formatBusinessDate } from './utils'
 import { tx, nameOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
-  contactBusinessDay, contactOpenDay, contactCloseDay, contactOrders, contactStoppedItems,
+  contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes,
   contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
@@ -40,7 +40,6 @@ export const state = reactive<any>({
   cartTotal: 0,
   cartSubtotal: 0,
   deliveryFee: 0.5,
-  deliveryFeeOverride: null,
   selectedAddressIndex: -1,
   orderNotes: '',
   // رقم الطلب على المنصّة الخارجية — يكتبه الوكيل حين يأتي الطلب من طلبات/جاهز…
@@ -80,6 +79,10 @@ export const state = reactive<any>({
   itemModalQty: 1,
   itemModalNote: '',
   noteItemId: null as string | null,   // سطر السلّة الذي تُحرَّر ملاحظته
+  // صندوق التأكيد (بديل `confirm()` المتصفّح) — انظر `askConfirm`
+  confirmBox: { open: false, title: '', body: '', okLabel: '', cancelLabel: '', kind: 'danger' as 'danger' | 'warning' },
+  // شاشة فتح يوم العمل — التاريخ يختاره الوكيل وأمامه أيام فروعه
+  dayModal: { open: false, date: '', branches: [] as any[], loading: false, error: '', mode: 'normal' as 'normal' | 'fix' },
   noteItemText: '',
   itemModalOpenPrice: '',      // سعر الوحدة للصنف مفتوح السعر (نصّ ليقبل الحقل الفراغ)
   posStoppedItems: {},         // أصناف موقوفة من مطبخ الـPOS { branchId: itemId[] } (تُدفع من الكلاود)
@@ -120,7 +123,6 @@ export const state = reactive<any>({
   txnModalOrderId: null,       // سجل العمليات
   // ── مودالات شاشة الأوردر الجديد ──
   notesModalOpen: false,       // ملاحظات الطلب
-  feeModalOpen: false,         // رسوم التوصيل (تجاوز يدوي)
   historyModalOpen: false,     // سجل طلبات العميل
   historyOrders: [],           // نتائج السجل (من الخادم بالتليفون)
   historyLoading: false,
@@ -259,6 +261,54 @@ export async function loadBusinessDay() {
   } catch { state.onlineDay = undefined }     // فشل الفحص (صلاحية/شبكة) → غير معروف، لا نمنع
   finally { state.dayLoading = false }
 }
+// ── فتح يوم العمل: التاريخ قرارُ الوكيل ──────────────────────────────────────
+// كان الزرّ يفتح فوراً بتاريخٍ **يشتقّه الخادم من أيام الفروع**. فإن كان ذلك التاريخ
+// قد فُتح وأُقفل من قبل، جاء الرفض «هذا اليوم مُغلق بالفعل» بلا مخرج — إلا أن يُقفَل
+// يومُ فرعٍ ليتحرّك المشتقّ. وهو ربطٌ لا معنى له: النطاق فرنشايز لا فرع.
+//
+// صار الوكيل يختار التاريخ، **وأمامه أيام فروعه**: التطابق شرطُ نزول الأوردر، فاختيارٌ
+// على غير هدىً يعني أوردراتٍ تقف. الشرط نفسه لم يتغيّر.
+export async function openDayModal(mode: 'normal' | 'fix' = 'normal') {
+  state.dayModal = { open: true, date: companyToday(), branches: [], loading: true, error: '', mode }
+  try {
+    state.dayModal.branches = await contactBranchDays()
+  } catch { /* تعذّرت القائمة — الاختيار يبقى ممكناً بلا إرشاد */ }
+  finally { state.dayModal.loading = false }
+}
+
+export function closeDayModal() { state.dayModal = { ...state.dayModal, open: false } }
+
+/** أكثر أيام الفروع شيوعاً — اقتراحٌ بنقرة، لا فرضاً. */
+export function suggestedDay(): string | null {
+  const days = (state.dayModal.branches || []).map((b: any) => b.businessDate).filter(Boolean)
+  if (!days.length) return null
+  const tally = new Map<string, number>()
+  for (const d of days) tally.set(d, (tally.get(d) ?? 0) + 1)
+  return [...tally.entries()].sort((a, b) => b[1] - a[1] || b[0].localeCompare(a[0]))[0][0]
+}
+
+export async function confirmOpenDay() {
+  const date = String(state.dayModal.date || '').trim()
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) { state.dayModal.error = tx('اختر تاريخاً صحيحاً', 'Choose a valid date'); return }
+  state.dayModal.error = ''
+  state.dayLoading = true
+  try {
+    const day = state.dayModal.mode === 'fix' ? await contactFixDay(date) : await contactOpenDay(date)
+    state.onlineDay = day || null
+    if (day?.businessDate) state.businessDate = String(day.businessDate).slice(0, 10)
+    const wasFix = state.dayModal.mode === 'fix'
+    state.dayModal = { ...state.dayModal, open: false }
+    showToast(wasFix
+      ? tx('تم فتح اليوم للإصلاح — لا تُضرَب عليه أوردرات', 'Day opened for fixing — no orders can be placed on it')
+      : tx('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'Business day opened — you can place orders now'), 'success')
+    void loadLiveData()   // أيام الفروع وحالة جاهزيتها تُحتسب مقابل اليوم الجديد
+  } catch (err: any) {
+    // رسالة الخادم هي الأدقّ (تاريخٌ سبق قفلُه، أو بلا صلاحية) — تُعرض في المودال
+    state.dayModal.error = err?.response?.data?.message
+      || tx('تعذّر فتح يوم العمل', 'Could not open the business day')
+  } finally { state.dayLoading = false }
+}
+
 export async function openBusinessDay() {
   if (!(session.mode === 'agent' && session.companyId)) return
   state.dayLoading = true
@@ -284,13 +334,27 @@ export async function openBusinessDay() {
  */
 export async function closeBusinessDay() {
   if (!(session.mode === 'agent' && session.companyId)) return
-  if (!confirm(tx('إنهاء يوم العمل؟ لن تقدر تضرب أوردرات جديدة حتى تفتح يوماً جديداً.',
-                  'End the business day? You will not be able to place new orders until a new day is opened.'))) return
+  // القفل يفتح التالي فوراً (كما في الفرع) — فلا وعدَ بانقطاعٍ لا يحدث
+  const cur = (state.onlineDay as any)?.businessDate
+  if (!(await askConfirm({
+    title: tx('إنهاء يوم العمل؟', 'End the business day?'),
+    body: cur
+      ? tx(`يُقفَل يوم ${formatBusinessDate(String(cur).slice(0, 10))} ويُفتَح اليوم التالي فوراً.`,
+           `Day ${formatBusinessDate(String(cur).slice(0, 10))} will be closed and the next day opened right away.`)
+      : tx('يُقفَل اليوم الحالي ويُفتَح التالي فوراً.', 'The current day is closed and the next opened right away.'),
+    okLabel: tx('إنهاء اليوم', 'End the day'), kind: 'warning',
+  }))) return
   state.dayLoading = true
   try {
-    await contactCloseDay()
-    state.onlineDay = null
-    showToast(tx('تم إنهاء يوم العمل', 'Business day ended'), 'success')
+    // الردّ هو **اليوم الجديد المفتوح** لا فراغاً: النطاق لا يبقى بلا يومٍ مفتوح
+    const day = await contactCloseDay()
+    state.onlineDay = day || null
+    if (day?.businessDate) state.businessDate = String(day.businessDate).slice(0, 10)
+    showToast(day?.businessDate
+      ? tx(`تم إنهاء اليوم — وفُتح يوم ${formatBusinessDate(String(day.businessDate).slice(0, 10))}`,
+           `Day ended — ${formatBusinessDate(String(day.businessDate).slice(0, 10))} is now open`)
+      : tx('تم إنهاء يوم العمل', 'Business day ended'), 'success')
+    void loadLiveData()   // جاهزية الفروع تُحتسب مقابل اليوم الجديد
   } catch (err: any) {
     // رسالة الخادم تحمل سبب المنع وعدد الأوردرات الواقفة — تُعرَض كما هي
     showToast(err?.response?.data?.message || tx('تعذّر إنهاء اليوم', 'Could not end the day'), 'error')
@@ -580,11 +644,15 @@ export async function loadCcStoppedItems(): Promise<boolean> {
  * بالسبب. الـconsole يبقى للتشخيص، ويُضاف العرض.
  */
 let toastSeq = 0
-export function showToast(msg: string, type: string = 'info', ms = 5000) {
+export function showToast(msg: string, type: string = 'info', ms = 5000, center?: boolean) {
   console.log(`[toast:${type}]`, msg)
   if (!Array.isArray(state.toasts)) state.toasts = []
   const id = ++toastSeq
-  state.toasts.push({ id, msg, type })
+  // مكان الظهور: ما يوقف الوكيل (تحذير/خطأ — خانة ناقصة، اختيار مطلوب، رفض من الخادم)
+  // يظهر وسط الشاشة فلا يضيع في ركنٍ خلف عتمة المودال؛ والنجاح/المعلومة تبقى في الركن
+  // فلا تحجب ما يعمل عليه. و`center` يكسر القاعدة لحالةٍ بعينها عند الحاجة.
+  const atCenter = center === undefined ? (type === 'warning' || type === 'error') : !!center
+  state.toasts.push({ id, msg, type, center: atCenter })
   // 12 ثانية سقفٌ للرسائل المهمة، وتُزال يدوياً كذلك. الحدّ يمنع تراكماً بلا نهاية.
   setTimeout(() => dismissToast(id), Math.min(Math.max(ms, 1500), 12000))
   // لا نُبقي أكثر من 4 على الشاشة — الأقدم يخرج، فلا يغطّي الشريطُ الواجهةَ.
@@ -828,7 +896,6 @@ function applyPlace() {
   const link = section || (area && area.areaLinked ? area : null)
   state.selectedRegionBranchId = link ? (link.branchId ?? null) : null
   state.deliveryFee = link ? Number(link.fee || 0) : 0
-  state.deliveryFeeOverride = null
 }
 
 export function selectRegion(regionId: any) {
@@ -925,7 +992,6 @@ export function resetOrderDraft() {
   clearCartSilently()          // السلّة + ملاحظات الطلب
   clearCustomerData()          // العميل + العنوان + الفرع اليدوي + خانة البحث
   resetPaymentSelection()      // المصدر وطريقة الدفع
-  state.deliveryFeeOverride = null
   state.orderTag = ''
   state.isReservation = false
   state.reservationTime = ''
@@ -953,7 +1019,6 @@ export function resetOrderDraft() {
 export function resetDraftForNewCustomer() {
   clearCartSilently()          // السلّة + ملاحظات الطلب
   resetPaymentSelection()      // المصدر وطريقة الدفع
-  state.deliveryFeeOverride = null
   state.orderTag = ''          // رقم المنصّة الخارجية — صفةُ طلبٍ لا صفةُ عميل
   state.isReservation = false
   state.reservationTime = ''
@@ -963,11 +1028,12 @@ export function resetDraftForNewCustomer() {
   showAllCategories()          // ونبدأ من رأس المنيو
 }
 
-export function startNewOrder() {
-  if (hasOrderDraft() && !confirm(tx(
-    'في طلب شغّال دلوقتي — تبدأ واحداً جديداً وتمسح اللي قبله؟',
-    'There is an order in progress — start a new one and discard it?',
-  ))) return
+export async function startNewOrder() {
+  if (hasOrderDraft() && !(await askConfirm({
+    title: tx('في طلب شغّال دلوقتي', 'There is an order in progress'),
+    body: tx('تبدأ واحداً جديداً وتمسح اللي قبله؟', 'Start a new one and discard it?'),
+    okLabel: tx('ابدأ جديداً', 'Start new'),
+  }))) return
   resetOrderDraft()
   state.activeTab = 'menu'
   state.activeView = 'new-order'
@@ -1094,9 +1160,13 @@ export function selectNewAddressState() {
   showToast(tx('يمكنك الآن كتابة تفاصيل العنوان الجديد بالأسفل وضغط حفظ البيانات ليضاف للعميل', 'You can now type the new address below and press save to add it to the customer'), 'info')
 }
 
-export function deleteAddress(idx: number, event?: Event) {
+export async function deleteAddress(idx: number, event?: Event) {
   if (event) event.stopPropagation()
-  if (!confirm(tx('هل أنت متأكد من حذف هذا العنوان من سجل العميل؟', 'Are you sure you want to delete this address from the customer record?'))) return
+  if (!(await askConfirm({
+    title: tx('حذف هذا العنوان؟', 'Delete this address?'),
+    body: tx('سيُحذف من سجل العميل.', 'It will be removed from the customer record.'),
+    okLabel: tx('حذف', 'Delete'),
+  }))) return
 
   const customer = state.currentCustomer
   if (!customer || !customer.addresses) return
@@ -1748,24 +1818,28 @@ export function updateCartItemQty(cartItemId: string, change: number) {
   }
 }
 
-export function clearCart() {
+export async function clearCart() {
   if (state.cart.length === 0) return
-  if (confirm(tx('هل أنت متأكد من مسح جميع الأصناف من السلة؟', 'Are you sure you want to clear all items from the cart?'))) {
-    const itemsCount = state.cart.length
-    state.cart = []
-    state.orderNotes = ''
-    logPendingEvent({ type: 'cart_cleared', note: `تم تفريغ السلة (${itemsCount} صنف)` })
-  }
+  const n = state.cart.length
+  if (!(await askConfirm({
+    title: tx('مسح كل أصناف السلة؟', 'Clear all items from the cart?'),
+    body: tx(`${n} صنفاً سيُحذف.`, `${n} item(s) will be removed.`),
+    okLabel: tx('مسح السلة', 'Clear cart'),
+  }))) return
+  state.cart = []
+  state.orderNotes = ''
+  logPendingEvent({ type: 'cart_cleared', note: `تم تفريغ السلة (${n} صنف)` })
 }
 
 // ==========================================
 // DELIVERY FEE / TOTALS (نقلاً عن calculateCartTotals)
 // ==========================================
+/**
+ * رسوم الطلب = رسوم ربط (الفرع ↔ المكان) لا غير. الكول‑سنتر لا يُدخلها ولا يعدّلها:
+ * تسعير التوصيل قرار الشركة في الداشبورد، و«المفتوحة» يحدّدها الفرع لكل مشوار.
+ */
 export function getEffectiveDeliveryFee(): number {
-  if (state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined) {
-    return parseFloat(state.deliveryFeeOverride)
-  }
-  return state.deliveryFee
+  return Number(state.deliveryFee || 0)
 }
 
 export function getCartSubtotal(): number {
@@ -1858,9 +1932,6 @@ export async function submitOrder() {
     paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
     notes: (state.orderNotes || '').trim() || null,
     orderTag: (state.orderTag || '').trim() || null,
-    // التجاوز اليدوي فقط — بلا تجاوز يشتقّ الخادم الرسوم من ربط (فرع ↔ مكان)
-    deliveryFeeOverride: state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined
-      ? Number(state.deliveryFeeOverride) : null,
     // الفرع كان يستقبل اسماً وسعراً فقط: لا حجم ولا إضافات ولا ملاحظة الصنف —
     // فيصل «فراخ مشوية» بلا «صوص باربيكيو» و«بدون بصل»، والسعر وحده يشي بأن شيئاً
     // اختير. القاعدة تحمل الحقول أصلاً (`OnlineOrderItem`) ولم تكن تُملأ.
@@ -1954,6 +2025,41 @@ export function saveCartItemNote(text: string) {
   showToast(t ? tx('تم حفظ الملاحظة', 'Note saved') : tx('تم مسح الملاحظة', 'Note cleared'), 'success')
 }
 
+// ── صندوق التأكيد ────────────────────────────────────────────────────────────
+// كان `confirm()` المتصفّح: صندوقٌ رماديّ يكتب فوقه «u-contact.vercel.app says»،
+// خارج تصميم التطبيق ولغته واتجاهه، ويُجمّد الصفحة حتى يُجاب. صار مودالاً من
+// مودالات التطبيق نفسها — بوعدٍ (`Promise`) فيبقى نداؤه سطراً واحداً كما كان.
+export type ConfirmKind = 'danger' | 'warning'
+let confirmResolve: ((ok: boolean) => void) | null = null
+
+/**
+ * سؤالٌ بنعم/لا. يُنتظَر بـ`await`:
+ *   `if (!(await askConfirm({ title, body }))) return`
+ */
+export function askConfirm(opts: {
+  title: string; body?: string; okLabel?: string; cancelLabel?: string; kind?: ConfirmKind
+}): Promise<boolean> {
+  // سؤالٌ سابقٌ ما زال مفتوحاً (نقرتان سريعتان): نُغلقه بـ«لا» فلا يبقى وعدٌ معلّقاً
+  if (confirmResolve) { confirmResolve(false); confirmResolve = null }
+  state.confirmBox = {
+    open: true,
+    title: opts.title,
+    body: opts.body || '',
+    okLabel: opts.okLabel || tx('تأكيد', 'Confirm'),
+    cancelLabel: opts.cancelLabel || tx('إلغاء', 'Cancel'),
+    kind: opts.kind || 'danger',
+  }
+  return new Promise<boolean>((resolve) => { confirmResolve = resolve })
+}
+
+/** إجابة الصندوق — يستدعيها المودال وحده. */
+export function answerConfirm(ok: boolean) {
+  state.confirmBox = { ...state.confirmBox, open: false }
+  const r = confirmResolve
+  confirmResolve = null
+  if (r) r(ok)
+}
+
 export function openOrderNotesModal() { state.notesModalOpen = true }
 export function closeOrderNotesModal() { state.notesModalOpen = false }
 export function saveOrderNotes(text: string) {
@@ -1962,10 +2068,6 @@ export function saveOrderNotes(text: string) {
   showToast(state.orderNotes ? tx('تم حفظ ملاحظات الطلب', 'Order notes saved') : tx('تم مسح ملاحظات الطلب', 'Order notes cleared'), 'success')
 }
 
-// صلاحية مستقلّة: تغيير الرسوم قرار ماليّ لا يلزم أن يملكه كل من يأخذ الأوردر
-export function canChangeDeliveryFee(): boolean {
-  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.delivery_fee')
-}
 /**
  * رسوم «مفتوحة» = ربط الفرع بالمكان رسومه صفر بلا علم «مجاني» ⇒ غير محدَّدة، يُدخلها
  * الفرع لكل مشوار. نميّزها عن «مجاني» الصريح فلا يظنّ الوكيل التوصيلَ بلا رسوم.
@@ -1977,25 +2079,6 @@ export function deliveryFeeIsOpen(): boolean {
   const sec = (area.sections || []).find((x: any) => x.id === state.form.sectionId) || null
   const link = sec || area
   return Number(link?.fee || 0) === 0 && !link?.isFree
-}
-export function openDeliveryFeeModal() {
-  if (!canChangeDeliveryFee()) { showToast(tx('لا تملك صلاحية تغيير رسوم التوصيل', 'You do not have permission to change the delivery fee'), 'warning'); return }
-  state.feeModalOpen = true
-}
-export function closeDeliveryFeeModal() { state.feeModalOpen = false }
-/** الرسوم المشتقّة من الربط (قبل أي تجاوز) — لعرضها في المودال كمرجع وللرجوع إليها. */
-export function derivedDeliveryFee(): number { return Number(state.deliveryFee || 0) }
-export function applyDeliveryFeeOverride(value: any) {
-  const v = parseFloat(String(value))
-  if (isNaN(v) || v < 0) { showToast(tx('أدخل رسوماً صحيحة', 'Enter a valid fee'), 'warning'); return }
-  state.deliveryFeeOverride = v
-  state.feeModalOpen = false
-  showToast(tx(`تم ضبط رسوم التوصيل على ${v}`, `Delivery fee set to ${v}`), 'success')
-}
-export function resetDeliveryFeeOverride() {
-  state.deliveryFeeOverride = null
-  state.feeModalOpen = false
-  showToast(tx('رجعت الرسوم للقيمة الافتراضية للمنطقة', 'Fee restored to the area default'), 'info')
 }
 
 // ── مودال الدفع (المصدر + الطريقة) ──
@@ -2177,7 +2260,6 @@ export function reviewSummary(): any {
     items: state.cart,
     subtotal: getCartSubtotal(),
     deliveryFee: getAppliedDeliveryFee(),
-    feeIsOverridden: state.deliveryFeeOverride !== null && state.deliveryFeeOverride !== undefined,
     feeIsOpen: deliveryFeeIsOpen(),
     total: getCartTotal(),
     notes: state.orderNotes || '',
@@ -2286,6 +2368,20 @@ export function clearAllOrderFilters() {
   state.allFilterPhone = ''
   state.allFilterStatus = ''
   state.allFilterBranch = ''
+}
+
+/**
+ * مغادرة شاشة أوردرات ⇒ لوحة التفاصيل تُطوى والفلاتر تُمسح.
+ *
+ * `openOrderId` والفلاتر حالةٌ **عامّة واحدة** تتشاركها ثلاث شاشات: تبويب «طلبات
+ * التوصيل» و«كل الطلبات» و«الطلبات المجدولة». فالطلب الذي يفتحه الوكيل في شاشةٍ كان
+ * يظهر مفتوحاً في الشاشة التالية — تفاصيلُ طلبٍ ليس من قائمتها — وفلترُ الأولى يُخفي
+ * صفوف الثانية بلا سببٍ ظاهر، فتبدو الشاشة فارغةً أو ناقصة.
+ */
+export function resetOrdersBrowsing() {
+  state.openOrderId = null
+  clearTabOrderFilters()
+  clearAllOrderFilters()
 }
 
 // ==========================================
@@ -2582,10 +2678,14 @@ export function selectDriverForOrder(orderId: number, driverId: number) {
   closeDriverModal()
 }
 
-export function unassignDriverFromOrder(orderId: number) {
+export async function unassignDriverFromOrder(orderId: number) {
   const order = state.orders.find((o: any) => o.id === orderId)
   if (!order) return
-  if (!confirm(tx('هل تريد إلغاء تعيين السائق من هذا الطلب؟', 'Do you want to unassign the driver from this order?'))) return
+  if (!(await askConfirm({
+    title: tx('إلغاء تعيين السائق؟', 'Unassign the driver?'),
+    body: tx('سيعود الطلب بلا سائق.', 'The order will go back to having no driver.'),
+    okLabel: tx('إلغاء التعيين', 'Unassign'), kind: 'warning',
+  }))) return
 
   const prevDriverName = order.driverName
   const nowIso = new Date().toISOString()
