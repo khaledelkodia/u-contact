@@ -13,7 +13,7 @@ const order = computed<any>(() => state.orders.find((o: any) => o.id === props.o
 // نقلاً عن getStatusBadge
 function statusBadge(status: string): string {
   const s = ORDER_STATUSES.find((x: any) => x.id === status)
-  if (!s) return `<span class="status-badge">غير معروف</span>`
+  if (!s) return `<span class="status-badge">${tx('غير معروف', 'Unknown')}</span>`
   return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
 }
 // تفاصيل الصنف (حجم + إضافات) — نقلاً عن detailsStr
@@ -38,38 +38,55 @@ function itemDetails(item: any): string {
   if (ex) { detailsStr += detailsStr ? ' + ' : ''; detailsStr += ex }
   return detailsStr
 }
+
+const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.value.items.length : 0))
 </script>
 
 <template>
-  <div v-if="order" class="order-detail-panel">
-    <div class="order-detail-header">
-      <div>
-        <div class="order-detail-invoice">
-          {{ tx('فاتورة', 'Invoice') }} #{{ order.invoiceNo }}
-          <!-- رقم المنصّة الخارجية: الوكيل يقارنه بما يقوله العميل -->
-          <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+  <div v-if="order" class="order-detail-panel dt-panel">
+    <!-- ── الترويسة ──────────────────────────────────────────────────────────
+         كانت صفّاً واحداً لا ينكسر: العنوان يميناً وكتلةُ أزرارٍ يساراً. في عمودٍ
+         ضيّق (٤٢٠px) كانت الأزرار تخرج عن الإطار ويظهر شريط تمريرٍ أفقيّ ويُقصّ
+         آخرها. صارت طبقات: رقمٌ وحالة، ثم تاريخ، ثم أزرارٌ تنكسر أسطراً. -->
+    <div class="dt-head">
+      <div class="dt-head-top">
+        <div class="dt-inv">
+          {{ tx('فاتورة', 'Invoice') }} <span class="dt-inv-no">#{{ order.invoiceNo }}</span>
         </div>
-        <div style="font-size:13px; color:var(--text-secondary); margin-top:4px;">{{ tx('تاريخ الإنشاء:', 'Created:') }} {{ formatDate(order.createdAt) }}</div>
-        <div v-if="order.scheduledDate" style="font-size:13px; color:var(--danger); margin-top:4px; font-weight:bold;">{{ tx('مجدول إلى:', 'Scheduled for:') }} {{ formatDate(order.scheduledDate) }}</div>
-        <div v-if="order.status === 'cancelled' && order.cancellationReason" class="order-cancel-reason"><span class="inline-ico" v-html="icon('x-circle', { size: 13 })"></span> {{ tx('سبب الإلغاء:', 'Cancellation reason:') }} <strong>{{ order.cancellationReason.label }}</strong><template v-if="order.cancellationReason.note && order.cancellationReason.id !== 'other'"> — {{ order.cancellationReason.note }}</template></div>
+        <span class="dt-status" v-html="statusBadge(order.status)"></span>
       </div>
-      <div style="display:flex; gap:10px; align-items:center;">
-        <span v-html="statusBadge(order.status)"></span>
-        <!-- الحالة والسائق يملكهما الفرع: تُحدَّث عنده وتصل هنا لحظياً عبر SSE.
-             زرّ تغيير الحالة كان يُطبَّق على الشاشة وحدها ثم تُعيده مرآةُ الفرع بعد
-             ثوانٍ، وقائمة السائقين كانت أسماءً مكتوبة في الكود لا سائقين حقيقيين. -->
-        <span v-if="order.driverName" class="status-badge" style="background:rgba(6,182,212,0.14); color:#0e7490; display:inline-flex; align-items:center; gap:5px;">
-          <span v-html="icon('bike', { size: 13 })"></span> {{ order.driverName }}
-        </span>
-        <button v-if="canCancelOrder() && canCancelThisOrder(order)" class="btn btn-danger" @click="openCancelModal(order.id)">{{ tx('إلغاء الطلب', 'Cancel order') }}</button>
-        <button v-if="canManageComplaints()" class="btn btn-secondary" @click="openComplaintModal(order.id)" style="background:var(--danger-light); color:var(--danger); border-color:var(--danger-light); display:inline-flex; align-items:center; gap:6px;"><span v-html="icon('alert-triangle', { size: 14 })"></span> {{ tx('تقديم شكوى', 'File a complaint') }}</button>
-        <button class="btn btn-transactions" @click="openTxnModal(order.id)" :title="tx('سجل العمليات على الطلب', 'Order activity log')">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-          {{ tx('سجل العمليات', 'Activity log') }}
+
+      <div class="dt-meta">{{ tx('تاريخ الإنشاء:', 'Created:') }} {{ formatDate(order.createdAt) }}</div>
+      <div v-if="order.scheduledDate" class="dt-meta dt-meta-sched">
+        <span v-html="icon('clock', { size: 13 })"></span>
+        {{ tx('مجدول إلى:', 'Scheduled for:') }} <strong>{{ formatDate(order.scheduledDate) }}</strong>
+      </div>
+      <!-- رقم المنصّة الخارجية: الوكيل يقارنه بما يقوله العميل -->
+      <div v-if="order.orderTag" class="dt-meta">
+        {{ tx('رقم الطلب الخارجي:', 'External order no.:') }}
+        <span class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+      </div>
+      <div v-if="order.status === 'cancelled' && order.cancellationReason" class="order-cancel-reason">
+        <span class="inline-ico" v-html="icon('x-circle', { size: 13 })"></span>
+        {{ tx('سبب الإلغاء:', 'Cancellation reason:') }} <strong>{{ order.cancellationReason.label }}</strong>
+        <template v-if="order.cancellationReason.note && order.cancellationReason.id !== 'other'"> — {{ order.cancellationReason.note }}</template>
+      </div>
+
+      <!-- الحالة والسائق يملكهما الفرع: تُحدَّث عنده وتصل هنا لحظياً عبر SSE. -->
+      <div class="dt-actions">
+        <button v-if="canCancelOrder() && canCancelThisOrder(order)" class="btn btn-danger btn-sm" @click="openCancelModal(order.id)">
+          {{ tx('إلغاء الطلب', 'Cancel order') }}
+        </button>
+        <button v-if="canManageComplaints()" class="btn btn-sm dt-btn-complaint" @click="openComplaintModal(order.id)">
+          <span v-html="icon('alert-triangle', { size: 13 })"></span> {{ tx('تقديم شكوى', 'Complaint') }}
+        </button>
+        <button class="btn-transactions dt-btn-log" @click="openTxnModal(order.id)" :title="tx('سجل العمليات على الطلب', 'Order activity log')">
+          <span v-html="icon('clock', { size: 13 })"></span> {{ tx('سجل العمليات', 'Activity log') }}
         </button>
       </div>
     </div>
 
+    <!-- ── الحقول: تنكسر لعمودين في اللوحة الضيّقة وثلاثةٍ في العرض الكامل ──── -->
     <div class="order-detail-grid">
       <div class="order-detail-field">
         <label>{{ tx('العميل', 'Customer') }}</label>
@@ -78,10 +95,6 @@ function itemDetails(item: any): string {
       <div class="order-detail-field">
         <label>{{ tx('رقم الهاتف', 'Phone') }}</label>
         <span class="ltr-num">{{ order.customerPhone }}</span>
-      </div>
-      <div class="order-detail-field">
-        <label>{{ tx('العنوان', 'Address') }}</label>
-        <span>{{ order.address }}</span>
       </div>
       <div class="order-detail-field">
         <label>{{ tx('الفرع', 'Branch') }}</label>
@@ -93,14 +106,14 @@ function itemDetails(item: any): string {
       </div>
       <div class="order-detail-field">
         <label>{{ tx('الرقم اليومي', 'Daily no.') }}</label>
-        <span style="font-size:18px; font-weight:800; color:var(--primary);">{{ order.dailyNo }}</span>
+        <span class="dt-daily">{{ order.dailyNo }}</span>
       </div>
-      <!-- رقم المنصّة الخارجية: يُبحث به ويُقارَن بما يقوله العميل -->
-      <div v-if="order.orderTag" class="order-detail-field">
-        <label>{{ tx('رقم الطلب الخارجي', 'External order no.') }}</label>
-        <span class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+      <!-- العنوان طويل: صفٌّ كامل فلا يُحشَر في نصف عمود -->
+      <div v-if="order.address" class="order-detail-field dt-wide">
+        <label>{{ tx('العنوان', 'Address') }}</label>
+        <span>{{ order.address }}</span>
       </div>
-      <div v-if="order.type === 'delivery'" class="order-detail-field order-detail-field-driver">
+      <div v-if="order.type === 'delivery'" class="order-detail-field order-detail-field-driver dt-wide">
         <label>{{ tx('السائق', 'Driver') }}</label>
         <div v-if="order.driverId" class="driver-detail-box">
           <div class="driver-detail-name"><span v-html="icon('bike', { size: 14 })"></span> {{ order.driverName }}</div>
@@ -111,60 +124,196 @@ function itemDetails(item: any): string {
       </div>
     </div>
 
-    <div v-if="order.notes" style="background:var(--warning-light); padding:12px 16px; border-radius:var(--radius-sm); margin-bottom:16px; border-inline-start:4px solid var(--warning);">
-      <strong style="color:var(--warning); font-size:13px;">{{ tx('ملاحظات:', 'Notes:') }}</strong>
-      <span style="font-size:14px; margin-inline-start:8px;">{{ order.notes }}</span>
+    <div v-if="order.notes" class="dt-notes">
+      <span class="dt-notes-ico" v-html="icon('alert-triangle', { size: 13 })"></span>
+      <div>
+        <strong>{{ tx('ملاحظات الطلب', 'Order notes') }}</strong>
+        <div>{{ order.notes }}</div>
+      </div>
     </div>
 
-    <table class="order-items-table">
-      <thead>
-        <tr>
-          <th style="text-align:start;">{{ tx('الصنف', 'Item') }}</th>
-          <th style="text-align:center;">{{ tx('الكمية', 'Qty') }}</th>
-          <th style="text-align:start;">{{ tx('سعر الوحدة', 'Unit price') }}</th>
-          <th style="text-align:start;">{{ tx('الإجمالي', 'Total') }}</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="!order.items || !order.items.length">
-          <td colspan="4" style="text-align:center; padding:18px; color:var(--text-muted); font-size:12.5px;">
-            {{ order.itemsLoaded ? tx('لا توجد أصناف في هذا الطلب', 'This order has no items') : tx('جارٍ تحميل الأصناف…', 'Loading items…') }}
-          </td>
-        </tr>
-        <tr v-for="(item, idx) in order.items" :key="idx">
-          <td>
-            <div style="font-weight:600; color:var(--text-primary);">{{ nameOf(item) }}</div>
-            <div v-if="itemDetails(item)" style="font-size:11px; color:var(--text-muted);">{{ itemDetails(item) }}</div>
-            <!-- ملاحظة الصنف: يكتبها الوكيل ولم تكن تُعرض هنا إطلاقاً -->
-            <div v-if="item.note" style="font-size:11px; color:var(--warning, #b45309); font-weight:700;">
-              {{ tx('ملاحظة: ', 'Note: ') }}{{ item.note }}
-            </div>
-          </td>
-          <td style="text-align:center;">{{ item.quantity }}</td>
-          <td>{{ formatCurrency(item.price) }}</td>
-          <td style="font-weight:700;">{{ formatCurrency(item.total || item.price * item.quantity) }}</td>
-        </tr>
-      </tbody>
-    </table>
+    <!-- ── الأصناف: أسطر إيصال لا جدولٌ بأربعة أعمدة ─────────────────────────
+         الجدول في عمودٍ ضيّق كان يكسر كل سعرٍ سطرين ويضغط اسم الصنف حتى يختفي. -->
+    <div class="dt-sec">
+      <span class="dt-sec-t">{{ tx('الأصناف', 'Items') }}</span>
+      <span v-if="itemCount" class="dt-sec-n">{{ itemCount }}</span>
+    </div>
+    <div class="dt-list">
+      <div v-if="!itemCount" class="dt-empty">
+        {{ order.itemsLoaded ? tx('لا توجد أصناف في هذا الطلب', 'This order has no items') : tx('جارٍ تحميل الأصناف…', 'Loading items…') }}
+      </div>
+      <div v-for="(item, idx) in order.items" :key="idx" class="dt-row">
+        <span class="dt-qty">{{ item.quantity }}<small>×</small></span>
+        <div class="dt-row-main">
+          <div class="dt-name">{{ nameOf(item) }}</div>
+          <div v-if="itemDetails(item)" class="dt-sub">{{ itemDetails(item) }}</div>
+          <!-- ملاحظة الصنف: يكتبها الوكيل ولم تكن تُعرض هنا إطلاقاً -->
+          <div v-if="item.note" class="dt-item-note">{{ tx('ملاحظة: ', 'Note: ') }}{{ item.note }}</div>
+        </div>
+        <div class="dt-price">
+          <span class="dt-total">{{ formatCurrency(item.total || item.price * item.quantity) }}</span>
+          <span v-if="item.quantity > 1" class="dt-unit">{{ formatCurrency(item.price) }} {{ tx('للواحدة', 'each') }}</span>
+        </div>
+      </div>
+    </div>
 
-    <div style="display:flex; justify-content:flex-end; margin-top:20px;">
-      <div style="width:300px; background:var(--bg); padding:16px; border-radius:var(--radius-sm);">
-        <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-size:13px;">
-          <span>{{ tx('المجموع الفرعي:', 'Subtotal:') }}</span>
-          <span>{{ formatCurrency(order.subtotal) }}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px; padding-bottom:12px; border-bottom:1px solid var(--border);">
-          <span>{{ tx('رسوم التوصيل:', 'Delivery fee:') }}</span>
-          <span>{{ formatCurrency(order.deliveryFee) }}</span>
-        </div>
-        <div style="display:flex; justify-content:space-between; font-size:18px; font-weight:800; color:var(--primary);">
-          <span>{{ tx('الإجمالي:', 'Total:') }}</span>
-          <span>{{ formatCurrency(order.total) }}</span>
-        </div>
-        <div style="margin-top:12px; text-align:center; font-size:12px; color:var(--text-muted); padding-top:12px; border-top:1px dashed var(--border);">
-          {{ tx('طريقة الدفع:', 'Payment method:') }} {{ order.paymentLabel || getPaymentLabel(order.paymentChannel || 'phone', order.paymentMethod || 'cash') }}
-        </div>
+    <!-- ── الإجماليات ───────────────────────────────────────────────────────── -->
+    <div class="dt-sum">
+      <div class="dt-sum-row">
+        <span>{{ tx('المجموع الفرعي', 'Subtotal') }}</span>
+        <span class="dt-sum-v">{{ formatCurrency(order.subtotal) }}</span>
+      </div>
+      <div class="dt-sum-row">
+        <span>{{ tx('رسوم التوصيل', 'Delivery fee') }}</span>
+        <span class="dt-sum-v">{{ formatCurrency(order.deliveryFee) }}</span>
+      </div>
+      <div class="dt-grand">
+        <span class="dt-grand-l">{{ tx('الإجمالي', 'Total') }}</span>
+        <strong class="dt-grand-v">{{ formatCurrency(order.total) }}</strong>
+      </div>
+      <div class="dt-pay">
+        <span v-html="icon('wallet', { size: 13 })"></span>
+        {{ tx('طريقة الدفع:', 'Payment:') }}
+        <strong>{{ order.paymentLabel || getPaymentLabel(order.paymentChannel || 'phone', order.paymentMethod || 'cash') }}</strong>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* ── الترويسة ── */
+.dt-head {
+  padding-bottom: 14px;
+  margin-bottom: 16px;
+  border-bottom: 2px solid var(--border-light, #f3f4f6);
+}
+.dt-head-top {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.dt-inv { font-size: 19px; font-weight: 800; color: var(--text-primary, #0f172a); }
+.dt-inv-no { color: var(--primary, #1a56db); }
+.dt-status { display: inline-flex; flex: 0 0 auto; }
+.dt-meta {
+  margin-top: 5px;
+  font-size: 12px; font-weight: 600; line-height: 1.6;
+  color: var(--text-secondary, #64748b);
+}
+.dt-meta-sched { display: flex; align-items: center; gap: 5px; color: var(--danger, #dc2626); }
+.dt-meta-sched strong { color: var(--danger, #dc2626); }
+/* أزرارٌ تنكسر أسطراً بدل أن تخرج عن الإطار */
+.dt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.dt-actions .btn, .dt-actions .btn-transactions {
+  padding: 7px 12px; font-size: 12.5px; gap: 6px; white-space: nowrap;
+}
+.dt-btn-complaint {
+  background: var(--danger-light, #fee2e2);
+  color: var(--danger, #dc2626);
+  border: 1px solid rgba(220, 38, 38, 0.25);
+  display: inline-flex; align-items: center;
+}
+.dt-btn-log { display: inline-flex; align-items: center; }
+.dt-daily { font-size: 17px; font-weight: 800; color: var(--primary, #1a56db); }
+.dt-wide { grid-column: 1 / -1; }
+
+/* ── ملاحظات الطلب ── */
+.dt-notes {
+  display: flex; align-items: flex-start; gap: 8px;
+  margin-bottom: 16px; padding: 10px 12px;
+  border-radius: var(--radius, 10px);
+  background: var(--warning-light, #fffbeb);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 12.5px; line-height: 1.6;
+}
+.dt-notes-ico { flex: 0 0 auto; color: #b45309; display: inline-flex; }
+.dt-notes strong { display: block; font-size: 11.5px; color: #b45309; }
+
+/* ── عنوان القسم ── */
+.dt-sec { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.dt-sec-t { font-size: 12px; font-weight: 800; color: var(--text-secondary, #64748b); }
+.dt-sec-n {
+  min-width: 20px; padding: 1px 6px; border-radius: var(--radius-full, 999px);
+  background: var(--bg, #f0f2f5); color: var(--text-secondary, #64748b);
+  font-size: 11px; font-weight: 800; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.dt-sec::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--border-light, #f3f4f6); }
+
+/* ── الأصناف ── */
+.dt-list {
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+}
+.dt-empty { padding: 18px; text-align: center; font-size: 12.5px; color: var(--text-muted, #94a3b8); }
+.dt-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; }
+.dt-row + .dt-row { border-top: 1px solid var(--border-light, #f3f4f6); }
+.dt-qty {
+  flex: 0 0 auto; min-width: 30px; height: 25px; padding: 0 6px;
+  border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
+  background: var(--primary-lighter, #eff6ff); color: var(--primary, #1a56db);
+  font-size: 12.5px; font-weight: 800; font-variant-numeric: tabular-nums;
+}
+.dt-qty small { font-size: 10px; font-weight: 700; opacity: 0.75; }
+.dt-row-main { flex: 1 1 auto; min-width: 0; }
+.dt-name { font-size: 13px; font-weight: 700; line-height: 1.45; color: var(--text-primary, #0f172a); }
+.dt-sub { margin-top: 2px; font-size: 11px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.dt-item-note { margin-top: 3px; font-size: 11px; font-weight: 700; color: #b45309; }
+.dt-price { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 1px; text-align: end; }
+.dt-total {
+  font-size: 13px; font-weight: 800; white-space: nowrap;
+  color: var(--text-primary, #0f172a); font-variant-numeric: tabular-nums;
+}
+.dt-unit {
+  font-size: 10.5px; font-weight: 600; white-space: nowrap;
+  color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums;
+}
+
+/* ── الإجماليات: عرضٌ كامل — الصندوق الثابت ٣٠٠px كان يفيض في اللوحة الضيّقة ── */
+.dt-sum {
+  margin-top: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+}
+.dt-sum-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  padding: 8px 13px;
+  font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b);
+}
+.dt-sum-v {
+  font-weight: 700; white-space: nowrap;
+  color: var(--text-primary, #0f172a); font-variant-numeric: tabular-nums;
+}
+.dt-grand {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 13px;
+  background: var(--primary, #1a56db); color: #fff;
+}
+.dt-grand-l { font-size: 13px; font-weight: 700; opacity: 0.92; }
+.dt-grand-v {
+  font-size: 18px; font-weight: 800; white-space: nowrap; letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
+.dt-pay {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 13px;
+  font-size: 12px; font-weight: 600; color: var(--text-secondary, #64748b);
+}
+.dt-pay strong { color: var(--text-primary, #0f172a); font-weight: 800; }
+
+/* ── الوضع الليلي ── */
+:global(body.dark-mode) .dt-sec-n,
+:global(body.dark-mode) .dt-qty { background: rgba(255, 255, 255, 0.07); }
+:global(body.dark-mode) .dt-qty { color: #93c5fd; }
+:global(body.dark-mode) .dt-notes {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #e2e8f0;
+}
+:global(body.dark-mode) .dt-notes strong,
+:global(body.dark-mode) .dt-notes-ico,
+:global(body.dark-mode) .dt-item-note { color: #fbbf24; }
+:global(body.dark-mode) .dt-grand { background: var(--primary-darker, #2563eb); }
+</style>

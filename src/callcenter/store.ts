@@ -108,14 +108,19 @@ export const state = reactive<any>({
   schedFilterPhone: '',
   schedFilterBranch: '',
   schedFilterType: '',
-  schedFilterFrom: '',
-  schedFilterTo: '',
 
   // فلاتر شاشة «جميع طلبات التوصيل» (view-orders)
+  // خانةٌ لكل عمودٍ في صفّ فلترة الجدول — الشريط المنفصل فوقه كان يفلتر أربعة
+  // أعمدةٍ من اثني عشر، والوكيل يبحث عن السائق أو الموظّف بالعين.
+  allFilterDaily: '',
   allFilterInvoice: '',
   allFilterPhone: '',
+  allFilterEmployee: '',
+  allFilterType: '',
+  allFilterTag: '',
   allFilterStatus: '',
   allFilterBranch: '',
+  allFilterDriver: '',
 
   // فلاتر شاشة الإعدادات — إتاحة الأصناف بالفروع
   availBranchId: '',           // id الفرع المستهدف (string لمطابقة قيمة الـselect)
@@ -1385,9 +1390,25 @@ export function saveCustomer() {
 const DELIVERY_CODES = [4, 5]
 export const isDeliveryCode = (code: number) => DELIVERY_CODES.includes(Number(code))
 
-/** أنواع الشركة (فارغة = لم تصل بعد أو الشركة بلا أنواع ⇒ ارتدادٌ للبطاقتين). */
+/**
+ * أنواع الطلب التي يراها وكيل الكول‑سنتر: **طلبات (4) · توصيل (5) · استلام (6)**.
+ *
+ * كانت كلّ أنواع الشركة تُعرَض — صالة وتيك أواي وعربيّة… — وهي أنواعُ كاشيرٍ داخل
+ * الفرع لا يأخذها أحدٌ بالهاتف، فتزحم الشريط وتُغري بنوعٍ خاطئ.
+ *
+ * وإن لم تُعرِّف الشركة «استلام» (6) يحلّ محلَّه «تيك أواي» (2) إن وُجد — هو نفسه
+ * استلامٌ من الفرع باسمٍ آخر، فلا يفقد الوكيل المسار كلَّه لأن الشركة سمّته غير ذلك.
+ * (فارغة = لم تصل بعد أو الشركة بلا أنواع ⇒ ارتدادٌ لبطاقتَي توصيل/استلام.)
+ */
+const AGENT_ORDER_CODES = [4, 5, 6]
 export function companyOrderTypes(): any[] {
-  return Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
+  const all = Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
+  const picked = all.filter((t: any) => AGENT_ORDER_CODES.includes(Number(t.code)))
+  if (!picked.some((t: any) => Number(t.code) === 6)) {
+    const takeaway = all.find((t: any) => Number(t.code) === 2)
+    if (takeaway) picked.push(takeaway)
+  }
+  return picked
 }
 /** طرق دفع الشركة (فارغة = ارتدادٌ لقائمة `data.ts`). */
 export function companyPaymentMethods(): any[] {
@@ -2357,6 +2378,13 @@ export function toggleReservation() {
 // ==========================================
 // ALL ORDERS VIEW (نقلاً عن renderAllOrders / filterAllOrders / clearAllOrderFilters)
 // ==========================================
+/** ترشيحٌ نصّيٌّ متسامح: فارغٌ = بلا أثر، والمقارنة بلا حالة أحرفٍ ولا فراغاتٍ طرفيّة. */
+function byText(list: any[], q: any, pick: (o: any) => any): any[] {
+  const t = String(q || '').trim().toLowerCase()
+  if (!t) return list
+  return list.filter((o: any) => String(pick(o) ?? '').toLowerCase().includes(t))
+}
+
 export function allOrdersFiltered(): any[] {
   const bd = state.businessDate || todayISO()
   let filtered = state.orders.filter((o: any) =>
@@ -2365,18 +2393,27 @@ export function allOrdersFiltered(): any[] {
   )
   if (state.allFilterStatus) filtered = filtered.filter((o: any) => o.status === state.allFilterStatus)
   if (state.allFilterBranch) filtered = filtered.filter((o: any) => o.branchId === parseInt(state.allFilterBranch))
-  const inv = (state.allFilterInvoice || '').trim().toLowerCase()
-  if (inv) filtered = filtered.filter((o: any) => o.invoiceNo.toLowerCase().includes(inv))
-  const ph = (state.allFilterPhone || '').trim().toLowerCase()
-  if (ph) filtered = filtered.filter((o: any) => o.customerPhone.includes(ph))
+  if (state.allFilterType) filtered = filtered.filter((o: any) => o.type === state.allFilterType)
+  filtered = byText(filtered, state.allFilterDaily, (o) => o.dailyNo)
+  filtered = byText(filtered, state.allFilterInvoice, (o) => o.invoiceNo)
+  // خانة العميل تبحث في الاسم **والرقم** معاً: الوكيل يعرف أحدهما لا كليهما
+  filtered = byText(filtered, state.allFilterPhone, (o) => `${o.customerName} ${o.customerPhone}`)
+  filtered = byText(filtered, state.allFilterEmployee, (o) => o.employeeName)
+  filtered = byText(filtered, state.allFilterTag, (o) => o.orderTag)
+  filtered = byText(filtered, state.allFilterDriver, (o) => o.driverName)
   return filtered
 }
 
 export function clearAllOrderFilters() {
+  state.allFilterDaily = ''
   state.allFilterInvoice = ''
   state.allFilterPhone = ''
+  state.allFilterEmployee = ''
+  state.allFilterType = ''
+  state.allFilterTag = ''
   state.allFilterStatus = ''
   state.allFilterBranch = ''
+  state.allFilterDriver = ''
 }
 
 /**
@@ -2397,23 +2434,13 @@ export function resetOrdersBrowsing() {
 // ==========================================
 // SCHEDULED ORDERS VIEW (نقلاً عن renderScheduledOrders)
 // ==========================================
-/** تاريخ الحجز بساعة **الشركة** — نفس ما يعرضه الجدول، فلا يزيح الفلتر يوماً. */
-function schedDay(v: any): string {
-  const d = new Date(v)
-  return isNaN(d.getTime()) ? '' : toCompanyWall(d).slice(0, 10)
-}
-
-/** الحجوزات بعد الفلاتر — رقم فاتورة · موبايل · فرع · نوع · مدى تاريخ. */
+/** الحجوزات بعد الفلاتر — رقم فاتورة · موبايل · فرع · نوع. */
 export function scheduledOrdersFiltered(): any[] {
   let list = scheduledOrdersList()
-  const inv = (state.schedFilterInvoice || '').trim().toLowerCase()
-  if (inv) list = list.filter((o: any) => String(o.invoiceNo || '').toLowerCase().includes(inv))
-  const ph = (state.schedFilterPhone || '').trim()
-  if (ph) list = list.filter((o: any) => String(o.customerPhone || '').includes(ph))
+  list = byText(list, state.schedFilterInvoice, (o) => o.invoiceNo)
+  list = byText(list, state.schedFilterPhone, (o) => `${o.customerName} ${o.customerPhone}`)
   if (state.schedFilterBranch) list = list.filter((o: any) => o.branchId === parseInt(state.schedFilterBranch))
   if (state.schedFilterType) list = list.filter((o: any) => o.type === state.schedFilterType)
-  if (state.schedFilterFrom) list = list.filter((o: any) => schedDay(o.scheduledDate) >= state.schedFilterFrom)
-  if (state.schedFilterTo) list = list.filter((o: any) => schedDay(o.scheduledDate) <= state.schedFilterTo)
   return list
 }
 
@@ -2422,8 +2449,6 @@ export function clearScheduledFilters() {
   state.schedFilterPhone = ''
   state.schedFilterBranch = ''
   state.schedFilterType = ''
-  state.schedFilterFrom = ''
-  state.schedFilterTo = ''
 }
 export function scheduledOrdersList(): any[] {
   return state.orders

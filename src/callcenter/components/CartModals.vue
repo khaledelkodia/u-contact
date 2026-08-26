@@ -250,6 +250,11 @@ function itemMods(i: any): { name: string; price: number }[] {
           </li>
         </ul>
 
+        <div v-if="review.notes" class="rv-notes">
+          <span class="rv-notes-ico" v-html="icon('alert-triangle', { size: 14 })"></span>
+          <div><strong>{{ tx('ملاحظات الطلب', 'Order notes') }}</strong><div>{{ review.notes }}</div></div>
+        </div>
+
         <!-- ── الإجمالي: الرقم الذي يُقرأ للعميل، في لوحةٍ خاصّةٍ به ─────────── -->
         <section class="rv-sum">
           <div class="rv-sum-row">
@@ -269,10 +274,6 @@ function itemMods(i: any): { name: string; price: number }[] {
           </div>
         </section>
 
-        <div v-if="review.notes" class="rv-notes">
-          <span class="rv-notes-ico" v-html="icon('alert-triangle', { size: 14 })"></span>
-          <div><strong>{{ tx('ملاحظات الطلب', 'Order notes') }}</strong><div>{{ review.notes }}</div></div>
-        </div>
       </div>
 
       <div class="modal-footer rv-footer">
@@ -291,8 +292,18 @@ function itemMods(i: any): { name: string; price: number }[] {
    كانت ثلاثَ بطاقاتٍ رماديّة متطابقة فوق بعضها: كلُّ شيءٍ بالوزن نفسه، فلا يقول
    الشكلُ ما المهمّ. صارت تسلسلاً: **مَن** (العميل) ثم **إلى أين** (الوجهة) ثم
    **ماذا** (الأصناف) ثم **بكم** (الإجمالي) — ولكلِّ طبقةٍ لغتُها البصريّة. */
-.rv-modal { max-width: 620px; }
-.rv-header { align-items: flex-start; gap: 12px; }
+/* التمرير للأصناف وحدها: الجسم كان يمرّر كاملاً، فمع ١٢ صنفاً يختفي الإجمالي
+   والأزرار تحت الشاشة — والوكيل يبحث عن «تأكيد» بالتمرير في كل أوردر. الترويسة
+   والعميل والوجهة والإجمالي والأزرار تبقى ثابتةً في العين. */
+.rv-modal {
+  max-width: 620px;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;   /* بدل تمرير البطاقة كلها (.modal-content) */
+}
+.rv-header, .rv-footer { flex: 0 0 auto; }
+.rv-header { align-items: flex-start; gap: 12px; padding: 14px 20px; }
 .rv-title-wrap { min-width: 0; }
 .rv-subtitle {
   margin: 3px 0 0;
@@ -300,14 +311,22 @@ function itemMods(i: any): { name: string; price: number }[] {
   font-weight: 600;
   color: var(--text-secondary, #64748b);
 }
-.rv-body { padding: 20px 24px 24px; }
+.rv-body {
+  padding: 16px 20px 18px;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;   /* احتياطٌ لشاشةٍ قصيرة جداً لا يكفيها الثابتُ نفسه */
+}
+.rv-body > * { flex: 0 0 auto; }
 
 /* ── العميل ── */
 .rv-cust {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 13px 14px;
+  padding: 11px 12px;
   border-radius: var(--radius-lg, 14px);
   background: var(--primary-lighter, #eff6ff);
   border: 1px solid rgba(26, 86, 219, 0.14);
@@ -323,12 +342,12 @@ function itemMods(i: any): { name: string; price: number }[] {
 }
 .rv-cust-main { flex: 1 1 auto; min-width: 0; }
 .rv-cust-name {
-  font-size: 15.5px; font-weight: 800; line-height: 1.35;
+  font-size: 15.5px; font-weight: 800; line-height: 1.3;
   color: var(--text-primary, #0f172a);
   overflow-wrap: anywhere;
 }
 .rv-cust-phone {
-  font-size: 12.5px; font-weight: 700;
+  font-size: 12.5px; font-weight: 700; line-height: 1.3;
   color: var(--text-secondary, #64748b);
   font-variant-numeric: tabular-nums;
 }
@@ -350,14 +369,14 @@ function itemMods(i: any): { name: string; price: number }[] {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 2px 0;
-  margin-top: 14px;
+  margin-top: 12px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: var(--radius-lg, 14px);
   overflow: hidden;
 }
 .rv-fact {
   display: flex; align-items: flex-start; gap: 10px;
-  padding: 11px 13px;
+  padding: 9px 11px;
   background: var(--white, #fff);
   box-shadow: 0 0 0 1px var(--border-light, #f3f4f6);
   min-width: 0;
@@ -365,16 +384,16 @@ function itemMods(i: any): { name: string; price: number }[] {
 .rv-fact-wide { grid-column: 1 / -1; }
 .rv-fico {
   flex: 0 0 auto;
-  width: 28px; height: 28px;
+  width: 26px; height: 26px;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
   background: var(--bg, #f0f2f5);
   color: var(--primary, #1a56db);
 }
 .rv-ftxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.rv-fl { font-size: 10.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.rv-fl { font-size: 10.5px; font-weight: 700; line-height: 1.3; color: var(--text-secondary, #64748b); }
 .rv-fv {
-  font-size: 13px; font-weight: 700; line-height: 1.5;
+  font-size: 13px; font-weight: 700; line-height: 1.35;
   color: var(--text-primary, #0f172a);
   overflow-wrap: anywhere;
 }
@@ -386,7 +405,7 @@ function itemMods(i: any): { name: string; price: number }[] {
 /* ── عنوان القسم ── */
 .rv-sec {
   display: flex; align-items: center; gap: 8px;
-  margin: 20px 0 8px;
+  margin: 14px 0 7px;
 }
 .rv-sec-t { font-size: 12px; font-weight: 800; color: var(--text-secondary, #64748b); }
 .rv-sec-n {
@@ -405,13 +424,19 @@ function itemMods(i: any): { name: string; price: number }[] {
 /* ── الأصناف: أسطر إيصال ── */
 .rv-list {
   list-style: none; margin: 0; padding: 0;
+  /* الارتفاع مثبَّت: تُظهر القائمة ما يسعها وتمرّر داخلها، فلا تدفع ما تحتها */
+  flex: 0 1 auto;
+  min-height: 132px;
+  max-height: 44vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: var(--radius-lg, 14px);
   overflow: hidden;
 }
 .rv-row {
   display: flex; align-items: flex-start; gap: 11px;
-  padding: 12px 13px;
+  padding: 10px 12px;
   background: var(--white, #fff);
 }
 .rv-row + .rv-row { border-top: 1px solid var(--border-light, #f3f4f6); }
@@ -429,7 +454,7 @@ function itemMods(i: any): { name: string; price: number }[] {
 .rv-qty small { font-size: 10px; font-weight: 700; opacity: 0.75; }
 .rv-row-main { flex: 1 1 auto; min-width: 0; }
 .rv-name {
-  font-size: 13.5px; font-weight: 700; line-height: 1.45;
+  font-size: 13.5px; font-weight: 700; line-height: 1.35;
   color: var(--text-primary, #0f172a);
 }
 .rv-size {
@@ -470,16 +495,23 @@ function itemMods(i: any): { name: string; price: number }[] {
 }
 
 /* ── الإجماليات ── */
+/* الإجمالي ملتصقٌ بأسفل الجسم: مهما طالت الأصناف يبقى الرقم في العين، والأزرار
+   في التذييل خارج المنطقة الممرَّرة أصلاً. */
 .rv-sum {
-  margin-top: 16px;
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  background: var(--white, #fff);
+  box-shadow: 0 -6px 14px -8px rgba(15, 23, 42, 0.25);
+  margin-top: 12px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: var(--radius-lg, 14px);
   overflow: hidden;
 }
 .rv-sum-row {
   display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
-  padding: 9px 14px;
-  font-size: 13px; font-weight: 600;
+  padding: 7px 13px;
+  font-size: 13px; font-weight: 600; line-height: 1.4;
   color: var(--text-secondary, #64748b);
   background: var(--white, #fff);
 }
@@ -498,7 +530,7 @@ function itemMods(i: any): { name: string; price: number }[] {
 /* الرقم الذي يُقرأ للعميل — لوحةٌ ملوّنة لا سطرٌ أثقل قليلاً */
 .rv-grand {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  padding: 13px 14px;
+  padding: 11px 13px;
   background: var(--primary, #1a56db);
   color: #fff;
 }
@@ -511,7 +543,7 @@ function itemMods(i: any): { name: string; price: number }[] {
 /* ── ملاحظات الطلب ── */
 .rv-notes {
   display: flex; align-items: flex-start; gap: 9px;
-  margin-top: 14px; padding: 11px 13px;
+  margin-top: 12px; padding: 9px 11px;
   border-radius: var(--radius, 10px);
   background: var(--warning-light, #fffbeb);
   border: 1px solid rgba(245, 158, 11, 0.45);
@@ -557,4 +589,5 @@ function itemMods(i: any): { name: string; price: number }[] {
 :global(body.dark-mode) .rv-notes strong,
 :global(body.dark-mode) .rv-notes-ico { color: #fbbf24; }
 :global(body.dark-mode) .rv-grand { background: var(--primary-darker, #2563eb); }
+:global(body.dark-mode) .rv-sum { background: var(--bg-card, #1e293b); }
 </style>

@@ -3608,7 +3608,7 @@ body.dark-mode .pm-summary {
 
 .order-detail-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   margin-bottom: 20px;
 }
@@ -6990,7 +6990,7 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
   gap: 16px;
   align-items: start;
 }
-.od-split.has-detail { grid-template-columns: minmax(0, 1fr) 380px; }
+.od-split.has-detail { grid-template-columns: minmax(0, 1fr) 420px; }
 .od-main { min-width: 0; }
 .od-detail {
   position: sticky;
@@ -7002,6 +7002,10 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
 }
 /* الجدول ينكمش فيمرّر أفقياً — لا يُقصّ ولا يُخرِج الصفحة عن عرضها */
 .od-main .orders-table-wrapper { overflow-x: auto; }
+/* داخل اللوحة الجانبية: حشوةٌ أقلّ، وحقولٌ في عمودين — التصميم الأصلي كان
+   يفترض عرض الصفحة كاملاً (ثلاثة أعمدة وجدولٌ بأربعة) فانكسر في ٤٢٠px. */
+.od-detail .order-detail-panel { padding: 16px; margin-top: 0; box-shadow: var(--shadow-sm); }
+.od-detail .order-detail-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
 /* الصفّ المفتوحة تفاصيله: يُعرَف بالنظر أيّ سطرٍ يقابل اللوحة */
 .orders-table tbody tr.row-open {
   background: var(--primary-lighter) !important;
@@ -7013,6 +7017,7 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
 @media (max-width: 1200px) {
   .od-split.has-detail { grid-template-columns: minmax(0, 1fr); }
   .od-split.has-detail .od-detail { order: -1; position: static; max-height: none; }
+  .od-detail .order-detail-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 /* ── شريط الصفحات ── */
@@ -7066,3 +7071,53 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
   color: var(--text-primary);
   font-variant-numeric: tabular-nums;
 }
+
+/* ================================================
+   In-table column filters (صفّ الفلترة داخل رأس الجدول)
+   ------------------------------------------------
+   الشريط المنفصل فوق الجدول كان يفلتر أربعة أعمدةٍ من اثني عشر، ولا يقول أيُّ خانةٍ
+   تخصّ أيَّ عمود. الفلتر الآن تحت رأس العمود مباشرةً: تكتب في عمود «السائق» فيُفلتَر
+   السائق — بلا تخمين، وبلا شريطٍ يأكل ارتفاع الشاشة.
+   ================================================ */
+.orders-table thead tr.uc-frow th {
+  padding: 7px 8px;
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.uc-fcell {
+  width: 100%;
+  min-width: 88px;
+  /* ارتفاعٌ صريح: حشوةُ input وselect تُحسَب مختلفةً فيخرج الصفّ متفاوتاً ببكسلين */
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+select.uc-fcell { min-width: 104px; cursor: pointer; }
+.uc-fcell::placeholder { color: var(--text-muted); font-weight: 500; }
+.uc-fcell:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
+}
+.uc-fclear {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: var(--transition);
+}
+.uc-fclear:hover { border-color: var(--danger); color: var(--danger); }

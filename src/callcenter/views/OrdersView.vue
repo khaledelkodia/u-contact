@@ -22,8 +22,10 @@ const pageSize = ref(25)
 const total = computed(() => allRows.value.length)
 const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
 // أي تغييرٍ في الفلاتر أو حجم الصفحة يرجع للأولى — وإلا بقي الوكيل على صفحةٍ فارغة
-watch([() => state.allFilterInvoice, () => state.allFilterPhone, () => state.allFilterStatus,
-       () => state.allFilterBranch, pageSize], () => { page.value = 1 })
+watch([() => state.allFilterDaily, () => state.allFilterInvoice, () => state.allFilterPhone,
+       () => state.allFilterEmployee, () => state.allFilterType, () => state.allFilterTag,
+       () => state.allFilterStatus, () => state.allFilterBranch, () => state.allFilterDriver,
+       pageSize], () => { page.value = 1 })
 // نقصان النتائج (وصول تحديثٍ لحظيّ مثلاً) يجب ألّا يترك المؤشّر خارج المدى
 watch(pageCount, (n) => { if (page.value > n) page.value = n })
 const orders = computed(() => allRows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
@@ -60,35 +62,6 @@ function typeCell(order: any): string {
         </div>
       </div>
 
-      <!-- Search & Filter Bar (Main version) -->
-      <div class="orders-search-filter-bar" style="display: flex; gap: 12px; align-items: center; background: var(--white); padding: 16px; border-radius: var(--radius-lg); margin-bottom: 20px; box-shadow: var(--shadow-sm); flex-wrap: wrap; border: 1px solid var(--border-light);">
-        <div style="flex: 1.5; min-width: 180px;">
-          <input type="text" id="all-search-invoice" :placeholder="tx('رقم الفاتورة...', 'Invoice no.…')" v-model="state.allFilterInvoice" style="padding: 10px 14px;">
-        </div>
-        <div style="flex: 1.5; min-width: 180px;">
-          <input type="text" id="all-search-phone" :placeholder="tx('رقم الموبايل...', 'Mobile no.…')" v-model="state.allFilterPhone" style="padding: 10px 14px;">
-        </div>
-        <div style="flex: 1; min-width: 160px;">
-          <select id="all-filter-status" v-model="state.allFilterStatus" style="padding: 10px 14px;">
-            <option value="">{{ tx('كل الحالات', 'All statuses') }}</option>
-            <option value="new">{{ tx('جديد', 'New') }}</option>
-            <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
-            <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
-            <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
-            <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
-            <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
-          </select>
-        </div>
-        <div style="flex: 1; min-width: 160px;">
-          <select id="all-filter-branch" v-model="state.allFilterBranch" style="padding: 10px 14px;">
-            <option value="">{{ tx('كل الفروع', 'All branches') }}</option>
-            <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
-          </select>
-        </div>
-        <div>
-          <button class="btn btn-secondary" @click="clearAllOrderFilters()" style="padding: 10px 20px; white-space: nowrap;">{{ tx('إعادة تعيين', 'Reset') }}</button>
-        </div>
-      </div>
 
       <!-- الجدول ولوحة التفاصيل جنباً إلى جنب — كانت اللوحة تحت الجدول فلا تُرى إلا بتمرير -->
       <div class="od-split" :class="{ 'has-detail': state.openOrderId }">
@@ -109,6 +82,43 @@ function typeCell(order: any): string {
                   <th>{{ tx('الحالة', 'Status') }}</th>
                   <th>{{ tx('السائق', 'Driver') }}</th>
                   <th>{{ tx('إجراءات', 'Actions') }}</th>
+                </tr>
+                <!-- صفّ الفلترة: خانةٌ تحت رأس العمود الذي تخصّه — لا شريطٌ منفصل
+                     يفلتر أربعة أعمدةٍ من اثني عشر ولا يقول أيَّ خانةٍ تخصّ أيَّ عمود. -->
+                <tr class="uc-frow">
+                  <th><input class="uc-fcell" v-model="state.allFilterDaily" :placeholder="tx('رقم', 'No.')"></th>
+                  <th><input class="uc-fcell" v-model="state.allFilterInvoice" :placeholder="tx('فاتورة', 'Invoice')"></th>
+                  <th><input class="uc-fcell" v-model="state.allFilterPhone" :placeholder="tx('اسم أو رقم', 'Name or no.')"></th>
+                  <th>
+                    <select class="uc-fcell" v-model="state.allFilterBranch">
+                      <option value="">{{ tx('الكل', 'All') }}</option>
+                      <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+                    </select>
+                  </th>
+                  <th><input class="uc-fcell" v-model="state.allFilterEmployee" :placeholder="tx('الموظف', 'Agent')"></th>
+                  <th>
+                    <select class="uc-fcell" v-model="state.allFilterType">
+                      <option value="">{{ tx('الكل', 'All') }}</option>
+                      <option value="delivery">{{ tx('توصيل', 'Delivery') }}</option>
+                      <option value="pickup">{{ tx('استلام', 'Pickup') }}</option>
+                    </select>
+                  </th>
+                  <th><input class="uc-fcell" v-model="state.allFilterTag" :placeholder="tx('رقم خارجي', 'External')"></th>
+                  <th></th>
+                  <th v-if="showTotals"></th>
+                  <th>
+                    <select class="uc-fcell" v-model="state.allFilterStatus">
+                      <option value="">{{ tx('الكل', 'All') }}</option>
+                      <option value="new">{{ tx('جديد', 'New') }}</option>
+                      <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
+                      <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
+                      <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
+                      <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
+                      <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
+                    </select>
+                  </th>
+                  <th><input class="uc-fcell" v-model="state.allFilterDriver" :placeholder="tx('السائق', 'Driver')"></th>
+                  <th><button type="button" class="uc-fclear" @click="clearAllOrderFilters()">{{ tx('مسح الفلاتر', 'Clear') }}</button></th>
                 </tr>
               </thead>
               <tbody id="all-orders-table-body">

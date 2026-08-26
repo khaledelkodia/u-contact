@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { state, setOrderType, selectOrderType, companyOrderTypes, isDeliveryCode, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
-import { t, tx, nameOf } from '../lang'
+import { t, tx, nameOf, lang } from '../lang'
 import { icon } from '../icons'
 
 // ── كومبو المنطقة (searchable-select) ──
@@ -10,6 +10,14 @@ const comboOpen = ref(false)
 const comboSearch = ref('')
 // أنواع الطلب من الشركة (فارغة = ارتدادٌ لبطاقتَي توصيل/استلام)
 const orderTypes = computed<any[]>(() => companyOrderTypes())
+
+// اسمٌ إنجليزيٌّ مضمون للأنواع الثلاثة: شركةٌ لم تملأ الاسم الإنجليزيّ كانت تعرض
+// «طلبات» في واجهةٍ إنجليزيّة — والاسم من الشركة يبقى أولى إن وُجد.
+const EN_BY_CODE: Record<number, string> = { 4: 'Platform orders', 5: 'Delivery', 6: 'Pickup' }
+function typeName(ot: any): string {
+  if (lang.value !== 'en') return nameOf(ot)
+  return ot.nameEn || EN_BY_CODE[Number(ot.code)] || ot.nameAr || ''
+}
 const comboRoot = ref<HTMLElement | null>(null)
 
 interface AreaOpt { name: string; branchId: number; branchName: string }
@@ -92,8 +100,8 @@ function addressLine(addr: any): string {
       <button v-for="ot in orderTypes" :key="ot.id" type="button" class="ot-chip"
         :class="{ on: state.selectedOrderType && state.selectedOrderType.id === ot.id }"
         @click="selectOrderType(ot)">
-        <span class="ot-chip-name">{{ nameOf(ot) }}</span>
-        <span class="ot-chip-kind">{{ isDeliveryCode(ot.code) ? tx('يحتاج عنواناً', 'Needs address') : tx('بلا عنوان', 'No address') }}</span>
+        <span class="ot-chip-name">{{ typeName(ot) }}</span>
+        <span class="ot-chip-kind">{{ isDeliveryCode(ot.code) ? tx('يحتاج عنوان التوصيل', 'Needs a delivery address') : tx('استلام من الفرع', 'Picked up at the branch') }}</span>
       </button>
     </div>
 
@@ -277,10 +285,14 @@ function addressLine(addr: any): string {
 
 <style scoped>
 /* شريط أنواع الطلب — بديلُ البطاقتين حين تُعرِّف الشركة أنواعها */
-.ot-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+/* ثلاث حبّاتٍ متساوية العرض تملأ الصفّ: بعرضٍ حسب المحتوى كان الصفّ مسنَّناً
+   («صالة» ضيّقة و«تيك أواي» عريضة) والفراغ في آخره بلا معنى. */
+.ot-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
 .ot-chip {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 10px 16px; min-width: 130px;
+  flex: 1 1 150px; max-width: 260px; min-width: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: start;   /* الزرّ يوسّط نصَّه افتراضياً — والسطران يُقرآن من الحافّة */
+  padding: 10px 14px;
   border: 1.5px solid var(--border, #e5e7eb); border-radius: 12px;
   background: var(--white, #fff); color: var(--text-primary, #0f172a);
   font-family: inherit; cursor: pointer;
@@ -292,8 +304,16 @@ function addressLine(addr: any): string {
   background: var(--primary-lighter, #eff6ff);
   color: var(--primary-dark, #1242b0);
 }
-.ot-chip-name { font-size: 14px; font-weight: 800; }
-.ot-chip-kind { font-size: 11px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+/* سطرٌ عربيٌّ بلا line-height صريح يرث 1.6 من body فينفخ الحبّة سطرين ونصفاً */
+.ot-chip-name { font-size: 14px; font-weight: 800; line-height: 1.35; }
+.ot-chip-kind { font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--text-muted, #94a3b8); }
 .ot-chip.on .ot-chip-kind { color: inherit; opacity: .8; }
 :global(body.dark-mode) .ot-chip { background: var(--bg-card, #1e293b); }
+/* في الوضع الليلي --primary-lighter تساوي لون البطاقة نفسه، فكانت الحبّة المختارة
+   لا تُميَّز عن أخواتها إلا بالحدّ — لونٌ صريحٌ لها. */
+:global(body.dark-mode) .ot-chip.on {
+  background: rgba(96, 165, 250, 0.16);
+  border-color: #60a5fa;
+  color: #bfdbfe;
+}
 </style>
