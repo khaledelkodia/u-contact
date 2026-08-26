@@ -6976,3 +6976,93 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
 .inline-ico svg { display: block; }
 .pay-ico { display: inline-flex; align-items: center; }
 .pay-ico svg { display: block; }
+
+/* ================================================
+   Orders master–detail + paging (شاشات الأوردرات)
+   ------------------------------------------------
+   لوحة التفاصيل كانت **تحت** الجدول: الوكيل يضغط «تفاصيل» فلا يحدث شيءٌ أمام عينه،
+   ثم ينزل بالتمرير ليجدها — ومع مئة أوردرٍ يصير النزول رحلة. صارت عموداً **بجانب**
+   الجدول يلتصق بأعلى الشاشة، والجدول ينكمش ويمرّر أفقياً بدل أن يُدفَع لأسفل.
+   ================================================ */
+.od-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.od-split.has-detail { grid-template-columns: minmax(0, 1fr) 380px; }
+.od-main { min-width: 0; }
+.od-detail {
+  position: sticky;
+  top: 16px;
+  align-self: start;
+  max-height: calc(100vh - 120px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+/* الجدول ينكمش فيمرّر أفقياً — لا يُقصّ ولا يُخرِج الصفحة عن عرضها */
+.od-main .orders-table-wrapper { overflow-x: auto; }
+/* الصفّ المفتوحة تفاصيله: يُعرَف بالنظر أيّ سطرٍ يقابل اللوحة */
+.orders-table tbody tr.row-open {
+  background: var(--primary-lighter) !important;
+  box-shadow: inset 3px 0 0 0 var(--primary);
+}
+[dir="rtl"] .orders-table tbody tr.row-open { box-shadow: inset -3px 0 0 0 var(--primary); }
+
+/* تحت 1200px: عمودٌ واحد واللوحة **فوق** الجدول — الغرض ألّا يُضطرّ لتمرير */
+@media (max-width: 1200px) {
+  .od-split.has-detail { grid-template-columns: minmax(0, 1fr); }
+  .od-split.has-detail .od-detail { order: -1; position: static; max-height: none; }
+}
+
+/* ── شريط الصفحات ── */
+.uc-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--white);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+.uc-pager b { color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.uc-pager-ctl { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.uc-pager-size { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+.uc-pager-size select {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+.uc-pager-nav { display: inline-flex; align-items: center; gap: 8px; }
+.uc-pager-btn {
+  padding: 7px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--white);
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.uc-pager-btn:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); }
+.uc-pager-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.uc-pager-pos {
+  min-width: 62px;
+  text-align: center;
+  font-weight: 800;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}

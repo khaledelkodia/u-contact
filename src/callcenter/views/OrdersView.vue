@@ -1,17 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { state, allOrdersFiltered, clearAllOrderFilters, viewOrderDetail, canViewOrderTotals } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
 import OrderDetail from '../components/OrderDetail.vue'
+import Pager from '../components/Pager.vue'
 
-const orders = computed<any[]>(() => allOrdersFiltered())
+const allRows = computed<any[]>(() => allOrdersFiltered())
 // القيمة النهائية عمودٌ بصلاحية مستقلّة: من يتابع الحالات ليس بالضرورة من يرى الأرقام
 const showTotals = computed(() => canViewOrderTotals())
 // عدد الأعمدة يتغيّر بالصلاحية — صفّ «لا توجد طلبات» يمتدّ عليها كلّها
 const colCount = computed(() => (showTotals.value ? 12 : 11))
+
+// ── الصفحات ─────────────────────────────────────────────────────────────────
+// كانت كل صفوف اليوم تُرسَم دفعةً واحدة: مع كثرة الأوردرات يطول الجدول بلا حدّ
+// ويصير البحث تمريراً. الصفحة تحدّ ما يُرسم وتعطي موضعاً معلوماً.
+const page = ref(1)
+const pageSize = ref(25)
+const total = computed(() => allRows.value.length)
+const pageCount = computed(() => Math.max(1, Math.ceil(total.value / pageSize.value)))
+// أي تغييرٍ في الفلاتر أو حجم الصفحة يرجع للأولى — وإلا بقي الوكيل على صفحةٍ فارغة
+watch([() => state.allFilterInvoice, () => state.allFilterPhone, () => state.allFilterStatus,
+       () => state.allFilterBranch, pageSize], () => { page.value = 1 })
+// نقصان النتائج (وصول تحديثٍ لحظيّ مثلاً) يجب ألّا يترك المؤشّر خارج المدى
+watch(pageCount, (n) => { if (page.value > n) page.value = n })
+const orders = computed(() => allRows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 
 // نقلاً عن getStatusBadge
 function statusBadge(status: string): string {
@@ -74,55 +89,65 @@ function typeCell(order: any): string {
           <button class="btn btn-secondary" @click="clearAllOrderFilters()" style="padding: 10px 20px; white-space: nowrap;">{{ tx('إعادة تعيين', 'Reset') }}</button>
         </div>
       </div>
-      <div class="orders-table-wrapper">
-        <table class="orders-table">
-          <thead>
-            <tr>
-              <th>{{ tx('الرقم اليومي', 'Daily no.') }}</th>
-              <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
-              <th>{{ tx('العميل', 'Customer') }}</th>
-              <th>{{ tx('الفرع', 'Branch') }}</th>
-              <th>{{ tx('الموظف', 'Agent') }}</th>
-              <th>{{ tx('النوع', 'Type') }}</th>
-              <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
-              <th>{{ tx('المجموع', 'Subtotal') }}</th>
-              <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
-              <th>{{ tx('الحالة', 'Status') }}</th>
-              <th>{{ tx('السائق', 'Driver') }}</th>
-              <th>{{ tx('إجراءات', 'Actions') }}</th>
-            </tr>
-          </thead>
-          <tbody id="all-orders-table-body">
-            <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
-            <tr v-for="order in orders" :key="order.id" :class="{ 'order-row-cancelled': order.status === 'cancelled' }" @click="viewOrderDetail(order.id, 'all')">
-              <td style="font-weight:700;">{{ order.dailyNo }}</td>
-              <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
-              <td>
-                <div class="order-customer-cell">
-                  <div class="order-customer-phone">{{ order.customerPhone }}</div>
-                  <div class="order-customer-name">{{ order.customerName }}</div>
-                </div>
-              </td>
-              <td>{{ order.branchName }}</td>
-              <td>{{ order.employeeName }}</td>
-              <td><span v-html="typeCell(order)"></span></td>
-              <td>
-                <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
-                <span v-else style="color:var(--text-muted);">—</span>
-              </td>
-              <td>{{ formatCurrency(order.subtotal) }}</td>
-              <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
-              <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
-              <td><span v-html="driverCell(order)"></span></td>
-              <td>
-                <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'all')">{{ tx('تفاصيل', 'Details') }}</button>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div id="all-order-detail-container">
-        <OrderDetail v-if="state.openOrderId" :order-id="state.openOrderId" />
+
+      <!-- الجدول ولوحة التفاصيل جنباً إلى جنب — كانت اللوحة تحت الجدول فلا تُرى إلا بتمرير -->
+      <div class="od-split" :class="{ 'has-detail': state.openOrderId }">
+        <div class="od-main">
+          <div class="orders-table-wrapper">
+            <table class="orders-table">
+              <thead>
+                <tr>
+                  <th>{{ tx('الرقم اليومي', 'Daily no.') }}</th>
+                  <th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th>
+                  <th>{{ tx('العميل', 'Customer') }}</th>
+                  <th>{{ tx('الفرع', 'Branch') }}</th>
+                  <th>{{ tx('الموظف', 'Agent') }}</th>
+                  <th>{{ tx('النوع', 'Type') }}</th>
+                  <th>{{ tx('رقم الطلب الخارجي', 'External no.') }}</th>
+                  <th>{{ tx('المجموع', 'Subtotal') }}</th>
+                  <th v-if="showTotals">{{ tx('القيمة النهائية', 'Final value') }}</th>
+                  <th>{{ tx('الحالة', 'Status') }}</th>
+                  <th>{{ tx('السائق', 'Driver') }}</th>
+                  <th>{{ tx('إجراءات', 'Actions') }}</th>
+                </tr>
+              </thead>
+              <tbody id="all-orders-table-body">
+                <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات في يوم العمل الحالي', 'No orders in the current business day') }}</td></tr>
+                <tr v-for="order in orders" :key="order.id"
+                    :class="{ 'order-row-cancelled': order.status === 'cancelled', 'row-open': state.openOrderId === order.id }"
+                    @click="viewOrderDetail(order.id, 'all')">
+                  <td style="font-weight:700;">{{ order.dailyNo }}</td>
+                  <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
+                  <td>
+                    <div class="order-customer-cell">
+                      <div class="order-customer-phone">{{ order.customerPhone }}</div>
+                      <div class="order-customer-name">{{ order.customerName }}</div>
+                    </div>
+                  </td>
+                  <td>{{ order.branchName }}</td>
+                  <td>{{ order.employeeName }}</td>
+                  <td><span v-html="typeCell(order)"></span></td>
+                  <td>
+                    <span v-if="order.orderTag" class="order-tag" dir="ltr">{{ order.orderTag }}</span>
+                    <span v-else style="color:var(--text-muted);">—</span>
+                  </td>
+                  <td>{{ formatCurrency(order.subtotal) }}</td>
+                  <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
+                  <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
+                  <td><span v-html="driverCell(order)"></span></td>
+                  <td>
+                    <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'all')">{{ tx('تفاصيل', 'Details') }}</button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <Pager v-model:page="page" v-model:page-size="pageSize" :total="total" />
+        </div>
+
+        <div v-if="state.openOrderId" id="all-order-detail-container" class="od-detail">
+          <OrderDetail :order-id="state.openOrderId" />
+        </div>
       </div>
     </div>
   </section>

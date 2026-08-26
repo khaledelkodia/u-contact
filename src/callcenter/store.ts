@@ -102,6 +102,15 @@ export const state = reactive<any>({
   filterPhone: '',
   filterStatus: '',
 
+  // فلاتر شاشة «الطلبات المجدولة» — الشاشة كانت بلا فلترٍ إطلاقاً: قائمةٌ تطول
+  // بلا حدٍّ ولا سبيل للوصول إلى حجزٍ بعينه إلا بالعين.
+  schedFilterInvoice: '',
+  schedFilterPhone: '',
+  schedFilterBranch: '',
+  schedFilterType: '',
+  schedFilterFrom: '',
+  schedFilterTo: '',
+
   // فلاتر شاشة «جميع طلبات التوصيل» (view-orders)
   allFilterInvoice: '',
   allFilterPhone: '',
@@ -2382,11 +2391,40 @@ export function resetOrdersBrowsing() {
   state.openOrderId = null
   clearTabOrderFilters()
   clearAllOrderFilters()
+  clearScheduledFilters()
 }
 
 // ==========================================
 // SCHEDULED ORDERS VIEW (نقلاً عن renderScheduledOrders)
 // ==========================================
+/** تاريخ الحجز بساعة **الشركة** — نفس ما يعرضه الجدول، فلا يزيح الفلتر يوماً. */
+function schedDay(v: any): string {
+  const d = new Date(v)
+  return isNaN(d.getTime()) ? '' : toCompanyWall(d).slice(0, 10)
+}
+
+/** الحجوزات بعد الفلاتر — رقم فاتورة · موبايل · فرع · نوع · مدى تاريخ. */
+export function scheduledOrdersFiltered(): any[] {
+  let list = scheduledOrdersList()
+  const inv = (state.schedFilterInvoice || '').trim().toLowerCase()
+  if (inv) list = list.filter((o: any) => String(o.invoiceNo || '').toLowerCase().includes(inv))
+  const ph = (state.schedFilterPhone || '').trim()
+  if (ph) list = list.filter((o: any) => String(o.customerPhone || '').includes(ph))
+  if (state.schedFilterBranch) list = list.filter((o: any) => o.branchId === parseInt(state.schedFilterBranch))
+  if (state.schedFilterType) list = list.filter((o: any) => o.type === state.schedFilterType)
+  if (state.schedFilterFrom) list = list.filter((o: any) => schedDay(o.scheduledDate) >= state.schedFilterFrom)
+  if (state.schedFilterTo) list = list.filter((o: any) => schedDay(o.scheduledDate) <= state.schedFilterTo)
+  return list
+}
+
+export function clearScheduledFilters() {
+  state.schedFilterInvoice = ''
+  state.schedFilterPhone = ''
+  state.schedFilterBranch = ''
+  state.schedFilterType = ''
+  state.schedFilterFrom = ''
+  state.schedFilterTo = ''
+}
 export function scheduledOrdersList(): any[] {
   return state.orders
     .filter((o: any) => o.scheduledDate)

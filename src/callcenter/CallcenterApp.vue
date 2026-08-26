@@ -475,61 +475,73 @@ function toastIcon(type: string) {
 .cc-switch select option { color: #1e293b; }  /* عناصر القائمة على خلفية بيضاء */
 
 /* ── مجموعة القائمة الجانبية ─────────────────────────────────────────────────
-   البنود الفرعية كانت تطفو تحت رأسها بلا رابطٍ بصريّ: ثلاثة صفوفٍ شكلُها شكلُ
-   بقيّة القائمة تماماً، فلا يُعرف أين تبدأ المجموعة وأين تنتهي ولا أنها تابعةٌ
-   للكول‑سنتر أصلاً. المفتوحة الآن **كتلةٌ واحدة**: أرضيّةٌ أفتح بحدٍّ شعريّ،
-   ورأسٌ بوزنه، وقضيبٌ رأسيّ يجمع البنود ويضيء عند بندك الحاليّ. */
+   البنود كانت تطفو تحت رأسها بلا رابطٍ بصريّ، وأرضيّةٌ بيضاء بشفافيّة ٧٪ لم تكن
+   تُرى أصلاً على تدرّج السايدبار الأزرق. المجموعة المفتوحة الآن **لوحةٌ غائرة**:
+   أرضيّةٌ أغمق من التدرّج بظلٍّ داخليّ، ورأسٌ يفصله خطّ عن بنوده، والبند الحاليّ
+   **حبّةٌ بيضاء ممتلئة بنصٍّ أزرق** — لغةُ زرّ «أوردر جديد» نفسها، لا يخطئها النظر. */
 .nav-group.open {
-  margin: 6px 8px;
-  padding: 4px;
-  border-radius: var(--radius, 12px);
-  background: rgba(255, 255, 255, 0.07);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.09);
+  margin: 8px;
+  padding: 6px;
+  border-radius: var(--radius-lg, 14px);
+  background: rgba(2, 15, 51, 0.26);
+  box-shadow: inset 0 2px 6px rgba(2, 15, 51, 0.22), 0 0 0 1px rgba(255, 255, 255, 0.09);
 }
-/* داخل الكتلة الهوامش من الكتلة نفسها — لا هامشٌ فوق هامش */
-.nav-group.open .nav-item { margin-inline: 0 !important; }
-.nav-group.open .nav-parent { opacity: 1; font-weight: 700; }
-/* رأس المجموعة لا يحمل شريط «أنت هنا»: الكتلة كلها هي الإشارة، والشريط للبند */
+/* الهوامش من اللوحة نفسها — لا هامشٌ فوق هامش */
+.nav-group.open > .nav-item { margin: 0 !important; }
+/* ارتفاعُ صفٍّ واحد للجميع: الخطّ العربيّ بلا line-height صريح يعطي صندوقاً هائلاً
+   (٣٨px لنصٍّ ١٤px). و«لا التفاف» لأن السايدبار ٢٠٠px ثابتة: اسمٌ أطول ينكسر سطرين
+   ويرفع الصفّ — يُقصَّ بنقاطٍ بدل ذلك. */
+.nav-group.open .nav-item span {
+  line-height: 1.45;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* رأس المجموعة: عنوانٌ لا بندَ تنقّل — بوزنه الكامل ووضوحه الكامل */
+.nav-group.open .nav-parent {
+  opacity: 1;
+  font-weight: 800;
+  padding-block: 10px;
+  padding-inline: 12px;   /* اللوحة أكلت من العرض — ٢٠px كانت تكسر «الكول سنتر» سطرين */
+  border-radius: var(--radius-sm, 8px);
+  background: transparent;
+}
+.nav-group.open .nav-parent:hover { background: rgba(255, 255, 255, 0.10); }
+/* رأسٌ لا يحمل شريط «أنت هنا»: اللوحة كلها هي الإشارة، والحبّة تقول أين أنت منها */
 .nav-group.open .nav-parent.active::before { display: none; }
-.nav-children { margin-top: 2px; }
+.nav-children {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
 
-/* عناصر فرعية تحت الكول‑سنتر — مسافة بادئة وحجم أصغر */
+/* عناصر فرعية: أضيق من الرأس ومزاحةٌ عنه — تبعيّةٌ تُرى بلا خطوطٍ إضافيّة */
 .nav-sub {
-  position: relative;
-  padding-inline-start: 42px !important;
   margin-block: 0 !important;
+  margin-inline: 12px 0 !important;
+  padding: 10px 12px !important;
+  border-radius: var(--radius-sm, 8px);
   font-size: 13px;
-  opacity: 0.78;
+  opacity: 0.82;
 }
 .nav-sub span { font-size: 13px; }
-.nav-sub:hover { opacity: 1; }
-/* القضيب: قِطَعٌ متلاصقة (هوامش البنود صفر) فتبدو خطاً واحداً متّصلاً.
+.nav-sub:hover { opacity: 1; background: rgba(255, 255, 255, 0.14); }
+/* «أنت هنا» = حبّةٌ بيضاء ممتلئة. والشريط العامّ (-8px) يُخفى — كان يقف خارج اللوحة.
    المُحدِّد يبدأ بـ.nav-children عمداً: ورقة الشِل تُحقَن وقت التركيب — أي **بعد**
-   أنماط المكوّن — فتغلب عند تساوي الأولويّة، وكان شريط .nav-item.active::before
-   يسحب قضيب البند الحاليّ إلى -8px خارج الكتلة. */
-.nav-children .nav-sub::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  height: auto;
-  transform: none;
-  inset-inline-start: 18px;
-  width: 2px;
-  border-radius: 0;
-  background: rgba(255, 255, 255, 0.22);
+   أنماط المكوّن — فتغلب عند تساوي الأولويّة. */
+.nav-children .nav-sub.active {
+  opacity: 1;
+  /* لونان صريحان لا رموز: --white في الوضع الليلي تصير #1e293b،
+     فكانت الحبّة تذوب في السايدبار بدل أن تُرى. */
+  background: #ffffff;
+  color: #12409e;
+  font-weight: 800;
+  box-shadow: 0 3px 10px rgba(2, 15, 51, 0.3);
 }
-.nav-children > .nav-sub:first-child::before { border-start-start-radius: 2px; border-start-end-radius: 2px; }
-.nav-children > .nav-sub:last-child::before { border-end-start-radius: 2px; border-end-end-radius: 2px; }
-/* البند الحاليّ: قضيبه يضيء ويثخن — «أنت هنا» على الخيط نفسه لا خارج الكتلة */
-.nav-sub.active { opacity: 1; }
-.nav-children .nav-sub.active::before {
-  inset-inline-start: 18px;   /* لا -8px الموروثة من شريط «أنت هنا» العامّ */
-  top: 0; bottom: 0; height: auto; transform: none;
-  width: 3px;
-  background: var(--white, #fff);
-}
-
+.nav-children .nav-sub.active::before { display: none; }
 /* سهم الدروب‑داون */
 .nav-caret { margin-inline-start: auto; flex-shrink: 0; opacity: 0.75; transition: transform 0.2s ease; }
 .nav-caret.open { transform: rotate(180deg); }

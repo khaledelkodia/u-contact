@@ -31,6 +31,8 @@ watch(notedItem, (ci) => {
 
 // ── المراجعة ──
 const review = computed<any>(() => (state.reviewModalOpen ? reviewSummary() : null))
+// الحرف الأوّل لصورة العميل الرمزيّة — اسمٌ فارغ يعطي شرطةً لا مربّعاً فارغاً
+const initialOf = (n: string) => (n || '').trim().charAt(0) || '—'
 
 /**
  * إضافات السطر بأسمائها **وأسعارها**.
@@ -143,245 +145,416 @@ function itemMods(i: any): { name: string; price: number }[] {
 
   <!-- ========== مراجعة الأوردر ========== -->
   <div v-if="state.reviewModalOpen && review" class="modal-overlay" @click.self="closeReviewModal()">
-    <div class="modal-content" style="max-width:640px;" @click.stop>
-      <div class="modal-header">
-        <h3 class="modal-title">{{ tx('مراجعة الطلب قبل التأكيد', 'Review the order before confirming') }}</h3>
+    <div class="modal-content rv-modal" @click.stop>
+      <div class="modal-header rv-header">
+        <div class="rv-title-wrap">
+          <h3 class="modal-title">{{ tx('مراجعة الطلب قبل التأكيد', 'Review before confirming') }}</h3>
+          <p class="rv-subtitle">{{ tx('بعد التأكيد ينزل الطلب للفرع مباشرةً', 'Once confirmed the order goes straight to the branch') }}</p>
+        </div>
         <button class="modal-close" @click="closeReviewModal()">×</button>
       </div>
-      <div class="modal-body" style="max-height:62vh; overflow-y:auto;">
-        <!-- ── العميل والوجهة ──────────────────────────────────────────────────
-             خانتان في الصفّ لا ثلاث: بثلاثٍ كان يبقى ثقبٌ في آخر صفٍّ كلما لم يكن
-             عدد الحقول من مضاعفاتها — «الدفع» وحده وسط صفٍّ نصفه فراغ. والوجهة
-             (منطقة · عنوان · موعد حجز) صفوفٌ كاملة تحت خطٍّ فاصل: هويّةٌ فوق ووجهةٌ
-             تحت، فتُقرأ الشاشة بالنظرة لا بالتفتيش. -->
-        <div class="rv-head">
-          <div class="rv-grid">
-            <div class="rv-cell">
-              <span class="rv-l">{{ tx('العميل', 'Customer') }}</span>
-              <span class="rv-v">{{ review.customerName }}</span>
-            </div>
-            <div class="rv-cell">
-              <span class="rv-l">{{ tx('رقم الهاتف', 'Phone') }}</span>
-              <span class="rv-v" dir="ltr">{{ review.customerPhone }}</span>
-            </div>
-            <div class="rv-cell">
-              <span class="rv-l">{{ tx('نوع الطلب', 'Order type') }}</span>
-              <span class="rv-v">
-                {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
-                <span v-if="review.orderTypeName" class="rv-sub">· {{ review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</span>
-              </span>
-            </div>
-            <div class="rv-cell">
-              <span class="rv-l">{{ tx('الفرع', 'Branch') }}</span>
-              <span class="rv-v">{{ review.branchName }}</span>
-            </div>
-            <div class="rv-cell">
-              <span class="rv-l">{{ tx('الدفع', 'Payment') }}</span>
-              <span class="rv-v">{{ review.payment }}</span>
-            </div>
-            <div v-if="review.orderTag" class="rv-cell">
-              <span class="rv-l">{{ tx('رقم المنصّة', 'Platform no.') }}</span>
-              <span class="rv-v" dir="ltr">{{ review.orderTag }}</span>
+
+      <div class="modal-body rv-body">
+        <!-- ── العميل: اسمٌ يُقرأ من بعيد، لا خانةٌ في شبكة ──────────────────── -->
+        <section class="rv-cust">
+          <span class="rv-avatar">{{ initialOf(review.customerName) }}</span>
+          <div class="rv-cust-main">
+            <div class="rv-cust-name">{{ review.customerName }}</div>
+            <div class="rv-cust-phone" dir="ltr">{{ review.customerPhone }}</div>
+          </div>
+          <span class="rv-type">
+            <span class="rv-type-ico" v-html="icon(review.orderType === 'delivery' ? 'bike' : 'store', { size: 13 })"></span>
+            {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
+          </span>
+        </section>
+
+        <!-- ── الوجهة والدفع: أيقونةٌ وسطران، لا شبكةُ تسمياتٍ وقيم ─────────── -->
+        <section class="rv-facts">
+          <div v-if="review.areaName" class="rv-fact rv-fact-wide">
+            <span class="rv-fico" v-html="icon('layers', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('المنطقة', 'Area') }}</span>
+              <span class="rv-fv">{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></span>
             </div>
           </div>
-
-          <div v-if="review.areaName || review.orderType === 'delivery' || review.isReservation" class="rv-rows">
-            <div v-if="review.areaName" class="rv-cell">
-              <span class="rv-l">{{ tx('المنطقة', 'Area') }}</span>
-              <span class="rv-v">{{ review.areaName }}<template v-if="review.sectionName"> — {{ review.sectionName }}</template></span>
+          <div v-if="review.orderType === 'delivery'" class="rv-fact rv-fact-wide">
+            <span class="rv-fico" v-html="icon('map-pin', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('العنوان', 'Address') }}</span>
+              <span class="rv-fv">{{ review.address }}</span>
             </div>
-            <div v-if="review.orderType === 'delivery'" class="rv-cell">
-              <span class="rv-l">{{ tx('العنوان', 'Address') }}</span>
-              <span class="rv-v">{{ review.address }}</span>
+          </div>
+          <div class="rv-fact">
+            <span class="rv-fico" v-html="icon('store', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('الفرع', 'Branch') }}</span>
+              <span class="rv-fv">{{ review.branchName }}</span>
             </div>
-            <!-- الحجز: موعدٌ يُقرأ لا سلسلة ISO — كان يُطبع «2026-08-23T13:00» -->
-            <div v-if="review.isReservation" class="rv-cell rv-accent">
-              <span class="rv-l">{{ tx('حجز — موعد الاستلام', 'Reservation — pickup time') }}</span>
-              <span class="rv-v">
+          </div>
+          <div class="rv-fact">
+            <span class="rv-fico" v-html="icon('wallet', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('الدفع', 'Payment') }}</span>
+              <span class="rv-fv">{{ review.payment }}</span>
+            </div>
+          </div>
+          <div v-if="review.orderTag" class="rv-fact">
+            <span class="rv-fico" v-html="icon('tag', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('رقم المنصّة', 'Platform no.') }}</span>
+              <span class="rv-fv" dir="ltr">{{ review.orderTag }}</span>
+            </div>
+          </div>
+          <!-- الحجز: موعدٌ يُقرأ لا سلسلة ISO — كان يُطبع «2026-08-23T13:00» -->
+          <div v-if="review.isReservation" class="rv-fact rv-fact-wide rv-fact-accent">
+            <span class="rv-fico" v-html="icon('clock', { size: 15 })"></span>
+            <div class="rv-ftxt">
+              <span class="rv-fl">{{ tx('حجز — موعد الاستلام', 'Reservation — pickup time') }}</span>
+              <span class="rv-fv">
                 {{ formatDateTimeLocal(review.reservationTime) }}
-                <template v-if="review.prepLeadMinutes">
-                  <span class="rv-sub">· {{ tx('يبدأ التحضير قبله بـ', 'starts prep') }} {{ review.prepLeadMinutes }} {{ tx('دقيقة', 'min before') }}</span>
-                </template>
+                <span v-if="review.prepLeadMinutes" class="rv-fsub">· {{ tx('يبدأ التحضير قبله بـ', 'starts prep') }} {{ review.prepLeadMinutes }} {{ tx('دقيقة', 'min before') }}</span>
               </span>
             </div>
           </div>
-        </div>
+        </section>
 
-        <!-- ── الأصناف: الإضافات بأسعارها ──────────────────────────────────────
-             كانت أسماءً مفصولةً بفواصل بلا أسعار: يُراجع الوكيل إجمالياً لا يعرف من
-             أين جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب.
-             والجدول كان عارياً بحوافّ حادّة بين بطاقتين مدوّرتين — فأُطِّر مثلهما. -->
-        <div class="rv-items-wrap">
-          <table class="orders-table rv-items">
-            <thead>
-              <tr>
-                <th>{{ tx('الصنف', 'Item') }}</th>
-                <th class="rv-qty">{{ tx('الكمية', 'Qty') }}</th>
-                <th class="rv-num">{{ tx('السعر', 'Price') }}</th>
-                <th class="rv-num">{{ tx('الإجمالي', 'Total') }}</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="i in review.items" :key="i.cartItemId">
-                <td>
-                  <div class="rv-item-name">
-                    {{ nameOf(i) }}
-                    <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
-                  </div>
-                  <div v-if="itemMods(i).length" class="rv-mods">
-                    <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
-                      {{ m.name }}
-                      <b :class="{ free: !m.price }">{{ m.price ? '+' + formatCurrency(m.price) : tx('مجاني', 'Free') }}</b>
-                    </span>
-                  </div>
-                  <div v-if="i.note" class="rv-note">{{ tx('ملاحظة: ', 'Note: ') }}{{ i.note }}</div>
-                </td>
-                <td class="rv-qty">{{ i.quantity }}</td>
-                <td class="rv-num">{{ formatCurrency(i.price) }}</td>
-                <td class="rv-num rv-strong">{{ formatCurrency(i.price * i.quantity) }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <!-- ── الأصناف: قائمة إيصال لا جدول بيانات ──────────────────────────
+             الكمية شارةٌ قبل الاسم بدل عمودٍ مستقلّ، والسعر على الحافّة المقابلة —
+             فيختفي رأس الجدول الثقيل وتُقرأ الأسطر كما تُقرأ الفاتورة. -->
+        <div class="rv-sec">
+          <span class="rv-sec-t">{{ tx('الأصناف', 'Items') }}</span>
+          <span class="rv-sec-n">{{ review.items.length }}</span>
         </div>
+        <ul class="rv-list">
+          <li v-for="i in review.items" :key="i.cartItemId" class="rv-row">
+            <span class="rv-qty">{{ i.quantity }}<small>×</small></span>
+            <div class="rv-row-main">
+              <div class="rv-name">
+                {{ nameOf(i) }}
+                <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
+              </div>
+              <div v-if="itemMods(i).length" class="rv-mods">
+                <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
+                  {{ m.name }}
+                  <b :class="{ free: !m.price }">{{ m.price ? '+' + formatCurrency(m.price) : tx('مجاني', 'Free') }}</b>
+                </span>
+              </div>
+              <div v-if="i.note" class="rv-note">
+                <span v-html="icon('alert-circle', { size: 12 })"></span>{{ i.note }}
+              </div>
+            </div>
+            <div class="rv-price">
+              <span class="rv-line-total">{{ formatCurrency(i.price * i.quantity) }}</span>
+              <span v-if="i.quantity > 1" class="rv-unit">{{ formatCurrency(i.price) }} {{ tx('للواحدة', 'each') }}</span>
+            </div>
+          </li>
+        </ul>
 
-        <!-- الإجماليات — الأرقام على محورٍ واحد بأرقامٍ متساوية العرض، فتُقارَن بالنظر -->
-        <div class="rv-totals">
-          <div class="rv-total-row">
-            <span class="rv-total-l">{{ tx('المجموع', 'Subtotal') }}</span>
-            <span class="rv-total-v">{{ formatCurrency(review.subtotal) }}</span>
+        <!-- ── الإجمالي: الرقم الذي يُقرأ للعميل، في لوحةٍ خاصّةٍ به ─────────── -->
+        <section class="rv-sum">
+          <div class="rv-sum-row">
+            <span>{{ tx('المجموع', 'Subtotal') }}</span>
+            <span class="rv-sum-v">{{ formatCurrency(review.subtotal) }}</span>
           </div>
-          <div v-if="review.orderType === 'delivery'" class="rv-total-row">
-            <span class="rv-total-l">
+          <div v-if="review.orderType === 'delivery'" class="rv-sum-row">
+            <span>
               {{ tx('رسوم التوصيل', 'Delivery fee') }}
-              <span v-if="review.feeIsOpen" class="rv-open-fee">({{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }})</span>
+              <span v-if="review.feeIsOpen" class="rv-open-fee">{{ tx('مفتوحة — يحدّدها الفرع', 'open — set by the branch') }}</span>
             </span>
-            <span class="rv-total-v">{{ formatCurrency(review.deliveryFee) }}</span>
+            <span class="rv-sum-v">{{ formatCurrency(review.deliveryFee) }}</span>
           </div>
-          <div class="rv-total-row rv-grand">
-            <span class="rv-total-l">{{ tx('الإجمالي', 'Total') }}</span>
-            <span class="rv-total-v">{{ formatCurrency(review.total) }}</span>
+          <div class="rv-grand">
+            <span class="rv-grand-l">{{ tx('الإجمالي', 'Total') }}</span>
+            <strong class="rv-grand-v">{{ formatCurrency(review.total) }}</strong>
           </div>
-        </div>
+        </section>
 
         <div v-if="review.notes" class="rv-notes">
-          <strong>{{ tx('ملاحظات:', 'Notes:') }}</strong> {{ review.notes }}
+          <span class="rv-notes-ico" v-html="icon('alert-triangle', { size: 14 })"></span>
+          <div><strong>{{ tx('ملاحظات الطلب', 'Order notes') }}</strong><div>{{ review.notes }}</div></div>
         </div>
       </div>
-      <div class="modal-footer" style="justify-content:space-between;">
-        <button class="btn btn-secondary" @click="closeReviewModal()">{{ tx('رجوع للتعديل', 'Back to edit') }}</button>
-        <button class="btn btn-primary" @click="confirmReview()">{{ tx('تأكيد وإرسال للفرع', 'Confirm and send to the branch') }}</button>
+
+      <div class="modal-footer rv-footer">
+        <button class="btn btn-secondary rv-back" @click="closeReviewModal()">{{ tx('رجوع للتعديل', 'Back to edit') }}</button>
+        <button class="btn btn-primary rv-confirm" @click="confirmReview()">
+          <span v-html="icon('check-circle', { size: 17 })"></span>
+          {{ tx('تأكيد وإرسال للفرع', 'Confirm and send') }}
+        </button>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* ── ترويسة المراجعة: تسميةٌ فوق وقيمةٌ تحت ─────────────────────────────────
-   كانت أزواج «تسمية: قيمة» بخطٍّ واحد ولونٍ متقارب في شبكةٍ ضيّقة — تُقرأ
-   بالتفتيش لا بالنظرة. والتليفون بلا تسمية معلَّقاً في الجهة المقابلة. */
-.rv-head {
-  padding: 14px 16px;
-  border-radius: 12px;
-  background: var(--bg, #f8fafc);
-  border: 1px solid var(--border, #e5e7eb);
+/* ── شاشة مراجعة الطلب ───────────────────────────────────────────────────────
+   كانت ثلاثَ بطاقاتٍ رماديّة متطابقة فوق بعضها: كلُّ شيءٍ بالوزن نفسه، فلا يقول
+   الشكلُ ما المهمّ. صارت تسلسلاً: **مَن** (العميل) ثم **إلى أين** (الوجهة) ثم
+   **ماذا** (الأصناف) ثم **بكم** (الإجمالي) — ولكلِّ طبقةٍ لغتُها البصريّة. */
+.rv-modal { max-width: 620px; }
+.rv-header { align-items: flex-start; gap: 12px; }
+.rv-title-wrap { min-width: 0; }
+.rv-subtitle {
+  margin: 3px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary, #64748b);
 }
-/* خانتان في الصفّ لا ثلاث: بثلاثٍ يبقى ثقبٌ في آخر صفٍّ كلما لم يكن عدد الحقول
-   من مضاعفاتها — «الدفع» وحده وسط صفٍّ نصفه فراغ. */
-.rv-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 18px;
+.rv-body { padding: 20px 24px 24px; }
+
+/* ── العميل ── */
+.rv-cust {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  border-radius: var(--radius-lg, 14px);
+  background: var(--primary-lighter, #eff6ff);
+  border: 1px solid rgba(26, 86, 219, 0.14);
 }
-/* الوجهة صفوفٌ كاملة تحت خطٍّ فاصل — العنوان طويل فلا يُحشَر في نصف صفّ */
-.rv-rows {
-  display: grid;
-  gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border, #e5e7eb);
+.rv-avatar {
+  flex: 0 0 auto;
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--primary, #1a56db);
+  color: #fff;
+  font-size: 17px; font-weight: 800;
 }
-@media (max-width: 430px) { .rv-grid { grid-template-columns: minmax(0, 1fr); } }
-.rv-cell { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
-.rv-l { font-size: 11px; font-weight: 600; color: #4b5563; }
-.rv-v {
-  font-size: 13.5px; font-weight: 700; line-height: 1.55;
+.rv-cust-main { flex: 1 1 auto; min-width: 0; }
+.rv-cust-name {
+  font-size: 15.5px; font-weight: 800; line-height: 1.35;
   color: var(--text-primary, #0f172a);
   overflow-wrap: anywhere;
 }
-.rv-accent .rv-v { color: var(--primary, #1a56db); }
-.rv-sub { font-size: 11.5px; font-weight: 600; color: #4b5563; }
+.rv-cust-phone {
+  font-size: 12.5px; font-weight: 700;
+  color: var(--text-secondary, #64748b);
+  font-variant-numeric: tabular-nums;
+}
+.rv-type {
+  flex: 0 0 auto;
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--white, #fff);
+  border: 1px solid rgba(26, 86, 219, 0.2);
+  color: var(--primary, #1a56db);
+  font-size: 12px; font-weight: 800;
+  white-space: nowrap;
+}
+.rv-type-ico { display: inline-flex; }
 
-/* ── الأصناف ── */
-/* الجدول داخل إطارٍ مدوّر كبقيّة البطاقات، ورأسه هادئ: كان شريطاً رماديّاً بحروفٍ
-   كبيرة ومتباعدة يسحب العين من الأصناف نفسها. */
-.rv-items-wrap {
+/* ── الوجهة والدفع ── */
+.rv-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 0;
   margin-top: 14px;
   border: 1px solid var(--border, #e5e7eb);
-  border-radius: 12px;
+  border-radius: var(--radius-lg, 14px);
   overflow: hidden;
 }
-.rv-items th { padding: 10px 14px; text-transform: none; letter-spacing: 0; font-size: 11.5px; }
-.rv-items td { padding: 11px 14px; }
-/* صفوف المراجعة لا تُنقَر — مؤشّر اليد والإضاءة عند المرور كانا يَعِدان بفعلٍ لا يقع */
-.rv-items tbody tr { cursor: default; }
-.rv-items tbody tr:hover { background: transparent; }
-/* الأرقام على محورٍ واحد وبعرضٍ ثابت، فتُقارَن بالنظر لا بالقراءة */
-.rv-items th.rv-num, .rv-items td.rv-num {
-  text-align: end; white-space: nowrap; font-variant-numeric: tabular-nums;
+.rv-fact {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 11px 13px;
+  background: var(--white, #fff);
+  box-shadow: 0 0 0 1px var(--border-light, #f3f4f6);
+  min-width: 0;
 }
-.rv-items th.rv-qty, .rv-items td.rv-qty {
-  text-align: center; white-space: nowrap; width: 1%; font-variant-numeric: tabular-nums;
+.rv-fact-wide { grid-column: 1 / -1; }
+.rv-fico {
+  flex: 0 0 auto;
+  width: 28px; height: 28px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg, #f0f2f5);
+  color: var(--primary, #1a56db);
 }
-.rv-items td.rv-strong { font-weight: 800; }
-.rv-item-name { font-weight: 700; color: var(--text-primary, #0f172a); }
+.rv-ftxt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rv-fl { font-size: 10.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.rv-fv {
+  font-size: 13px; font-weight: 700; line-height: 1.5;
+  color: var(--text-primary, #0f172a);
+  overflow-wrap: anywhere;
+}
+.rv-fsub { font-size: 11.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
+.rv-fact-accent { background: var(--primary-lighter, #eff6ff); }
+.rv-fact-accent .rv-fv { color: var(--primary-darker, #1e40af); }
+.rv-fact-accent .rv-fico { background: var(--white, #fff); }
+
+/* ── عنوان القسم ── */
+.rv-sec {
+  display: flex; align-items: center; gap: 8px;
+  margin: 20px 0 8px;
+}
+.rv-sec-t { font-size: 12px; font-weight: 800; color: var(--text-secondary, #64748b); }
+.rv-sec-n {
+  min-width: 20px; padding: 1px 6px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--bg, #f0f2f5);
+  color: var(--text-secondary, #64748b);
+  font-size: 11px; font-weight: 800; text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.rv-sec::after {
+  content: ''; flex: 1 1 auto; height: 1px;
+  background: var(--border-light, #f3f4f6);
+}
+
+/* ── الأصناف: أسطر إيصال ── */
+.rv-list {
+  list-style: none; margin: 0; padding: 0;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
+}
+.rv-row {
+  display: flex; align-items: flex-start; gap: 11px;
+  padding: 12px 13px;
+  background: var(--white, #fff);
+}
+.rv-row + .rv-row { border-top: 1px solid var(--border-light, #f3f4f6); }
+/* الكمية شارةٌ قبل الاسم: عمودٌ كامل لرقمٍ من خانةٍ واحدة كان إسرافاً في العرض */
+.rv-qty {
+  flex: 0 0 auto;
+  min-width: 30px; height: 26px; padding: 0 6px;
+  border-radius: 8px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 1px;
+  background: var(--primary-lighter, #eff6ff);
+  color: var(--primary, #1a56db);
+  font-size: 13px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.rv-qty small { font-size: 10px; font-weight: 700; opacity: 0.75; }
+.rv-row-main { flex: 1 1 auto; min-width: 0; }
+.rv-name {
+  font-size: 13.5px; font-weight: 700; line-height: 1.45;
+  color: var(--text-primary, #0f172a);
+}
 .rv-size {
-  margin-inline-start: 6px; padding: 1px 7px; border-radius: 999px;
-  background: var(--primary-light, #dbeafe); color: var(--primary-dark, #1242b0);
+  margin-inline-start: 6px; padding: 1px 7px;
+  border-radius: var(--radius-full, 999px);
+  background: var(--primary-light, #dbeafe);
+  color: var(--primary-dark, #1242b0);
   font-size: 10.5px; font-weight: 800;
 }
-.rv-mods { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px; }
+.rv-mods { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
 .rv-mod {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 2px 8px; border-radius: 7px;
-  background: var(--bg, #f1f5f9); border: 1px solid var(--border-light, #eef1f6);
-  font-size: 11px; font-weight: 600; color: #4b5563;
+  background: var(--bg, #f0f2f5);
+  font-size: 11px; font-weight: 600; color: var(--text-secondary, #64748b);
 }
 .rv-mod b { font-weight: 800; color: var(--text-primary, #0f172a); }
 .rv-mod b.free { color: #166534; }
-.rv-note { margin-top: 5px; font-size: 11px; font-weight: 700; color: #b45309; }
+.rv-note {
+  display: flex; align-items: center; gap: 5px;
+  margin-top: 6px;
+  font-size: 11.5px; font-weight: 700; color: #b45309;
+}
+.rv-price {
+  flex: 0 0 auto;
+  display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+  text-align: end;
+}
+.rv-line-total {
+  font-size: 13.5px; font-weight: 800; white-space: nowrap;
+  color: var(--text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+.rv-unit {
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+  color: var(--text-muted, #94a3b8);
+  font-variant-numeric: tabular-nums;
+}
 
 /* ── الإجماليات ── */
-.rv-totals {
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: var(--bg, #f8fafc);
+.rv-sum {
+  margin-top: 16px;
   border: 1px solid var(--border, #e5e7eb);
-  font-size: 13px;
+  border-radius: var(--radius-lg, 14px);
+  overflow: hidden;
 }
-.rv-total-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 0; }
-.rv-total-l { color: var(--text-secondary, #64748b); }
-.rv-total-v { font-weight: 700; white-space: nowrap; font-variant-numeric: tabular-nums; }
-.rv-open-fee { color: var(--warning, #b45309); font-weight: 700; }
-/* الإجمالي هو الرقم الذي يُقرأ للعميل — فله وزنه ولونه وخطُّه الفاصل */
-.rv-grand { margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border, #e5e7eb); font-size: 15px; }
-.rv-grand .rv-total-l { color: var(--text-primary, #0f172a); font-weight: 800; }
-.rv-grand .rv-total-v { font-weight: 800; color: var(--primary, #1a56db); }
+.rv-sum-row {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 12px;
+  padding: 9px 14px;
+  font-size: 13px; font-weight: 600;
+  color: var(--text-secondary, #64748b);
+  background: var(--white, #fff);
+}
+.rv-sum-v {
+  font-weight: 700; white-space: nowrap;
+  color: var(--text-primary, #0f172a);
+  font-variant-numeric: tabular-nums;
+}
+.rv-open-fee {
+  margin-inline-start: 6px; padding: 1px 7px;
+  border-radius: var(--radius-full, 999px);
+  background: rgba(245, 158, 11, 0.16);
+  color: #b45309;
+  font-size: 10.5px; font-weight: 800;
+}
+/* الرقم الذي يُقرأ للعميل — لوحةٌ ملوّنة لا سطرٌ أثقل قليلاً */
+.rv-grand {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 13px 14px;
+  background: var(--primary, #1a56db);
+  color: #fff;
+}
+.rv-grand-l { font-size: 13.5px; font-weight: 700; opacity: 0.92; }
+.rv-grand-v {
+  font-size: 20px; font-weight: 800; white-space: nowrap; letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+}
 
+/* ── ملاحظات الطلب ── */
 .rv-notes {
-  margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+  display: flex; align-items: flex-start; gap: 9px;
+  margin-top: 14px; padding: 11px 13px;
+  border-radius: var(--radius, 10px);
   background: var(--warning-light, #fffbeb);
-  border: 1px solid var(--warning, #f59e0b);
-  font-size: 12px; line-height: 1.6;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  font-size: 12px; line-height: 1.65;
+  color: var(--text-primary, #0f172a);
 }
-:global(body.dark-mode) .rv-note { color: #fbbf24; }
-:global(body.dark-mode) .rv-l,
-:global(body.dark-mode) .rv-sub,
-:global(body.dark-mode) .rv-mod { color: #cbd5e1; }
+.rv-notes-ico { flex: 0 0 auto; color: #b45309; display: inline-flex; }
+.rv-notes strong { display: block; font-size: 11.5px; color: #b45309; }
+
+/* ── الأزرار: التأكيد فعلٌ لا رجعة فيه، فله الوزن والمساحة ── */
+.rv-footer { justify-content: space-between; gap: 12px; }
+.rv-back { flex: 0 0 auto; }
+.rv-confirm { flex: 1 1 auto; max-width: 320px; gap: 8px; font-weight: 700; }
+
+/* ── الوضع الليلي ── */
+:global(body.dark-mode) .rv-cust {
+  background: rgba(96, 165, 250, 0.12);
+  border-color: rgba(96, 165, 250, 0.28);
+}
+:global(body.dark-mode) .rv-type {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #93c5fd;
+}
+:global(body.dark-mode) .rv-fact,
+:global(body.dark-mode) .rv-row,
+:global(body.dark-mode) .rv-sum-row { background: var(--bg-card, #1e293b); }
+:global(body.dark-mode) .rv-fact { box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18); }
+:global(body.dark-mode) .rv-fico,
+:global(body.dark-mode) .rv-mod,
+:global(body.dark-mode) .rv-sec-n { background: rgba(255, 255, 255, 0.07); }
+:global(body.dark-mode) .rv-fact-accent { background: rgba(96, 165, 250, 0.14); }
+:global(body.dark-mode) .rv-fact-accent .rv-fv { color: #bfdbfe; }
+:global(body.dark-mode) .rv-qty { background: rgba(96, 165, 250, 0.16); color: #93c5fd; }
+:global(body.dark-mode) .rv-size { color: #bfdbfe; }
 :global(body.dark-mode) .rv-mod b.free { color: #4ade80; }
-:global(body.dark-mode) .rv-head,
-:global(body.dark-mode) .rv-totals,
-:global(body.dark-mode) .rv-mod { background: rgba(255, 255, 255, 0.04); }
-:global(body.dark-mode) .rv-total-l { color: #cbd5e1; }
-:global(body.dark-mode) .rv-notes { background: rgba(245, 158, 11, 0.12); }
+:global(body.dark-mode) .rv-note { color: #fbbf24; }
+:global(body.dark-mode) .rv-notes {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: #e2e8f0;
+}
+:global(body.dark-mode) .rv-notes strong,
+:global(body.dark-mode) .rv-notes-ico { color: #fbbf24; }
+:global(body.dark-mode) .rv-grand { background: var(--primary-darker, #2563eb); }
 </style>
