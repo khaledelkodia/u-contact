@@ -1,23 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, selectOrderType, companyOrderTypes, isDeliveryCode, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
-import { t, tx, nameOf, lang } from '../lang'
+import { t, tx } from '../lang'
 import { icon } from '../icons'
 
 // ── كومبو المنطقة (searchable-select) ──
 const comboOpen = ref(false)
 const comboSearch = ref('')
 // أنواع الطلب من الشركة (فارغة = ارتدادٌ لبطاقتَي توصيل/استلام)
-const orderTypes = computed<any[]>(() => companyOrderTypes())
+// تحذيرُ نوع الطلب — نصٌّ جاهزٌ من المتجر (نفس نصّ حارس الإرسال، فلا يختلفان)
+const typeWarn = computed<string | null>(() => orderTypeBlocker())
 
-// اسمٌ إنجليزيٌّ مضمون للأنواع الثلاثة: شركةٌ لم تملأ الاسم الإنجليزيّ كانت تعرض
-// «طلبات» في واجهةٍ إنجليزيّة — والاسم من الشركة يبقى أولى إن وُجد.
-const EN_BY_CODE: Record<number, string> = { 4: 'Platform orders', 5: 'Delivery', 6: 'Pickup' }
-function typeName(ot: any): string {
-  if (lang.value !== 'en') return nameOf(ot)
-  return ot.nameEn || EN_BY_CODE[Number(ot.code)] || ot.nameAr || ''
-}
 const comboRoot = ref<HTMLElement | null>(null)
 
 interface AreaOpt { name: string; branchId: number; branchName: string }
@@ -92,21 +86,11 @@ function addressLine(addr: any): string {
 
 <template>
   <div id="panel-customer-data" class="tab-panel" :class="{ active: state.activeTab === 'customer-data' }">
-    <!-- ── أنواع الطلب كما عرّفتها الشركة ──────────────────────────────────────
-         كان النوع مثبَّتاً على «توصيل=5 / استلام=6»: شركةٌ تعمل على «طلبات» (4) أو
-         أوقفت «الاستلام» تُسجَّل طلباتها بنوعٍ لا تستعمله. واختيار النوع يضبط شكل
-         النموذج معه (٤ و٥ يحتاجان عنواناً، وما عداهما لا). -->
-    <div v-if="orderTypes.length" class="ot-bar">
-      <button v-for="ot in orderTypes" :key="ot.id" type="button" class="ot-chip"
-        :class="{ on: state.selectedOrderType && state.selectedOrderType.id === ot.id }"
-        @click="selectOrderType(ot)">
-        <span class="ot-chip-name">{{ typeName(ot) }}</span>
-        <span class="ot-chip-kind">{{ isDeliveryCode(ot.code) ? tx('يحتاج عنوان التوصيل', 'Needs a delivery address') : tx('استلام من الفرع', 'Picked up at the branch') }}</span>
-      </button>
-    </div>
-
-    <!-- بلا أنواعٍ من الشركة (لم تصل أو لم تُعرَّف) ⇒ البطاقتان كما كانتا -->
-    <div v-else class="order-type-selector">
+    <!-- ── نوع الطلب: توصيل أو استلام — لا ثالث ────────────────────────────
+         كان شريطُ أنواع الشركة يُعرض كما هي («صالة» · «عربية» · «طلبات»…)، وهي
+         أنواعُ كاشيرٍ داخل الفرع لا يأخذها أحدٌ بالهاتف. الوكيل يختار الشكل،
+         والنظام ينزّله بنوعه المعروف للفرع (توصيل=٥ · استلام=٦). -->
+    <div class="order-type-selector">
       <button class="order-type-card btn-type-delivery" :class="{ active: state.orderType === 'delivery' }" @click="setOrderType('delivery')">
         <span class="order-type-icon">
           <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -145,6 +129,12 @@ function addressLine(addr: any): string {
           <small>{{ t('pickup_order_desc') }}</small>
         </span>
       </button>
+    </div>
+
+    <!-- المنع يُقال هنا لا عند الإرسال: الوكيل يعرف قبل أن يبني الطلب كلّه -->
+    <div v-if="typeWarn" class="ot-warn">
+      <span v-html="icon('alert-triangle', { size: 14 })"></span>
+      <span>{{ typeWarn }}</span>
     </div>
     <form id="customer-form" class="customer-form" @submit.prevent>
       <div class="form-group">
@@ -285,35 +275,12 @@ function addressLine(addr: any): string {
 
 <style scoped>
 /* شريط أنواع الطلب — بديلُ البطاقتين حين تُعرِّف الشركة أنواعها */
-/* ثلاث حبّاتٍ متساوية العرض تملأ الصفّ: بعرضٍ حسب المحتوى كان الصفّ مسنَّناً
-   («صالة» ضيّقة و«تيك أواي» عريضة) والفراغ في آخره بلا معنى. */
-.ot-bar { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
-.ot-chip {
-  flex: 1 1 150px; max-width: 260px; min-width: 0;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
-  text-align: start;   /* الزرّ يوسّط نصَّه افتراضياً — والسطران يُقرآن من الحافّة */
-  padding: 10px 14px;
-  border: 1.5px solid var(--border, #e5e7eb); border-radius: 12px;
-  background: var(--white, #fff); color: var(--text-primary, #0f172a);
-  font-family: inherit; cursor: pointer;
-  transition: border-color .14s, background .14s, color .14s;
+/* تحذير نوع الطلب: تنبيهٌ لا خطأ — الطلب لم يُرسَل بعد */
+.ot-warn {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 0 0; padding: 10px 12px;
+  border-radius: 10px; font-size: 12.5px; font-weight: 700;
+  color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
 }
-.ot-chip:hover { border-color: var(--primary, #1a56db); }
-.ot-chip.on {
-  border-color: var(--primary, #1a56db);
-  background: var(--primary-lighter, #eff6ff);
-  color: var(--primary-dark, #1242b0);
-}
-/* سطرٌ عربيٌّ بلا line-height صريح يرث 1.6 من body فينفخ الحبّة سطرين ونصفاً */
-.ot-chip-name { font-size: 14px; font-weight: 800; line-height: 1.35; }
-.ot-chip-kind { font-size: 11px; font-weight: 600; line-height: 1.35; color: var(--text-muted, #94a3b8); }
-.ot-chip.on .ot-chip-kind { color: inherit; opacity: .8; }
-:global(body.dark-mode) .ot-chip { background: var(--bg-card, #1e293b); }
-/* في الوضع الليلي --primary-lighter تساوي لون البطاقة نفسه، فكانت الحبّة المختارة
-   لا تُميَّز عن أخواتها إلا بالحدّ — لونٌ صريحٌ لها. */
-:global(body.dark-mode) .ot-chip.on {
-  background: rgba(96, 165, 250, 0.16);
-  border-color: #60a5fa;
-  color: #bfdbfe;
-}
+:global(body.dark-mode) .ot-warn { color: #fbbf24; background: #451a03; border-color: #78350f; }
 </style>

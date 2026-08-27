@@ -1471,15 +1471,43 @@ export const isDeliveryCode = (code: number) => DELIVERY_CODES.includes(Number(c
  * استلامٌ من الفرع باسمٍ آخر، فلا يفقد الوكيل المسار كلَّه لأن الشركة سمّته غير ذلك.
  * (فارغة = لم تصل بعد أو الشركة بلا أنواع ⇒ ارتدادٌ لبطاقتَي توصيل/استلام.)
  */
-const AGENT_ORDER_CODES = [4, 5, 6]
+/** نوعان لا ثالث لهما في مركز الاتصال: **توصيل (5)** و**استلام (6)**. */
+export const DELIVERY_TYPE_CODE = 5
+export const PICKUP_TYPE_CODE = 6
+const AGENT_ORDER_CODES = [DELIVERY_TYPE_CODE, PICKUP_TYPE_CODE]
 export function companyOrderTypes(): any[] {
   const all = Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
-  const picked = all.filter((t: any) => AGENT_ORDER_CODES.includes(Number(t.code)))
-  if (!picked.some((t: any) => Number(t.code) === 6)) {
-    const takeaway = all.find((t: any) => Number(t.code) === 2)
-    if (takeaway) picked.push(takeaway)
-  }
-  return picked
+  return all.filter((t: any) => AGENT_ORDER_CODES.includes(Number(t.code)))
+}
+
+/**
+ * نوعُ الطلب المتاح **في هذا الفرع** لشكلٍ بعينه — أو `null`.
+ *
+ * الفحص على الفرع لا الشركة: نوعٌ مقصورٌ على فرعٍ واحد كان يبدو متاحاً للجميع،
+ * فينزل الطلب بنوعٍ لا يستقبله الفرع الذي وصله. ومصفوفةٌ فارغة = بلا قيد.
+ */
+export function orderTypeForBranch(wantDelivery: boolean, branchId: any): any | null {
+  const code = wantDelivery ? DELIVERY_TYPE_CODE : PICKUP_TYPE_CODE
+  const b = Number(branchId)
+  return companyOrderTypes().find((t: any) => {
+    if (Number(t.code) !== code) return false
+    const scope = Array.isArray(t.branchIds) ? t.branchIds : []
+    return !scope.length || !b || scope.map(Number).includes(b)
+  }) || null
+}
+
+/** رسالةُ المنع حين لا يستقبل الفرع الشكل المطلوب — تسمّي الفرع والنوع. */
+export function orderTypeBlocker(): string | null {
+  const wantDelivery = state.orderType === 'delivery'
+  const bid = getResolvedOrderBranchId()
+  if (orderTypeForBranch(wantDelivery, bid)) return null
+  const br = (state.branches || []).find((x: any) => Number(x.id) === Number(bid))
+  const brName = br ? nameOf(br) : (bid ? `#${bid}` : tx('الفرع المختار', 'the selected branch'))
+  const kindAr = wantDelivery ? 'التوصيل' : 'الاستلام'
+  const kindEn = wantDelivery ? 'delivery' : 'pickup'
+  return tx(
+    `فرع «${brName}» لا يستقبل طلبات ${kindAr} — اختر فرعاً آخر أو غيّر نوع الطلب`,
+    `Branch “${brName}” does not accept ${kindEn} orders — pick another branch or change the order type`)
 }
 /** طرق دفع الشركة (فارغة = ارتدادٌ لقائمة `data.ts`). */
 export function companyPaymentMethods(): any[] {
@@ -1489,12 +1517,9 @@ export function companyPaymentMethods(): any[] {
 
 /** يُبقي النوع المختار موافقاً للشكل البنيويّ (توصيل/استلام) بعد كل تغيير. */
 function syncSelectedOrderType() {
-  const list = companyOrderTypes()
-  if (!list.length) { state.selectedOrderType = null; return }
   const wantDelivery = state.orderType === 'delivery'
-  const cur = state.selectedOrderType
-  if (cur && list.some((t: any) => t.id === cur.id) && isDeliveryCode(cur.code) === wantDelivery) return
-  state.selectedOrderType = list.find((t: any) => isDeliveryCode(t.code) === wantDelivery) || null
+  // المتاح في الفرع المستهدَف؛ وإلا لا شيء — والحارس يشرح السبب عند الإرسال
+  state.selectedOrderType = orderTypeForBranch(wantDelivery, getResolvedOrderBranchId())
 }
 
 /** اختيار نوعٍ من أنواع الشركة — يضبط الشكل البنيويّ معه (العنوان يظهر أو يختفي). */
@@ -2373,6 +2398,9 @@ function liveReviewBlocker(): string | null {
     if (sectionRequired() && !state.form.sectionId) return tx('اختر الحيّ — الفرع بيتحدد منه', 'Choose the district — the branch is derived from it')
     if (!getResolvedOrderBranchId()) return tx('مفيش فرع بيخدم المنطقة دي', 'No branch serves this area')
   }
+  // نوعُ الطلب متاحٌ في الفرع الذي سينزل عليه؟ — قبل الدفع فالمنع أوضح
+  const otBlock = orderTypeBlocker()
+  if (otBlock) return otBlock
   if (state.paymentRequired && !state.paymentMethod) return tx('يرجى تحديد طريقة الدفع', 'Choose a payment method')
   const bid = getResolvedOrderBranchId()
   const bad = state.cart.filter((i: any) => isItemStoppedForBranch(bid, i.itemId))
