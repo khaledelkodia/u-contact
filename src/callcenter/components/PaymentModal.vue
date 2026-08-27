@@ -8,7 +8,7 @@ import { icon } from '../icons'
 const channel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
 // طرق الدفع **من الشركة**: كانت ثلاثاً مكتوبةً في `data.ts` (كاش/كي‑نت/رابط)، فشركةٌ
 // تحصّل بـ«مدى» أو «STC Pay» لا تجدهما ويُسجَّل طلبها بطريقةٍ لا وجود لها عندها.
-// المصدر (الفون/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
+// المصدر (الهاتف/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
 const methods = computed<any[]>(() => companyPaymentMethods())
 // المصدر اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له. الطريقة وحدها إلزامية.
 const canConfirm = computed(() => !!state.paymentMethod)

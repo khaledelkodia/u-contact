@@ -42,7 +42,7 @@ function itemDetails(item: any): string {
 /**
  * طريقة الدفع كما هي — لا كما نظنّها.
  *
- * كان الافتراض يملأ الفراغ («الفون • نقدي») لأوردرٍ لم يختر له أحدٌ طريقة، فيقرأ
+ * كان الافتراض يملأ الفراغ («الهاتف • نقدي») لطلبٍ لم يختر له أحدٌ طريقة، فيقرأ
  * الوكيل تحصيلاً لم يحدث. الفراغ يبقى فراغاً حتى يقفله الفرع بطريقته الحقيقيّة.
  */
 /** أسطر الدفع من الفرع: الطرق أوّلاً ثم الإكراميّة — كلٌّ بمبلغه. */
@@ -107,6 +107,10 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         <button v-if="canEditOrder() && canEditThisOrder(order)" class="btn btn-primary btn-sm dt-btn-edit" @click="startEditOrder(order.id)">
           <span v-html="icon('edit', { size: 13 })"></span> {{ tx('تعديل الطلب', 'Edit order') }}
         </button>
+        <!-- طلبُ إلغاءٍ في الطريق للفرع: لا زرّ يُضغط مرّتين، ولا صمتٌ يُقلق -->
+        <span v-if="order.cancelRequested" class="dt-cancel-pending">
+          {{ tx('طلب إلغاء — في انتظار الفرع', 'Cancellation — awaiting the branch') }}
+        </span>
         <button v-if="canCancelOrder() && canCancelThisOrder(order)" class="btn btn-danger btn-sm" @click="openCancelModal(order.id)">
           {{ tx('إلغاء الطلب', 'Cancel order') }}
         </button>
@@ -119,7 +123,14 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
       </div>
     </div>
 
-    <!-- ── الحقول: تنكسر لعمودين في اللوحة الضيّقة وثلاثةٍ في العرض الكامل ──── -->
+    <!-- ── الجسم: عمودان على الشاشة العريضة ────────────────────────────────
+         كان كلُّ شيءٍ عموداً واحداً ممتدّاً، فعلى شاشةٍ عريضة تتباعد التسميةُ عن
+         قيمتها بمئات البكسلات ويصير سطرُ الصنف اسماً في طرفٍ وسعراً في الطرف
+         المقابل — يقرأه العين برحلة. صار السياق (العميل/الفرع/السائق) عموداً
+         مضبوط العرض، والأصناف والحساب عموداً يتمدّد. -->
+    <div class="dt-body">
+      <aside class="dt-col dt-col-side">
+    <!-- الحقول: عمودٌ واحد في العمود الجانبي، وشبكةٌ حين ينهار الجسم لعمودٍ واحد -->
     <div class="order-detail-grid">
       <div class="order-detail-field">
         <label>{{ tx('العميل', 'Customer') }}</label>
@@ -164,6 +175,9 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         <div>{{ order.notes }}</div>
       </div>
     </div>
+      </aside>
+
+      <section class="dt-col dt-col-main">
 
     <!-- ── الأصناف: أسطر إيصال لا جدولٌ بأربعة أعمدة ─────────────────────────
          الجدول في عمودٍ ضيّق كان يكسر كل سعرٍ سطرين ويضغط اسم الصنف حتى يختفي. -->
@@ -220,6 +234,8 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         </div>
       </div>
     </div>
+      </section>
+    </div>
   </div>
 </template>
 
@@ -260,6 +276,20 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 .dt-daily { font-size: 17px; font-weight: 800; color: var(--primary, #1a56db); }
 .dt-wide { grid-column: 1 / -1; }
 
+/* ── الجسم: عمودان ── */
+.dt-panel { container: dt / inline-size; }
+.dt-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
+.dt-col { min-width: 0; }
+/* الاستعلام على **عرض اللوحة نفسها** لا عرض الشاشة: اللوحة قد تُعرض في عمودٍ ضيّق
+   على شاشةٍ عريضة، فاستعلامُ الشاشة كان سيفرض عليها عمودين مخنوقين. */
+@container dt (min-width: 1024px) {
+  .dt-body { grid-template-columns: minmax(260px, 340px) minmax(0, 1fr); gap: 22px; align-items: start; }
+  /* السياق عمودٌ واحد: التسمية فوق قيمتها لا على بُعد نصف شاشة منها */
+  .dt-col-side :deep(.order-detail-grid) { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .dt-col-side :deep(.dt-wide) { grid-column: auto; }
+  .dt-col-side .dt-notes { margin-bottom: 0; }
+}
+
 /* ── ملاحظات الطلب ── */
 .dt-notes {
   display: flex; align-items: flex-start; gap: 8px;
@@ -284,11 +314,23 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 .dt-sec::after { content: ''; flex: 1 1 auto; height: 1px; background: var(--border-light, #f3f4f6); }
 
 /* ── الأصناف ── */
+/* سقفٌ للأصناف: طلبٌ بثلاثين صنفاً كان يفرد اللوحة حتى يختفي الإجمالي تحت
+   الطيّة، فيمرّر الوكيل الصفحة كلّها ليرى رقماً واحداً. التمرير هنا داخليّ،
+   و`overflow-x: hidden` لا `overflow: hidden` — الاختصار يُلغي التمرير الرأسيّ. */
 .dt-list {
   border: 1px solid var(--border, #e5e7eb);
   border-radius: var(--radius-lg, 14px);
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  max-height: min(46vh, 380px);
+  overscroll-behavior: contain;   /* لا يُمرّر الصفحة خلفه عند بلوغ آخره */
 }
+.dt-list::-webkit-scrollbar { width: 8px; }
+.dt-list::-webkit-scrollbar-thumb {
+  background: var(--border, #e5e7eb); border-radius: 99px;
+  border: 2px solid var(--white, #fff);
+}
+:global(body.dark-mode) .dt-list::-webkit-scrollbar-thumb { background: #334155; border-color: #1e293b; }
 .dt-empty { padding: 18px; text-align: center; font-size: 12.5px; color: var(--text-muted, #94a3b8); }
 .dt-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; }
 .dt-row + .dt-row { border-top: 1px solid var(--border-light, #f3f4f6); }
@@ -346,6 +388,13 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
   font-size: 12px; font-weight: 600; color: var(--text-secondary, #64748b);
 }
 .dt-pay strong { color: var(--text-primary, #0f172a); font-weight: 800; }
+/* طلب إلغاءٍ معلّق — لونُ تحذيرٍ لا خطر: لم يُرفَض ولم يُقبَل بعد */
+.dt-cancel-pending {
+  display: inline-flex; align-items: center; padding: 4px 10px;
+  border-radius: 999px; font-size: 11px; font-weight: 800;
+  color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
+}
+:global(body.dark-mode) .dt-cancel-pending { color: #fbbf24; background: #451a03; border-color: #78350f; }
 /* أسطر الدفع: مبلغٌ لكل طريقة على محورٍ واحد، والإكراميّة مميَّزة فلا تُحسَب ثمناً */
 .dt-paylines { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 4px; }
 .dt-payline {

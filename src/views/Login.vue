@@ -128,7 +128,7 @@ async function submit() {
         <div class="b-logo"><Icon name="headset" /></div>
       </div>
       <div style="position:relative; z-index:1;">
-        <div class="big">{{ isAdmin ? t('لوحة إدارة الكول‑سنتر', 'Call-center admin console') : t('منصّة الكول‑سنتر', 'Call-center platform') }}</div>
+        <div class="big">{{ isAdmin ? t('لوحة إدارة مركز الاتصال', 'Call-center admin console') : t('منصّة مركز الاتصال', 'Call-center platform') }}</div>
         <div class="lead">{{ t('إدارة الوكلاء والشركات والصلاحيات في مكان واحد، بواجهة عربية وإنجليزية.', 'Manage agents, companies, and permissions in one place — Arabic & English.') }}</div>
         <div class="pts" style="margin-top:26px;">
           <div class="pt"><div class="d"><Icon name="users" /></div> {{ t('مستخدمون وصلاحيات مرنة', 'Users & flexible permissions') }}</div>

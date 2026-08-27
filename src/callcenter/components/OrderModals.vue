@@ -72,7 +72,7 @@ function doSubmitComplaint() {
 </script>
 
 <template>
-  <!-- مودال «تعيين سائق» أُزيل: السائق يعيّنه الفرع، والكول‑سنتر يعرض اسمه فقط -->
+  <!-- مودال «تعيين سائق» أُزيل: السائق يعيّنه الفرع، ومركز الاتصال يعرض اسمه فقط -->
   <!-- ========== إلغاء الطلب (اختيار السبب) ========== -->
   <div v-if="cancelOrder" class="modal-overlay" @click.self="closeCancelModal()">
     <div class="modal-content">

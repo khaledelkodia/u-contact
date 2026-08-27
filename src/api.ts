@@ -3,7 +3,7 @@ import { reactive } from 'vue'
 
 const api = axios.create({ baseURL: import.meta.env.VITE_API_BASE || 'https://u-serve.uisapp.com/api' })
 
-// ── الجلسة: نوع الدخول (admin=مشرف عام | agent=يوزر) + التوكن + بيانات الوكيل/شركاته ──
+// ── الجلسة: نوع الدخول (admin=مشرف عام | agent=مستخدم) + التوكن + بيانات الوكيل/شركاته ──
 type Mode = 'admin' | 'agent'
 export interface Company {
   id: number; name: string; nameAr?: string; permissions: string[]; ceiling: string[]; dialCode?: string | null;
@@ -157,7 +157,7 @@ api.interceptors.request.use((cfg) => {
 // الجلسة تنقطع كل ربع ساعة **وسط مكالمة**. الآن: 401 ⇒ جدِّد ثم أعد الطلب، ولا
 // يُطرَد إلا إذا سقط التجديد نفسه (توكن التجديد منتهٍ أو الحساب أُوقف).
 //
-// **طلبٌ واحد للتجديد مهما تزامنت الإخفاقات**: شاشة الكول‑سنتر تُطلق نداءاتٍ
+// **طلبٌ واحد للتجديد مهما تزامنت الإخفاقات**: شاشة مركز الاتصال تُطلق نداءاتٍ
 // متوازية، فانتهاءُ التوكن يُفشلها كلها في اللحظة نفسها. بلا هذا الحارس ينطلق
 // تجديدٌ لكل واحدٍ منها، فيدوس بعضُها بعضاً (كلٌّ يُصدر توكناً يُبطل ما قبله)
 // ويلتهم حدَّ الطلبات. `inflight` يجعل الجميع ينتظرون تجديداً واحداً.
@@ -259,7 +259,7 @@ export const listCompanies = () => api.get('/contact/admin/companies').then((r) 
 export const setCompanyCeiling = (id: number, permissions: string[]) => api.put(`/contact/admin/companies/${id}/ceiling`, { permissions }).then((r) => r.data)
 export const agentReports = (params: any = {}) => api.get('/contact/admin/reports/agents', { params }).then((r) => r.data)
 
-// ── يوزر الشركة (تفويض) ──────────────────────────────────────────────────────────
+// ── مستخدم الشركة (تفويض) ──────────────────────────────────────────────────────────
 export const listUsers = () => api.get('/contact/users').then((r) => r.data)
 export const createUser = (body: any) => api.post('/contact/users', body).then((r) => r.data)
 export const updateUser = (id: number, body: any) => api.patch(`/contact/users/${id}`, body).then((r) => r.data)
@@ -293,7 +293,7 @@ export const contactOrders = (params: any = {}) => api.get('/contact/orders', { 
 // تفاصيل طلب ببنوده — القائمة لا تحمل البنود، وإعادة الطلب تحتاجها
 export const contactOrder = (id: number) => api.get(`/contact/orders/${id}`).then((r) => r.data)
 // إلغاء طلب — الخادم يرفضه بعد نزوله الفرع («الإلغاء يكون من الفرع»)
-export const contactCancelOrder = (id: number) => api.post(`/contact/orders/${id}/cancel`).then((r) => r.data)
+export const contactCancelOrder = (id: number, reason?: string) => api.post(`/contact/orders/${id}/cancel`, { reason }).then((r) => r.data)
 export const contactBusinessDay = () => api.get('/contact/business-day/current').then((r) => r.data)
 // رابط بثّ SSE لتغيّرات الطلبات (EventSource — auth عبر query لأنه لا يدعم الترويسات)
 export function contactOrdersStreamUrl(): string | null {
@@ -329,7 +329,7 @@ export interface ContactComplaintInput {
   priority?: 'low' | 'normal' | 'high' | 'urgent'
 }
 
-// فتح يوم كول‑سنتر (يتطلّب صلاحية callcenter.open)
+// فتح يوم مركز اتصال (يتطلّب صلاحية callcenter.open)
 export const contactOpenDay = (businessDate?: string) => api.post('/contact/business-day/open', businessDate ? { businessDate } : {}).then((r) => r.data)
 export const contactCloseDay = () => api.post('/contact/business-day/close').then((r) => r.data)
 // أيام فروع النطاق — إرشادُ شاشة فتح اليوم قبل اختيار التاريخ (شرط التطابق لم يتغيّر)
@@ -359,10 +359,10 @@ export const contactDeleteRole = (id: number) => api.delete(`/contact/roles/${id
 
 export interface ContactExtra { id: number; name: string; nameEn: string | null; price: number }
 export interface ContactProduct { id: number; nameAr: string; nameEn: string | null; price: number; isAvailable: boolean; categoryId: number | null; categoryNameAr: string | null; categoryNameEn: string | null; categorySort: number; sizes: string[]; sizePrices: number[]; extras: ContactExtra[] }
-// الأصناف الموقوفة من الـPOS (لكل فرع) — تُدفع للكول‑سنتر
+// الأصناف الموقوفة من الـPOS (لكل فرع) — تُدفع لمركز الاتصال
 export interface ContactStoppedBranch { branchId: number; productIds: number[] }
 export const contactStoppedItems = () => api.get('/contact/lookup/stopped-items').then((r) => r.data as ContactStoppedBranch[])
-// أصناف أوقفها الكول‑سنتر لنفسه — مشتركة بين كل الوكلاء، ولا تصل الفرع إطلاقاً
+// أصناف أوقفها مركز الاتصال لنفسه — مشتركة بين كل الوكلاء، ولا تصل الفرع إطلاقاً
 export const contactCcStoppedItems = () => api.get('/contact/lookup/cc-stopped-items').then((r) => r.data as ContactStoppedBranch[])
 export const contactSetCcStopped = (body: { branchId: number; productId: number; stopped: boolean }) =>
   api.post('/contact/cc-stopped-items', body).then((r) => r.data as { ok: boolean })

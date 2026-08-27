@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * فتح يوم عمل الكول‑سنتر — التاريخ قرارُ الوكيل، وأمامه أيام فروعه.
+ * فتح يوم عمل مركز الاتصال — التاريخ قرارُ الوكيل، وأمامه أيام فروعه.
  *
  * كان الزرّ يفتح فوراً بتاريخٍ يشتقّه الخادم من أيام الفروع؛ فإن كان قد فُتح وأُقفل
  * جاء الرفض بلا مخرج إلا أن يُقفَل يومُ فرعٍ ليتحرّك المشتقّ.
@@ -58,7 +58,7 @@ const matching = computed(() => branches.value.filter((b) => b.businessDate === 
         </div>
 
         <p v-if="!isFix && state.dayModal.loading" class="od-muted">{{ tx('جارٍ التحميل…', 'Loading…') }}</p>
-        <p v-else-if="!isFix && !branches.length" class="od-muted">{{ tx('لا توجد فروع مفعّلة للكول‑سنتر في هذا النطاق.', 'No call-center-enabled branches in this scope.') }}</p>
+        <p v-else-if="!isFix && !branches.length" class="od-muted">{{ tx('لا توجد فروع مفعّلة لمركز الاتصال في هذا النطاق.', 'No call-center-enabled branches in this scope.') }}</p>
         <div v-else-if="!isFix" class="od-list">
           <div v-for="b in branches" :key="b.id" class="od-row"
             :class="{ 'is-match': b.businessDate && b.businessDate === state.dayModal.date }">

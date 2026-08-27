@@ -1,5 +1,5 @@
 // ========================================
-// بيانات نظام كول سنتر المطاعم
+// بيانات نظام مركز اتصال المطاعم
 // ========================================
 
 // ========== الموظفين ==========
@@ -281,7 +281,7 @@ const PAYMENT_METHODS = [
 
 const PAYMENT_CHANNELS = [
   {
-    id: 'phone', name: 'الفون', nameEn: 'Phone',
+    id: 'phone', name: 'الهاتف', nameEn: 'Phone',
     icon: 'phone', color: '#2563eb',
     logo: `<svg viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg"><rect width="48" height="48" rx="12" fill="#2563eb"/><path d="M14 14h6l2 5-3 2.5c1.5 3 4 5.5 7 7l2.5-3 5 2v6c0 1.5-1 2.5-2.5 2.5C20.5 36 12 27.5 12 17c0-1.5 1-2.5 2-3z" fill="#fff"/></svg>`,
     methods: ['cash', 'knet', 'link']

@@ -323,7 +323,7 @@ async function save() {
                        بلا أن يسحبه فرع. نقولها هنا قبل الربط لا بعد أول طلب ضائع. -->
                   <span v-if="!Number(c.branchesCallCenter || 0)" class="chip soft"
                     style="background:var(--rose-soft); color:var(--rose); margin-inline-start:auto;">
-                    <Icon name="alert" />{{ t('الكول‑سنتر غير مفعّل', 'Call center not enabled') }}
+                    <Icon name="alert" />{{ t('مركز الاتصال غير مفعّل', 'Call center not enabled') }}
                   </span>
                   <span v-else-if="linked(c.id)" class="ag-co-n" :class="{ warn: !form.links[c.id].length }">
                     {{ form.links[c.id].length
@@ -333,7 +333,7 @@ async function save() {
                 </label>
 
                 <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)" class="ag-warn">
-                  {{ t('لا فرع في هذه الشركة مفعّل عليه الكول‑سنتر — أي طلب يضربه الوكيل لن ينزل أي فرع. فعّله من لوحة التحكم U‑Serve › الشركة › الفروع.',
+                  {{ t('لا فرع في هذه الشركة مفعّل عليه مركز الاتصال — أي طلب يضربه الوكيل لن ينزل أي فرع. فعّله من لوحة التحكم U‑Serve › الشركة › الفروع.',
                         'No branch in this company has the call center enabled — orders this agent takes will never reach a branch. Enable it from the U-Serve dashboard › company › branches.') }}
                 </p>
 

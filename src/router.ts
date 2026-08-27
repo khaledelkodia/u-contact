@@ -15,7 +15,7 @@ const router = createRouter({
     // غير مسجّل ⇒ شاشة الدخول الموحّدة. كان يوجَّه إلى `/admin/agents` فيرتدّ إلى دخول
     // المشرف العام، فيجد فاتحُ الرابط شاشةً ليست له. المسجّل يذهب لواجهته كما كان.
     { path: '/', redirect: () => (!isAuthed() ? '/login' : session.mode === 'agent' ? '/app/callcenter' : '/admin/agents') },
-    // دخول اليوزر العادي (افتراضي) — ودخول السوبر‑أدمن على مسار /admin منفصل
+    // دخول المستخدم العادي (افتراضي) — ودخول السوبر‑أدمن على مسار /admin منفصل
     { path: '/login', component: Login, meta: { admin: false } },
     { path: '/admin', component: Login, meta: { admin: true } },
     // Super-admin app

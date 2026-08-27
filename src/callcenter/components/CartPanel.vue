@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -97,6 +97,12 @@ const resLabel = computed(() => {
               :title="item.note || tx('أضف ملاحظة على الصنف', 'Add a note on the item')">
               <span class="cart-item-note-ico" v-html="icon('message-square', { size: 13 })"></span>
               {{ tx('ملاحظة', 'Note') }}
+            </button>
+            <!-- الحذف كان يحتاج ضغطاً على «−» حتى الصفر، ولا شيء يدلّ عليه -->
+            <button class="cart-item-del" @click="removeCartItem(item.cartItemId)"
+              :title="tx('حذف الصنف من الطلب', 'Remove the item from the order')">
+              <span class="cart-item-del-ico" v-html="icon('trash', { size: 13 })"></span>
+              {{ tx('حذف', 'Remove') }}
             </button>
           </div>
           <div class="qty-control">

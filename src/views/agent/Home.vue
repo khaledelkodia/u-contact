@@ -57,7 +57,7 @@ function chooseFr(id: number | null) { setFranchise(id) }
         <div v-if="can('callcenter.users')" class="card pad" style="cursor:pointer;" @click="router.push('/app/users')">
           <div class="logo" style="width:40px;height:40px;border-radius:11px;background:var(--primary-soft);color:var(--primary-ink);display:grid;place-items:center;margin-bottom:12px;"><Icon name="users" /></div>
           <div class="t-strong">{{ t('المستخدمون', 'Users') }}</div>
-          <div class="muted" style="font-size:13px; margin-top:3px;">{{ t('إنشاء وإدارة يوزرات شركتك', 'Create & manage your company’s users') }}</div>
+          <div class="muted" style="font-size:13px; margin-top:3px;">{{ t('إنشاء وإدارة مستخدمي شركتك', 'Create & manage your company’s users') }}</div>
         </div>
 
         <div v-if="can('callcenter.view') || can('callcenter.create')" class="card pad" style="cursor:pointer;" @click="router.push('/app/orders')">

@@ -26,7 +26,7 @@ watch(() => session.mode, (m) => { if (m === 'admin') ensureAdminCounts() }, { i
 </script>
 
 <template>
-  <!-- شاشة بـlayout مستقل (الكول‑سنتر) — تتخطّى شل U-Contact بالكامل -->
+  <!-- شاشة بـlayout مستقل (مركز الاتصال) — تتخطّى شل U-Contact بالكامل -->
   <router-view v-if="route.meta.fullLayout" />
   <div v-else-if="authed" class="shell">
     <aside class="side">

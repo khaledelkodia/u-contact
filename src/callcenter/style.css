@@ -2779,10 +2779,14 @@ body.dark-mode .menu-item-price {
   margin-bottom: 6px;
 }
 
+/* ثلاثة أزرارٍ وعدّادٌ في عمودٍ عرضه ٣٠٠px قد لا يتّسعون سطراً واحداً — يلتفّون
+   بدل أن يخرج آخرهم عن الحافة. */
 .cart-item-bottom {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
 }
 
 .cart-item-edit {
@@ -2813,6 +2817,16 @@ body.dark-mode .menu-item-price {
 .cart-item-note.has-note { color: var(--warning-dark, #b45309); }
 .cart-item-note-ico { display: inline-flex; }
 .cart-item-note-ico svg { width: 13px; height: 13px; }
+/* الحذف: بلون الخطر لكن بلا تعبئة — فعلٌ متاحٌ لا فعلٌ مُغرٍ، ويقع بضغطةٍ واحدة */
+.cart-item-del {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 12px; font-weight: 600;
+  color: var(--danger, #dc2626); background: none; border: none;
+  padding: 0; cursor: pointer;
+}
+.cart-item-del:hover { text-decoration: underline; }
+.cart-item-del-ico { display: inline-flex; }
+.cart-item-del-ico svg { width: 13px; height: 13px; }
 
 .qty-control {
   display: flex;
@@ -6977,8 +6991,10 @@ body.dark-mode .cart-tag-input { background: var(--bg-card); border-color: var(-
   position: sticky;
   inset-inline-start: 0;
   /* 100% هنا = عرض الجدول لا عرض المنطقة المرئيّة، فكانت اللوحة تتجاوزها عند
-     التمرير الأفقيّ. الحدّ من الشاشة نفسها ناقصاً السايدبار وحشوة المحتوى. */
-  max-width: min(1100px, calc(100vw - var(--sidebar-width) - 60px));
+     التمرير الأفقيّ. الحدّ من الشاشة نفسها ناقصاً السايدبار وحشوة المحتوى.
+     وسقفُ 1100px كان يترك ثلث الشاشة بياضاً على الشاشات العريضة — الحدّ هو
+     المرئيّ نفسه لا رقمٌ مختار. */
+  max-width: calc(100vw - var(--sidebar-width) - 60px);
 }
 /* ── شريط الصفحات ── */
 .uc-pager {

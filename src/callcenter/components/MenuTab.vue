@@ -28,7 +28,7 @@ function catImg(cat: any) { return cat.imageUrl || `assets/images/${cat.id}.png`
 function catName(cat: any) { return isEn.value ? (cat.nameEn || cat.name) : cat.name }
 function catNameSub(cat: any) { return isEn.value ? cat.name : (cat.nameEn || '') }
 
-// موقوف = إيقاف الكول‑سنتر + إيقاف مطبخ الـPOS. نمرّ على `isItemDisabledForOrder`
+// موقوف = إيقاف مركز الاتصال + إيقاف مطبخ الـPOS. نمرّ على `isItemDisabledForOrder`
 // نفسها التي تمنع الإضافة — فلا تنحرف الشاشة عمّا سيحدث عند الضغط (كانت تقرأ
 // `getResolvedOrderBranchId()` مباشرةً فتُرجع فراغاً قبل اختيار العميل).
 const disabledItems = computed<any[]>(() => {

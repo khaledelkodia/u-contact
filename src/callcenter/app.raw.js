@@ -1,6 +1,6 @@
 /**
  * ========================================
- * Premium POS - نظام كول سنتر المطاعم
+ * Premium POS - نظام مركز اتصال المطاعم
  * المنطق الرئيسي للتطبيق (JavaScript)
  * ========================================
  */
@@ -153,7 +153,7 @@ function loginSuccess(user) {
   // Update UI with user info
   document.getElementById('sidebar-user-name').textContent = user.name;
   document.getElementById('sidebar-avatar').textContent = user.name.charAt(0);
-  document.getElementById('sidebar-user-role').textContent = user.role === 'admin' ? 'مدير النظام' : (user.role === 'supervisor' ? 'مشرف' : 'موظف كول سنتر');
+  document.getElementById('sidebar-user-role').textContent = user.role === 'admin' ? 'مدير النظام' : (user.role === 'supervisor' ? 'مشرف' : 'موظف مركز اتصال');
 
   document.getElementById('header-user-name').textContent = user.name;
   document.getElementById('header-avatar').textContent = user.name.charAt(0);
@@ -220,15 +220,15 @@ function initializeApp() {
 function applyLanguageToApp(lang = window.currentLang || 'ar') {
   const isEn = lang === 'en';
 
-  document.title = isEn ? 'Premium POS - Restaurant Call Center System' : 'Premium POS - نظام كول سنتر المطاعم';
+  document.title = isEn ? 'Premium POS - Restaurant Call Center System' : 'Premium POS - نظام مركز اتصال المطاعم';
 
   const metaDesc = document.querySelector('meta[name="description"]');
   if (metaDesc) {
-    metaDesc.setAttribute('content', isEn ? 'Restaurant call center system for managing restaurant orders - Premium POS' : 'نظام كول سنتر لإدارة طلبات المطاعم - Premium POS');
+    metaDesc.setAttribute('content', isEn ? 'Restaurant call center system for managing restaurant orders - Premium POS' : 'نظام مركز اتصال لإدارة طلبات المطاعم - Premium POS');
   }
 
   const loginSubtitle = document.querySelector('.login-subtitle, .login-header p');
-  if (loginSubtitle) loginSubtitle.textContent = isEn ? 'Restaurant Call Center System' : 'نظام كول سنتر المطاعم';
+  if (loginSubtitle) loginSubtitle.textContent = isEn ? 'Restaurant Call Center System' : 'نظام مركز اتصال المطاعم';
 
   const loginBtn = document.getElementById('login-btn');
   if (loginBtn) loginBtn.textContent = isEn ? 'Login' : 'تسجيل الدخول';
@@ -240,7 +240,7 @@ function applyLanguageToApp(lang = window.currentLang || 'ar') {
   if (sidebarUserRole && AppState.currentUser) {
     sidebarUserRole.textContent = isEn
       ? (AppState.currentUser.role === 'admin' ? 'System Admin' : AppState.currentUser.role === 'supervisor' ? 'Supervisor' : 'Call Center Agent')
-      : (AppState.currentUser.role === 'admin' ? 'مدير النظام' : AppState.currentUser.role === 'supervisor' ? 'مشرف' : 'موظف كول سنتر');
+      : (AppState.currentUser.role === 'admin' ? 'مدير النظام' : AppState.currentUser.role === 'supervisor' ? 'مشرف' : 'موظف مركز اتصال');
   }
 
   const headerClock = document.getElementById('header-clock');

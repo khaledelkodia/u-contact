@@ -1,10 +1,10 @@
 const translations = {
   ar: {
     // General
-    "app_title": "نظام كول سنتر المطاعم",
-    "app_subtitle": "نظام كول سنتر المطاعم",
+    "app_title": "نظام مركز اتصال المطاعم",
+    "app_subtitle": "نظام مركز اتصال المطاعم",
     "login_title": "U-Contact",
-    "login_subtitle": "نظام كول سنتر المطاعم",
+    "login_subtitle": "نظام مركز اتصال المطاعم",
     "login_button": "تسجيل الدخول",
     "dashboard": "الرئيسية",
     "delivery_orders": "طلبات التوصيل",

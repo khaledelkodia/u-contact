@@ -17,7 +17,7 @@ const groups = computed<any[]>(() => stoppedItemsGroups())
         </button>
         <div class="page-header-text">
           <h2 class="dashboard-title">{{ tx('الأصناف الموقوفة', 'Stopped items') }}</h2>
-          <p class="dashboard-subtitle">{{ tx('كل الأصناف الموقوفة مرتبة حسب الفرع — من المطبخ أو من الكول‑سنتر', 'All stopped items grouped by branch — from the kitchen or from the call center') }}</p>
+          <p class="dashboard-subtitle">{{ tx('كل الأصناف الموقوفة مرتبة حسب الفرع — من المطبخ أو من مركز الاتصال', 'All stopped items grouped by branch — from the kitchen or from the call center') }}</p>
         </div>
       </div>
 
@@ -33,7 +33,7 @@ const groups = computed<any[]>(() => stoppedItemsGroups())
               <div v-for="item in group.items" :key="item.id" class="item-availability-card disabled">
                 <div class="item-availability-top">
                   <div class="item-availability-name">{{ item.name }}</div>
-                  <span class="availability-chip disabled">{{ item.fromPos ? tx('موقوف من المطبخ', 'Stopped by the kitchen') : tx('موقوف — الكول‑سنتر', 'Stopped — call center') }}</span>
+                  <span class="availability-chip disabled">{{ item.fromPos ? tx('موقوف من المطبخ', 'Stopped by the kitchen') : tx('موقوف — مركز الاتصال', 'Stopped — call center') }}</span>
                 </div>
                 <div class="item-availability-meta">
                   <span>{{ tx('السعر:', 'Price:') }} {{ formatCurrency(item.price) }}</span>

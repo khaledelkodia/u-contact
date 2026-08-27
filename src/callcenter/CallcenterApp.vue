@@ -49,12 +49,12 @@ function loginSuccess(user: any) {
   state.currentUser = user
   state.currentBranch = user.branch === 'all' ? state.branches[0] : (state.branches.find((b: any) => b.id === user.branch) || state.branches[0])
 }
-// الكول‑سنتر بقى واجهة الوكيل الموحّدة → «تسجيل الخروج» = خروج كامل ورجوع للّوجين
+// مركز الاتصال بقى واجهة الوكيل الموحّدة → «تسجيل الخروج» = خروج كامل ورجوع للّوجين
 function logout() { apiLogout(); router.push('/login') }
 const roleLabel = computed(() => {
   const r = state.currentUser?.role
   if (lang.value === 'en') return r === 'admin' ? 'System Admin' : r === 'supervisor' ? 'Supervisor' : 'Call Center Agent'
-  return r === 'admin' ? 'مدير النظام' : r === 'supervisor' ? 'مشرف' : 'موظف كول سنتر'
+  return r === 'admin' ? 'مدير النظام' : r === 'supervisor' ? 'مشرف' : 'موظف مركز اتصال'
 })
 // الدور هنا كان مشتقّاً من (فتح **أو** قفل) معاً، فمَن يملك الفتح وحده كان يرى زرّ
 // الإنهاء. مفتاحٌ لكل زرّ: هذا الزرّ لـ`callcenter.close` وحدها.
@@ -105,7 +105,7 @@ function openOrdersStream() {
   if (!url) return
   ordersES = new EventSource(url)
   ordersES.addEventListener('order', onOrderEvent as EventListener)   // تغيّر طلب (إنشاء/حالة)
-  // إيقاف/تشغيل صنف — من مطبخ الـPOS أو من وكيل كول‑سنتر آخر → حدّث القائمتين لحظياً
+  // إيقاف/تشغيل صنف — من مطبخ الـPOS أو من وكيل مركز اتصال آخر → حدّث القائمتين لحظياً
   ordersES.addEventListener('availability', () => { void loadStoppedItems(); void loadCcStoppedItems() })
   // حضور فرع (اتصل/انقطع): يحدّث شريط الجاهزيّة فوراً، ويُنبّه حين يعود فرعٌ عليه طلب واقف
   ordersES.addEventListener('branch', (ev: any) => {
@@ -122,7 +122,7 @@ function openOrdersStream() {
       if (d && typeof d.branchId === 'number') applyBranchDay(d.branchId, d.businessDate ?? null)
     } catch { /* حمولة غير متوقّعة — نتجاهلها بلا ضجيج */ }
   })
-  // يوم الكول‑سنتر نفسه — وكيلٌ آخر فتحه أو أنهاه
+  // يوم مركز الاتصال نفسه — وكيلٌ آخر فتحه أو أنهاه
   ordersES.addEventListener('ccDay', (ev: any) => {
     try { applyCcDay(JSON.parse(ev.data)) } catch { /* كما فوق */ }
   })
@@ -142,7 +142,7 @@ function initBusinessDate() {
   if (!saved) localStorage.setItem(BUSINESS_DATE_KEY, state.businessDate)
 }
 /**
- * يوم العمل المعروض = **يوم الكول‑سنتر المفتوح على الخادم** لا تاريخ الجهاز.
+ * يوم العمل المعروض = **يوم مركز الاتصال المفتوح على الخادم** لا تاريخ الجهاز.
  *
  * كان يُقرأ من `state.businessDate` وهو محليّ بحت (localStorage أو تاريخ اليوم)، فيعرض
  * الهيدر «اليوم» بينما الطلبات تُختَم بيومٍ مفتوحٍ قد يسبقه بأيام — وهو الرقم الذي
@@ -167,12 +167,12 @@ function toggleTheme() { dark.value = !dark.value; document.body.classList.toggl
 const myPerms = computed<string[]>(() => currentCompany()?.permissions || [])
 function can(perm: string) { return myPerms.value.includes(perm) }
 function hasAny(perms: string[]) { return perms.some((p) => myPerms.value.includes(p)) }
-// صلاحيات شاشة الكول‑سنتر (ضرب الطلب)، وصلاحيات تستحق لوحة التحكم الرئيسية
+// صلاحيات شاشة مركز الاتصال (ضرب الطلب)، وصلاحيات تستحق لوحة التحكم الرئيسية
 const ORDER_PERMS = ['callcenter.view', 'callcenter.create', 'callcenter.edit']
 const DASH_PERMS = ['callcenter.users', 'complaints.view', 'complaints.manage', 'callcenter.manage']
 const dashboardWorthy = computed(() => hasAny(DASH_PERMS))
 const canOrders = computed(() => hasAny(ORDER_PERMS))
-// عناصر الهيدر (التاريخ/طلب جديد/إنهاء اليوم) خاصة بشاشات الكول‑سنتر فقط — تختفي في الرئيسية
+// عناصر الهيدر (التاريخ/طلب جديد/إنهاء اليوم) خاصة بشاشات مركز الاتصال فقط — تختفي في الرئيسية
 const CALLCENTER_VIEWS = ['new-order', 'orders', 'scheduled-orders']
 const isCallcenterView = computed(() => CALLCENTER_VIEWS.includes(state.activeView))
 
@@ -187,8 +187,8 @@ function pickFranchise(e: any) { const v = e.target.value; setFranchise(v ? Numb
 const NAV = [
   // الرئيسية = لوحة التحكم (تظهر لمن يملك صلاحيات تستحقها)
   { view: 'dashboard', label: 'home', fallback: 'الرئيسية', anyOf: DASH_PERMS, svg: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>' },
-  // الكول‑سنتر = مجموعة قائمة منسدلة فقط (بدون شاشة خاصة بها) — الكليك يفتح/يقفل القائمة
-  { view: 'cc-group', label: 'call_center', fallback: 'الكول سنتر', anyOf: ORDER_PERMS, svg: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', children: [
+  // مركز الاتصال = مجموعة قائمة منسدلة فقط (بدون شاشة خاصة بها) — الكليك يفتح/يقفل القائمة
+  { view: 'cc-group', label: 'call_center', fallback: 'مركز الاتصال', anyOf: ORDER_PERMS, svg: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', children: [
     { view: 'new-order', label: 'new_order', fallback: 'طلب جديد', anyOf: ORDER_PERMS, svg: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>' },
     { view: 'orders', label: 'delivery_orders', fallback: 'طلبات التوصيل', anyOf: ['callcenter.view'], svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>' },
     { view: 'scheduled-orders', label: 'scheduled_orders', fallback: 'طلبات مجدولة', anyOf: ['callcenter.view', 'callcenter.create'], svg: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>' },
@@ -204,7 +204,7 @@ const NAV = [
 function showView(v: string) { if (v === 'new-order') { startNewOrder(); return } state.activeView = v }
 function navLabel(n: any) { return t(n.label) === n.label ? n.fallback : t(n.label) }
 
-// ── دروب‑داون مجموعات السايدبار (الكول‑سنتر) ──
+// ── دروب‑داون مجموعات السايدبار (مركز الاتصال) ──
 const openGroups = reactive<Record<string, boolean>>({})
 function groupHasActive(n: any) { return (n.children || []).some((c: any) => c.view === state.activeView) }
 function isOpen(n: any) { return n.view in openGroups ? openGroups[n.view] : groupHasActive(n) }  // يفتح تلقائياً لو أنت داخل المجموعة
@@ -246,7 +246,7 @@ onMounted(() => {
   const role = (perms.includes('callcenter.open') || perms.includes('callcenter.close')) ? 'supervisor' : 'agent'
   loginSuccess({ name: session.name || 'وكيل', role, branch: 'all', username: 'agent' })
 
-  // هبوط ذكي: من يملك صلاحيات إدارية يبدأ على لوحة التحكم الرئيسية، ومن معه الكول‑سنتر فقط يدخل عليه مباشرةً
+  // هبوط ذكي: من يملك صلاحيات إدارية يبدأ على لوحة التحكم الرئيسية، ومن معه مركز الاتصال فقط يدخل عليه مباشرةً
   state.activeView = dashboardWorthy.value ? 'dashboard' : 'new-order'
 
   // تحميل البيانات الحقيقية (فروع/مناطق/منتجات) + حالة يوم العمل — يبقى على المووك لو فشل أو مفيش شركة
@@ -514,7 +514,7 @@ function toastIcon(type: string) {
   opacity: 1;
   font-weight: 800;
   padding-block: 10px;
-  padding-inline: 12px;   /* اللوحة أكلت من العرض — ٢٠px كانت تكسر «الكول سنتر» سطرين */
+  padding-inline: 12px;   /* اللوحة أكلت من العرض — ٢٠px كانت تكسر «مركز الاتصال» سطرين */
   border-radius: var(--radius-sm, 8px);
   background: transparent;
 }

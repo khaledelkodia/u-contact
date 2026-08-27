@@ -9,7 +9,7 @@ import Icon from '../../components/Icon.vue'
 const companies = ref<any[]>([])
 const loading = ref(true)
 /**
- * الكول‑سنتر يُفعَّل **لكل فرع** (`Branch.callCenterEnabled`، مقفول افتراضياً) من
+ * مركز الاتصال يُفعَّل **لكل فرع** (`Branch.callCenterEnabled`، مقفول افتراضياً) من
  * لوحة التحكم U‑Serve. شركةٌ بلا فرع مفعّل يستطيع وكيلها الدخول وضربَ طلب يبقى في
  * الكلاود بلا أن يسحبه فرع — فنُظهر الحالة، ونفتح على المفعّلة وحدها لأنها ما يعني
  * المشرف عادةً. ولا نُخفي غيرها: تجهيز الشركة قبل تفعيل فروعها مسار مشروع.
@@ -34,7 +34,7 @@ const shown = computed<any[]>(() => {
   })
 })
 
-// ملخّصٌ يقول أين تقف الشركات من الكول‑سنتر قبل قراءة الجدول
+// ملخّصٌ يقول أين تقف الشركات من مركز الاتصال قبل قراءة الجدول
 const stats = computed(() => ({
   total: companies.value.length,
   on: companies.value.filter((c) => ccOn(c) > 0).length,
@@ -68,7 +68,7 @@ async function save() {
           <div class="t">{{ t('الشركات', 'Companies') }}</div>
           <span v-if="!loading" class="n">{{ t(`${stats.on} مفعّلة من ${stats.total}`, `${stats.on} of ${stats.total} enabled`) }}</span>
         </div>
-        <div class="d">{{ t('حدّد الصلاحيات المتاحة لكل شركة — تقيّد ما يمنحه يوزراتها لبعض (اختياري)', 'Set what each company may use — limits what its users can grant each other (optional)') }}</div>
+        <div class="d">{{ t('حدّد الصلاحيات المتاحة لكل شركة — تقيّد ما يمنحه مستخدموها لبعض (اختياري)', 'Set what each company may use — limits what its users can grant each other (optional)') }}</div>
       </div>
     </div>
 
@@ -80,11 +80,11 @@ async function save() {
         <div class="val">{{ stats.total }}<i>{{ t('شركة', 'companies') }}</i></div>
       </div>
       <div class="stat">
-        <div class="lbl"><span>{{ t('الكول‑سنتر مفعّل', 'Call center on') }}</span><span class="ic green"><Icon name="headset" /></span></div>
+        <div class="lbl"><span>{{ t('مركز الاتصال مفعّل', 'Call center on') }}</span><span class="ic green"><Icon name="headset" /></span></div>
         <div class="val green">{{ stats.on }}<i>{{ t('جاهزة للعمل', 'ready') }}</i></div>
       </div>
       <div class="stat">
-        <div class="lbl"><span>{{ t('فروع الكول‑سنتر', 'Enabled branches') }}</span><span class="ic violet"><Icon name="pin" /></span></div>
+        <div class="lbl"><span>{{ t('فروع مركز الاتصال', 'Enabled branches') }}</span><span class="ic violet"><Icon name="pin" /></span></div>
         <div class="val violet">{{ stats.branches }}<i>{{ t('فرع يستقبل', 'receiving') }}</i></div>
       </div>
       <div class="stat">
@@ -108,10 +108,10 @@ async function save() {
       </div>
 
       <table>
-        <thead><tr><th>{{ t('الشركة', 'Company') }}</th><th>{{ t('الكول‑سنتر', 'Call center') }}</th><th>{{ t('الصلاحيات المتاحة', 'Available permissions') }}</th><th></th></tr></thead>
+        <thead><tr><th>{{ t('الشركة', 'Company') }}</th><th>{{ t('مركز الاتصال', 'Call center') }}</th><th>{{ t('الصلاحيات المتاحة', 'Available permissions') }}</th><th></th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="4" class="muted" style="text-align:center; padding:34px;">{{ t('جارٍ التحميل…', 'Loading…') }}</td></tr>
-          <tr v-else-if="!shown.length"><td colspan="4"><div class="empty"><div class="ic"><Icon name="building" /></div><div>{{ q ? t('لا توجد نتائج مطابقة للبحث', 'No matches') : (activeOnly ? t('لا شركة مفعّل فيها الكول‑سنتر بعد', 'No company has the call center enabled yet') : t('لا توجد شركات', 'No companies')) }}</div></div></td></tr>
+          <tr v-else-if="!shown.length"><td colspan="4"><div class="empty"><div class="ic"><Icon name="building" /></div><div>{{ q ? t('لا توجد نتائج مطابقة للبحث', 'No matches') : (activeOnly ? t('لا شركة مفعّل فيها مركز الاتصال بعد', 'No company has the call center enabled yet') : t('لا توجد شركات', 'No companies')) }}</div></div></td></tr>
           <tr v-for="c in shown" :key="c.id">
             <td class="t-strong">{{ coName(c) }}</td>
             <td>

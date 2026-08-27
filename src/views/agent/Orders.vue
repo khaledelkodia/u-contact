@@ -164,7 +164,7 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
 
     <!-- بانر يوم العمل -->
     <div v-if="!dayOpen" class="card pad" style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px">
-      <div class="muted">{{ t('يوم الكول‑سنتر مقفول — افتحه عشان تبدأ تستقبل طلبات.', 'Call-center day is closed — open it to start taking orders.') }}</div>
+      <div class="muted">{{ t('يوم مركز الاتصال مقفول — افتحه عشان تبدأ تستقبل طلبات.', 'Call-center day is closed — open it to start taking orders.') }}</div>
       <button v-if="can('callcenter.open')" class="btn" :disabled="dayBusy" @click="openDay">{{ t('افتح يوم العمل', 'Open day') }}</button>
     </div>
     <div v-else class="chip soft" style="margin-bottom:14px"><Icon name="check" /> {{ t('يوم مفتوح', 'Day open') }} · {{ String(day.businessDate).slice(0, 10) }}</div>
@@ -282,7 +282,7 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
             <label>{{ t('الدفع', 'Payment') }}</label>
             <div class="pills">
               <button class="pill" :class="form.paymentMode === 'cash_on_delivery' ? 'on' : ''" @click="form.paymentMode = 'cash_on_delivery'">{{ t('كاش عند التسليم', 'Cash on delivery') }}</button>
-              <button class="pill" :class="form.paymentMode === 'prepaid_online' ? 'on' : ''" @click="form.paymentMode = 'prepaid_online'">{{ t('مدفوع أونلاين', 'Prepaid online') }}</button>
+              <button class="pill" :class="form.paymentMode === 'prepaid_online' ? 'on' : ''" @click="form.paymentMode = 'prepaid_online'">{{ t('مدفوع إلكترونياً', 'Prepaid online') }}</button>
             </div>
           </div>
           <div class="field">

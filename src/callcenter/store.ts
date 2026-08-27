@@ -14,7 +14,7 @@ import {
 } from '../api'
 import type { ContactOrderInput } from '../api'
 
-// ── حالة تطبيق الكول‑سنتر (نفس AppState الأصلي، reactive بدل كائن عادي) ──
+// ── حالة تطبيق مركز الاتصال (نفس AppState الأصلي، reactive بدل كائن عادي) ──
 // كل الحقول مطابقة للأصل 1:1؛ التهيئة من data.ts. البيانات مووك حالياً — تُربط بالباك‑إند لاحقاً.
 export const state = reactive<any>({
   currentUser: null,
@@ -69,7 +69,7 @@ export const state = reactive<any>({
   branches: [],
   employees: [],
   drivers: [],
-  // أصناف يوقفها الكول‑سنتر لنفسه { branchId: itemId[] } — من الكلاود في الوضع
+  // أصناف يوقفها مركز الاتصال لنفسه { branchId: itemId[] } — من الكلاود في الوضع
   // الحقيقي (مشتركة بين كل الوكلاء)، ومن localStorage في المووك فقط.
   disabledBranchItems: {},
 
@@ -162,7 +162,7 @@ export const state = reactive<any>({
   statusResult: undefined,     // undefined = لسه لم يُبحث؛ null = لا يوجد؛ order = نتيجة
 
   // ── الربط بالباك‑إند الحقيقي (contact API) ──
-  live: false,                 // true = بيانات حقيقية من السيرفر؛ false = مووك
+  live: false,                 // true = بيانات حقيقية من الخادم؛ false = مووك
   regions: [],                 // مناطق التوصيل (id, name, branchId, fee) من contactRegions()
   selectedRegionBranchId: null,// الفرع المشتق من المنطقة المختارة (للتوصيل)
 
@@ -264,7 +264,7 @@ export async function loadLiveData() {
     state.live = true
     void loadOrders()          // طلبات الشركة الحقيقية بدل المووك
     void loadStoppedItems()    // أصناف مطبخ الـPOS الموقوفة (لمنع ضربها)
-    void loadCcStoppedItems()  // وأصناف أوقفها الكول‑سنتر لنفسه (مشتركة بين الوكلاء)
+    void loadCcStoppedItems()  // وأصناف أوقفها مركز الاتصال لنفسه (مشتركة بين الوكلاء)
   } catch {
     // فشل التحميل → نبقى على المووك بدون كسر الشاشة
     showToast(tx('تعذّر تحميل بيانات الشركة — سيتم استخدام بيانات تجريبية', 'Could not load company data — demo data will be used'), 'warning')
@@ -287,7 +287,7 @@ export function applyBranchDay(branchId: number, businessDate: string | null) {
 }
 
 /**
- * يوم **الكول‑سنتر** تغيّر — وكيلٌ آخر فتحه أو أنهاه.
+ * يوم **مركز الاتصال** تغيّر — وكيلٌ آخر فتحه أو أنهاه.
  *
  * كان الباقون يرون اليوم القديم ويَعِدون عليه حتى يُحدّثوا الصفحة. النطاق يُفحَص:
  * فرنشايزٌ آخر لا يخصّنا.
@@ -306,7 +306,7 @@ export function applyCcDay(e: { franchiseId?: number; businessDate?: string | nu
   void loadLiveData()   // جاهزيّة الفروع تُحتسب مقابل اليوم الجديد
 }
 
-// ── يوم عمل الكول‑سنتر (لازم يكون مفتوح لضرب طلب) ──
+// ── يوم عمل مركز الاتصال (لازم يكون مفتوح لضرب طلب) ──
 export async function loadBusinessDay() {
   if (!(session.mode === 'agent' && session.companyId)) return
   state.dayLoading = true
@@ -379,7 +379,7 @@ export async function openBusinessDay() {
 }
 
 /**
- * إنهاء يوم الكول‑سنتر.
+ * إنهاء يوم مركز الاتصال.
  *
  * الخادم يرفض القفل وفي اليوم طلبٌ لسه واقف — والرفض يُعرَض كما جاء لأنه يحمل
  * **العدد**: «فيه ٢ طلب لسه واقف» يقول للوكيل ما يفعله، بخلاف «تعذّر القفل».
@@ -417,15 +417,15 @@ export async function closeBusinessDay() {
   } finally { state.dayLoading = false }
 }
 
-// ── طلبات الكلاود → شكل جدول الكول‑سنتر (لشاشات التوصيل/المجدولة) ──
+// ── طلبات الكلاود → شكل جدول مركز الاتصال (لشاشات التوصيل/المجدولة) ──
 // تحويل حالة الـPOS (new/received/preparing/ready/delivered/closed/cancelled/modified)
-// + حالة السائق (on_way) → حالة عرض الكول‑سنتر (تفادي «غير معروف»)
+// + حالة السائق (on_way) → حالة عرض مركز الاتصال (تفادي «غير معروف»)
 /**
  * حالة العرض = حالة الفرع نفسها، لا تفسيرٌ لها.
  *
- * **حالة السائق تتقدّم على القفل**: الكاشير يقفل الأوردر ماليّاً وهو يسلّمه للسائق،
+ * **حالة السائق تتقدّم على القفل**: الكاشير يقفل الطلب ماليّاً وهو يسلّمه للسائق،
  * فتصير حالة الفرع «مقفول» — والقفل حالةٌ **ماليّة** لا حالةَ تسليم. كان الشرط الأول
- * يترجمها «تم التسليم» فيتجمّد الأوردر عند أوّل تحميلٍ على سائق ولا يتحرّك بعدها،
+ * يترجمها «تم التسليم» فيتجمّد الطلب عند أوّل تحميلٍ على سائق ولا يتحرّك بعدها،
  * والوكيل يقول للعميل «اتسلّم» والسائق لم يخرج بعد.
  */
 function mapPosStatus(s: string, driverStatus?: string): string {
@@ -458,7 +458,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     out.push({ type, status: type, at, by, note })
   }
 
-  push('created', r.createdAt, r.agentName || tx('الكول‑سنتر', 'Call center'), tx('إنشاء الطلب من الكول‑سنتر', 'Order created from the call center'))
+  push('created', r.createdAt, r.agentName || tx('مركز الاتصال', 'Call center'), tx('إنشاء الطلب من مركز الاتصال', 'Order created from the call center'))
 
   // نزول الفرع: لا توقيت مستقلّ له في الحمولة — نذكره بلا وقت مضلِّل حين يتأكّد
   if (r.posOrderId) {
@@ -473,7 +473,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     push('status', r.posStatusAt, tx('الفرع', 'Branch'), tx(`حالة الفرع: ${statusLabel}`, `Branch status: ${statusLabel}`))
   }
 
-  // السائق — يعيّنه الفرع، والكول‑سنتر يعرضه فقط
+  // السائق — يعيّنه الفرع، ومركز الاتصال يعرضه فقط
   if (r.driverName) {
     const dl = r.driverStatus === 'on_way' ? tx('خرج للتوصيل', 'Out for delivery')
       : r.driverStatus === 'delivered' ? tx('سلّم الطلب', 'Delivered the order')
@@ -485,7 +485,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
 
   if (r.status === 'cancelled' || r.posStatus === 'cancelled') {
     out.push({ type: 'cancelled', status: 'cancelled', at: r.posStatusAt || null,
-      by: r.posStatus === 'cancelled' ? 'الفرع' : 'الكول‑سنتر', note: tx('تم إلغاء الطلب', 'Order cancelled') })
+      by: r.posStatus === 'cancelled' ? 'الفرع' : 'مركز الاتصال', note: tx('تم إلغاء الطلب', 'Order cancelled') })
   }
 
   // الأقدم أولاً؛ ما لا وقت له يبقى في موضعه المنطقي بلا إزاحة
@@ -511,6 +511,8 @@ function mapCloudOrder(r: any): any {
     // تفصيل الدفع كما أُقفل في الفرع (قد يكون أكثر من سطر ومعه إكراميّة).
     // فارغٌ = لم يُقفَل بعد — ولا نخترع له طريقة.
     posPayments: Array.isArray(r.posPayments) ? r.posPayments : null,
+    // طلب إلغاءٍ عند الفرع لم يردّ عليه بعد
+    cancelRequested: !!r.cancelRequested,
     type, status,
     customerName: r.customerName, customerPhone: r.customerPhone,
     branchId: r.branchId,
@@ -688,7 +690,7 @@ export function saveDisabledItems() {
 }
 
 /**
- * قائمة إيقاف الكول‑سنتر من الكلاود (مشتركة بين الوكلاء).
+ * قائمة إيقاف مركز الاتصال من الكلاود (مشتركة بين الوكلاء).
  * ترجع نجاحها: فشلُ القراءة كان يُبتلَع بصمت، فتبقى الشاشة على تحديث تفاؤليّ لم
  * يُتحقَّق منه ويظهر الإيقاف «كأنه انحفظ» ثم يختفي عند أول تحميل.
  */
@@ -759,8 +761,8 @@ export function applyBranchPresence(branchId: number, online: boolean) {
   const waiting = (state.orders || []).filter((o: any) => o.branchId === branchId && o.status === 'sent').length
   showToast(
     waiting > 0
-      ? tx(`${b.name} رجع أونلاين — ${waiting} طلب واقف هينزل عليه دلوقتي`, `${b.name} is back online — ${waiting} held order(s) will go through now`)
-      : tx(`${b.name} رجع أونلاين`, `${b.name} is back online`),
+      ? tx(`${b.name} رجع متّصلاً — ${waiting} طلب واقف هينزل عليه دلوقتي`, `${b.name} is back online — ${waiting} held order(s) will go through now`)
+      : tx(`${b.name} رجع متّصلاً`, `${b.name} is back online`),
     'success', waiting > 0 ? 9000 : 4000,
   )
 }
@@ -1460,7 +1462,7 @@ const DELIVERY_CODES = [4, 5]
 export const isDeliveryCode = (code: number) => DELIVERY_CODES.includes(Number(code))
 
 /**
- * أنواع الطلب التي يراها وكيل الكول‑سنتر: **طلبات (4) · توصيل (5) · استلام (6)**.
+ * أنواع الطلب التي يراها وكيل مركز الاتصال: **طلبات (4) · توصيل (5) · استلام (6)**.
  *
  * كانت كلّ أنواع الشركة تُعرَض — صالة وتيك أواي وعربيّة… — وهي أنواعُ كاشيرٍ داخل
  * الفرع لا يأخذها أحدٌ بالهاتف، فتزحم الشريط وتُغري بنوعٍ خاطئ.
@@ -1574,7 +1576,7 @@ export function filterMenuItems(query: string) {
 }
 
 // مودال تخصيص الصنف (المرحلة الرابعة) — في الوضع الحقيقي (بدون أحجام/إضافات) نضيف الصنف مباشرةً
-// موقوف لفرع معيّن = موقوف محلياً (إعدادات الكول‑سنتر) أو موقوف من مطبخ الـPOS (يُدفع من الكلاود)
+// موقوف لفرع معيّن = موقوف محلياً (إعدادات مركز الاتصال) أو موقوف من مطبخ الـPOS (يُدفع من الكلاود)
 export function isItemStoppedForBranch(branchId: number | null | undefined, itemId: number): boolean {
   if (!branchId) return false
   const local = state.disabledBranchItems[branchId] || []
@@ -1608,7 +1610,7 @@ export function isItemDisabledForOrder(itemId: number): boolean {
 export function itemStopReason(itemId: number): string {
   const bid = menuBranchId()
   if (bid && (state.posStoppedItems[bid] || []).includes(itemId)) return tx('الصنف موقوف من مطبخ الفرع', 'The item is stopped by the branch kitchen')
-  return tx('الصنف موقوف للكول‑سنتر في فرع الطلب', 'The item is stopped for the call center at the order’s branch')
+  return tx('الصنف موقوف لمركز الاتصال في فرع الطلب', 'The item is stopped for the call center at the order’s branch')
 }
 // أصناف مطبخ الـPOS الموقوفة (لكل فرع) من الكلاود
 export async function loadStoppedItems() {
@@ -1673,7 +1675,7 @@ export function openItemModal(itemId: number, cartItemId?: string) {
  *
  * كان الحكم على `minSelect > 0`، و`minSelect` عددٌ أدنى لا إعلانُ إلزام: مجموعة
  * «صوصات» عند العميل `isRequired=false` و`minSelect=1` — أي «إن اخترتَ فواحدٌ على
- * الأكثر»، لا «لا بدّ أن تختار». فصارت الصوصاتُ إجباريةً في الكول‑سنتر وهي
+ * الأكثر»، لا «لا بدّ أن تختار». فصارت الصوصاتُ إجباريةً في مركز الاتصال وهي
  * اختياريةٌ في U‑Serve. ولوحة التحكم U‑Serve صريح: `isRequired` = «إلزامية (لازم
  * العميل يختار)»، و`minSelect` = «أقل عدد اختيار».
  */
@@ -1917,6 +1919,24 @@ export function updateCartItemQty(cartItemId: string, change: number) {
   }
 }
 
+/**
+ * حذف صنفٍ من السلّة — بضغطةٍ واحدة.
+ *
+ * كان الحذف ممكناً بطريقٍ واحد: «−» حتى تصل الكمية صفراً. صنفٌ كميّته خمسة يحتاج
+ * خمس ضغطات، ولا شيء في الشاشة يقول إنّ ذلك يحذفه أصلاً — فكان الوكيل يظنّ الحذف
+ * غير متاح. وهو يلزمه في الحالتين: وهو يبني الطلب، وهو يعدّل طلباً قائماً.
+ *
+ * بلا تأكيد: الصنف يُعاد بضغطةٍ من القائمة، والتعديل لا ينزل الفرع إلا بالحفظ.
+ * والحدث يُسجَّل كما يُسجَّل الحذف بالكمية — نفس النوع، فلا ينقسم السجلّ لطريقين.
+ */
+export function removeCartItem(cartItemId: string) {
+  const i = state.cart.findIndex((x: any) => x.cartItemId === cartItemId)
+  if (i === -1) return
+  const item = state.cart[i]
+  state.cart.splice(i, 1)
+  logPendingEvent({ type: 'item_removed', itemName: item.name, note: `حذف صنف: ${item.name}` })
+}
+
 export async function clearCart() {
   if (state.cart.length === 0) return
   const n = state.cart.length
@@ -1934,7 +1954,7 @@ export async function clearCart() {
 // DELIVERY FEE / TOTALS (نقلاً عن calculateCartTotals)
 // ==========================================
 /**
- * رسوم الطلب = رسوم ربط (الفرع ↔ المكان) لا غير. الكول‑سنتر لا يُدخلها ولا يعدّلها:
+ * رسوم الطلب = رسوم ربط (الفرع ↔ المكان) لا غير. مركز الاتصال لا يُدخلها ولا يعدّلها:
  * تسعير التوصيل قرار الشركة في لوحة التحكم، و«المفتوحة» يحدّدها الفرع لكل مشوار.
  */
 export function getEffectiveDeliveryFee(): number {
@@ -1979,7 +1999,7 @@ export function checkout() {
 
 // بناء ContactOrderInput وإرساله (cash on delivery حالياً)
 export async function submitOrder() {
-  if (state.live && state.onlineDay === null) { showToast(tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order'), 'warning'); return }
+  if (state.live && state.onlineDay === null) { showToast(tx('افتح يوم عمل مركز الاتصال أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order'), 'warning'); return }
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   const phone = (state.form.phone || '').trim()
   const name = (state.form.name || '').trim()
@@ -2006,13 +2026,13 @@ export async function submitOrder() {
 
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
-  // كاش → تحصيل عند التسليم؛ كي‑نت/رابط → مدفوع أونلاين
+  // كاش → تحصيل عند التسليم؛ كي‑نت/رابط → مدفوع إلكترونياً
   // طريقة الدفع المختارة من طرق الشركة (أو من قائمة `data.ts` حين لا تصل)
   const payMethod = companyPaymentMethods().find((m: any) => String(m.id) === String(state.paymentMethod)) || null
   // قائمة `data.ts` الاحتياطية لا تحمل `isCash` أصلاً: `!!undefined` كان يجعل الكاش
   // «مدفوعاً مسبقاً» فيُسجَّل الطلب بوضع دفعٍ خاطئ. نسأل عن وجود الحقل لا عن قيمته.
   // **بلا طريقةٍ أصلاً** (السياسة اختياريّة) ⇒ التحصيل عند التسليم. بدون هذا كان
-  // الفرع الأخير يعطي false فيُسجَّل الطلب «مدفوعاً أونلاين» وهو لم يُحصَّل بعد.
+  // الفرع الأخير يعطي false فيُسجَّل الطلب «مدفوعاً إلكترونياً» وهو لم يُحصَّل بعد.
   const isCashPay = !state.paymentMethod ? true
     : payMethod && 'isCash' in payMethod ? !!payMethod.isCash
     : String(state.paymentMethod ?? '') === 'cash'
@@ -2210,7 +2230,7 @@ export function setPaymentChannel(id: string) {
 export function setPaymentMethod(id: any) { state.paymentMethod = id }
 export function resetPaymentSelection() { state.paymentChannel = null; state.paymentMethod = null }
 export function confirmPaymentSelection() {
-  // المصدر (الفون/طلبات/كاري…) اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له.
+  // المصدر (الهاتف/طلبات/كاري…) اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له.
   // الطريقة وحدها إلزامية — بها يُحسَب وضع الدفع ويُسجَّل التقرير.
   if (!state.paymentMethod) { showToast(tx('اختر طريقة الدفع', 'Choose the payment method'), 'warning'); return }
   state.paymentModalOpen = false
@@ -2245,7 +2265,7 @@ export async function showOrderHistory() {
  * إعادة طلب سابق: نضيف بنوده للسلة **بأسعار الكتالوج الحالية** لا أسعار وقت الطلب،
  * ونُبلّغ الوكيل بكل فارق قبل أن يؤكّد — فلا يقرأ سعراً قديماً على العميل:
  *   • صنف لم يعد في المنيو  ⇒ يُتخطّى مع تنبيه
- *   • صنف موقوف الآن (مطبخ الفرع أو الكول‑سنتر) ⇒ يُتخطّى مع تنبيه
+ *   • صنف موقوف الآن (مطبخ الفرع أو مركز الاتصال) ⇒ يُتخطّى مع تنبيه
  *   • تغيّر السعر ⇒ يُضاف بالسعر الجديد مع ذكر القديم والجديد
  * البنود تأتي من `GET /contact/orders/:id` لأن قائمة الطلبات لا تحمل بنوداً.
  */
@@ -2345,7 +2365,7 @@ export function closeReviewModal() { state.reviewModalOpen = false }
  * فلا يراجع الوكيل طلباً سيُرفَض. تُرجع أول مانع أو null.
  */
 function liveReviewBlocker(): string | null {
-  if (state.onlineDay === null) return tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order')
+  if (state.onlineDay === null) return tx('افتح يوم عمل مركز الاتصال أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order')
   if (state.cart.length === 0) return tx('السلة فارغة', 'The cart is empty')
   if (!(state.form.phone || '').trim() || !(state.form.name || '').trim()) return tx('يرجى إدخال اسم العميل ورقم الهاتف', 'Enter the customer name and mobile number')
   if (state.orderType === 'delivery') {
@@ -2609,7 +2629,7 @@ export function availabilityGroups(): any[] {
 export function stoppedItemsGroups(): any[] {
   const groups: any[] = []
   state.branches.forEach((branch: any) => {
-    // المصدران معاً: إيقاف الكول‑سنتر + إيقاف مطبخ الفرع. الشاشة كانت تعرض الأول
+    // المصدران معاً: إيقاف مركز الاتصال + إيقاف مطبخ الفرع. الشاشة كانت تعرض الأول
     // وحده، فصنفٌ أوقفه المطبخ يُمنع عند الضرب بلا أن يظهر موقوفاً في أي شاشة.
     const cc = state.disabledBranchItems[branch.id] || []
     const pos = state.posStoppedItems[branch.id] || []
@@ -2642,7 +2662,7 @@ export function canManageItemAvailability(): boolean {
 export function toggleBranchItemAvailability(branchId: number | string, itemId: number, isAvailable: boolean): boolean {
   if (!canManageItemAvailability()) { showToast(tx('لا تملك صلاحية إيقاف/تشغيل الأصناف', 'You do not have permission to stop or resume items'), 'warning'); return false }
   const bid = parseInt(String(branchId))
-  // الصنف الموقوف من مطبخ الفرع يرجع بإيقافه هناك — لا يملك الكول‑سنتر تشغيله
+  // الصنف الموقوف من مطبخ الفرع يرجع بإيقافه هناك — لا يملك مركز الاتصال تشغيله
   if (isAvailable && (state.posStoppedItems[bid] || []).includes(itemId)) {
     showToast(tx('الصنف موقوف من مطبخ الفرع — تشغيله يكون من الفرع', 'The item is stopped by the branch kitchen — it can only be resumed at the branch'), 'warning'); return false
   }
@@ -2673,7 +2693,7 @@ export function toggleBranchItemAvailability(branchId: number | string, itemId: 
         const saved = (state.disabledBranchItems[bid] || []).includes(itemId)
         if (saved === isAvailable) { showToast(tx('لم يُحفظ التغيير على الخادم — حاول ثانية', 'The change was not saved on the server — try again'), 'error'); return }
         showToast(
-          isAvailable ? tx(`تم تنشيط وإتاحة ${itemName} في ${branchName}`, `${itemName} resumed at ${branchName}`) : tx(`تم إيقاف ${itemName} في ${branchName} — للكول‑سنتر فقط`, `${itemName} stopped at ${branchName} — call center only`),
+          isAvailable ? tx(`تم تنشيط وإتاحة ${itemName} في ${branchName}`, `${itemName} resumed at ${branchName}`) : tx(`تم إيقاف ${itemName} في ${branchName} — لمركز الاتصال فقط`, `${itemName} stopped at ${branchName} — call center only`),
           isAvailable ? 'success' : 'warning')
       })
       .catch((err: any) => {
@@ -2996,31 +3016,52 @@ export async function saveOrderEdit() {
   }
 }
 
+/**
+ * الإلغاء متاحٌ ما لم يبدأ التحضير.
+ *
+ * كان مقصوراً على `sent` — أي قبل أن ينزل الفرع أصلاً؛ فطلبٌ وصل الفرع ولم يلمسه
+ * أحد بعدُ كان يحتاج مكالمةً هاتفيّة لإلغائه. و«جاري التحضير» فما بعدها تبقى
+ * ممنوعة: المكوّنات خرجت والوقت صُرف، فالقرار للفرع.
+ *
+ * وهذا حدُّ الواجهة لا الحقيقة: الفرع يفحص حالته اللحظية ويردّ، لأن ما نراه هنا
+ * مرآةٌ قد تتأخّر دورةَ رفعٍ كاملة.
+ */
 export function canCancelThisOrder(order: any): boolean {
   if (!order || order.status === 'cancelled') return false
   if (!state.live) return true
-  return order.status === 'sent'
+  if (order.cancelRequested) return false      // طلبٌ معلّق — لا يُكرَّر
+  return order.status === 'sent' || order.status === 'new'
 }
 export function openCancelModal(orderId: number) {
   const order = state.orders.find((o: any) => o.id === orderId)
   if (!order) return
   if (!canCancelOrder()) { showToast(tx('لا تملك صلاحية إلغاء الطلبات', 'You do not have permission to cancel orders'), 'warning'); return }
-  if (!canCancelThisOrder(order)) { showToast(tx('الطلب نزل الفرع بالفعل — الإلغاء يكون من الفرع', 'The order already reached the branch — cancel it from the branch'), 'warning'); return }
+  if (!canCancelThisOrder(order)) {
+    showToast(order.cancelRequested
+      ? tx('طلب الإلغاء عند الفرع بالفعل — في انتظار ردّه', 'Cancellation already sent to the branch — awaiting its reply')
+      : tx('الطلب دخل التجهيز عند الفرع — الإلغاء يكون من الفرع', 'The order is being prepared at the branch — cancel it from the branch'), 'warning')
+    return
+  }
   state.cancelModalOrderId = orderId
 }
 export function closeCancelModal() { state.cancelModalOrderId = null }
 
 // تطبيق الإلغاء بالسبب المختار (reason = { id, label, note? }) — نقلاً عن منطق updateOrderStatus
 /**
- * الإلغاء على السيرفر أولاً ثم على الشاشة. كان محلياً بالكامل: الوكيل يلغي فيختفي
+ * الإلغاء على الخادم أولاً ثم على الشاشة. كان محلياً بالكامل: الوكيل يلغي فيختفي
  * الطلب من أمامه بينما ينزل الفرع ويُصنَع ويُحمَّل على سائق. السبب لا يقبله
  * الـendpoint فنسجّله شكوى‑أثراً في الملاحظات المحلية فقط (سجلّ الوكيل).
  */
 async function confirmCancelOrderLive(orderId: number, reason: any) {
   try {
-    await contactCancelOrder(orderId)
-    applyLocalCancel(orderId, reason)
-    showToast(tx('تم إلغاء الطلب', 'Order cancelled'), 'success')
+    const res: any = await contactCancelOrder(orderId, reason?.label || reason?.id || undefined)
+    // نزل الفرع ⇒ الردّ طلبٌ معلّق لا إلغاءٌ واقع. لا نُقفله على الشاشة: الوكيل
+    // سيقول للعميل «أُلغي» بينما المطبخ قد يكون بدأ، فننتظر ردّ الفرع.
+    const done = res?.status === 'cancelled'
+    if (done) applyLocalCancel(orderId, reason)
+    showToast(done
+      ? tx('تم إلغاء الطلب', 'Order cancelled')
+      : tx('طلب الإلغاء أُرسل للفرع — يتأكّد خلال ثوانٍ', 'Cancellation sent to the branch — confirming shortly'), done ? 'success' : 'info')
     closeCancelModal()
     await loadOrders()
   } catch (err: any) {

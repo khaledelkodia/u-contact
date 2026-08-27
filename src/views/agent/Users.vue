@@ -81,7 +81,7 @@ async function save() {
 
     <template v-else>
       <div class="page-head">
-        <div style="flex:1;"><div class="t">{{ t('المستخدمون', 'Users') }}</div><div class="d">{{ t('يوزرات شركتك — تمنحهم من صلاحياتك أنت فقط', 'Your company’s users — you grant only from your own permissions') }}</div></div>
+        <div style="flex:1;"><div class="t">{{ t('المستخدمون', 'Users') }}</div><div class="d">{{ t('مستخدمو شركتك — تمنحهم من صلاحياتك أنت فقط', 'Your company’s users — you grant only from your own permissions') }}</div></div>
         <button class="btn" @click="openCreate"><Icon name="plus" /> {{ t('مستخدم جديد', 'New user') }}</button>
       </div>
 

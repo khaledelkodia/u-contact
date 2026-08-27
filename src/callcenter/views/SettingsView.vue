@@ -80,7 +80,7 @@ function onToggle(row: any, ev: Event) {
 
       <div class="settings-card">
         <h3 class="settings-card-title">{{ tx('إدارة توفر الأصناف بالفروع', 'Item availability per branch') }}</h3>
-        <p v-if="lang === 'ar'" style="color: var(--text-secondary); margin-bottom: 16px;">اختر فرعاً وتصنيف الأصناف لتعطيل أو تنشيط الأصناف لموظفي الكول سنتر. الإيقاف من هنا <strong>لا يصل الفرع</strong> — الكاشير يبيع الصنف عادي. أما الموقوف من مطبخ الفرع فمفتاحه مقفول وتشغيله يكون من الفرع.</p>
+        <p v-if="lang === 'ar'" style="color: var(--text-secondary); margin-bottom: 16px;">اختر فرعاً وتصنيف الأصناف لتعطيل أو تنشيط الأصناف لموظفي مركز الاتصال. الإيقاف من هنا <strong>لا يصل الفرع</strong> — الكاشير يبيع الصنف عادي. أما الموقوف من مطبخ الفرع فمفتاحه مقفول وتشغيله يكون من الفرع.</p>
           <p v-else style="color: var(--text-secondary); margin-bottom: 16px;">Pick a branch and a category to stop or resume items for call-center agents. Stopping here <strong>never reaches the branch</strong> — the cashier still sells the item. Items stopped by the branch kitchen are locked here and can only be resumed at the branch.</p>
 
         <div class="availability-filters-bar">
