@@ -19,7 +19,7 @@ const wrapRoot = ref<HTMLElement | null>(null)
 const todayCount = computed(() => customerTodayCount())
 const autoBranchId = computed(() => getAutoBranchId())
 const overrideActiveId = computed(() => state.branchOverrideId || autoBranchId.value)
-// جاهزيّة الفرع الذي سيستقبل هذا الأوردر. null = لم يُحدَّد فرع بعد ⇒ لا شريط.
+// جاهزيّة الفرع الذي سيستقبل هذا الطلب. null = لم يُحدَّد فرع بعد ⇒ لا شريط.
 // يعتمد على state.branches (يتحدّث مع تحميل البيانات) وعلى الفرع المشتقّ من العنوان،
 // فيتغيّر تلقائياً بمجرّد اختيار المنطقة أو تبديل الفرع يدوياً.
 const branchStatus = computed(() => resolvedBranchStatus())
@@ -89,7 +89,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
                   <button v-for="b in state.branches" :key="b.id" type="button" class="branch-override-option" :class="{ active: b.id === overrideActiveId }" @click="selectBranchOverride(b.id)">
                     <span>
                       {{ b.name }}<span v-if="b.id === autoBranchId" style="opacity:0.7; font-weight:500; font-size:11px;"> ({{ tx('تلقائي', 'auto') }})</span>
-                      <!-- حالة الفرع بجوار اسمه: الاختيار اليدوي بلا معرفة الحالة يوقف الأوردر صامتاً -->
+                      <!-- حالة الفرع بجوار اسمه: الاختيار اليدوي بلا معرفة الحالة يوقف الطلب صامتاً -->
                       <span v-if="b.ready === false" :title="b.holdMessage || ''"
                             style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#b45309;">● {{ tx('واقف', 'On hold') }}</span>
                       <span v-else-if="b.online" style="margin-inline-start:6px; font-size:10px; font-weight:800; color:#059669;">● {{ tx('متصل', 'Online') }}</span>
@@ -107,8 +107,8 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
           </div>
         </div>
 
-        <!-- حالة الفرع: هل يصل الأوردر المطبخ الآن أم يقف؟ -->
-        <!-- الفرع يسحب أوردراته بنفسه حين يكون متصلاً وعلى نفس يوم العمل؛ وإلا وقف الأوردر
+        <!-- حالة الفرع: هل يصل الطلب المطبخ الآن أم يقف؟ -->
+        <!-- الفرع يسحب طلباته بنفسه حين يكون متصلاً وعلى نفس يوم العمل؛ وإلا وقف الطلب
              في الكلاود صامتاً (لا يضيع، لكن لا أحد في المطبخ يراه). يظهر هذا الشريط قبل
              أن يَعِد الوكيل العميل بموعد. -->
         <div v-if="branchStatus && !branchStatus.ready" class="branch-hold-bar">
@@ -118,7 +118,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
         </div>
         <div v-else-if="branchStatus" class="branch-hold-bar is-ready">
           <span class="bh-icon">✓</span>
-          <span>{{ tx('الفرع متصل ويومه مطابق — الأوردر ينزل فوراً.', 'Branch is online and on the same business day — the order goes through immediately.') }}</span>
+          <span>{{ tx('الفرع متصل ويومه مطابق — الطلب ينزل فوراً.', 'Branch is online and on the same business day — the order goes through immediately.') }}</span>
           <span class="bh-meta">{{ branchStatus.name }}</span>
         </div>
 

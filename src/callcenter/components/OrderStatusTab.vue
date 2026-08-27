@@ -9,7 +9,7 @@ import { formatCurrency } from '../utils'
 <template>
   <div id="panel-order-status" class="tab-panel" :class="{ active: state.activeTab === 'order-status' }">
     <div class="search-bar-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-      <input type="text" id="status-search-input" :placeholder="tx('ابحث برقم الفاتورة أو التليفون...', 'Search by invoice no. or phone…')" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border);" v-model="state.statusSearch" @keyup.enter="searchOrderStatus()">
+      <input type="text" id="status-search-input" :placeholder="tx('ابحث برقم الفاتورة أو الهاتف...', 'Search by invoice no. or phone…')" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border);" v-model="state.statusSearch" @keyup.enter="searchOrderStatus()">
       <button class="btn btn-primary" @click="searchOrderStatus()">{{ tx('بحث', 'Search') }}</button>
     </div>
     <div id="order-status-content">

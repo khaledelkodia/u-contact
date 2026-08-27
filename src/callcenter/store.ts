@@ -34,8 +34,8 @@ export const state = reactive<any>({
   cart: [],
   paymentChannel: null,        // phone | talabat | carriage | jahez | walkin
   paymentMethod: null,         // cash | knet | link
-  // سياسة الشركة: هل طريقة الدفع إلزاميّة قبل نزول الأوردر للفرع؟ الافتراضي **لا**
-  // (تُقرأ من الخادم؛ فشلُ القراءة يبقى على الاختياريّ فلا يُقفَل الأوردر بخطأ شبكة).
+  // سياسة الشركة: هل طريقة الدفع إلزاميّة قبل نزول الطلب للفرع؟ الافتراضي **لا**
+  // (تُقرأ من الخادم؛ فشلُ القراءة يبقى على الاختياريّ فلا يُقفَل الطلب بخطأ شبكة).
   paymentRequired: false,
   paymentModalOpen: false,     // مودال اختيار الدفع
   orderType: 'delivery',
@@ -90,7 +90,7 @@ export const state = reactive<any>({
   itemModalOpenPrice: '',      // سعر الوحدة للصنف مفتوح السعر (نصّ ليقبل الحقل الفراغ)
   posStoppedItems: {},         // أصناف موقوفة من مطبخ الـPOS { branchId: itemId[] } (تُدفع من الكلاود)
 
-  // ── حقول واجهة الأوردر الجديد (كانت DOM inputs في النسخة الأصلية) ──
+  // ── حقول واجهة الطلب الجديد (كانت DOM inputs في النسخة الأصلية) ──
   phoneSearch: '',             // customer-phone-search
   showCustomerInfo: false,     // customer-info-bar (hidden toggle)
   branchMenuOpen: false,       // branch-override-menu
@@ -138,12 +138,12 @@ export const state = reactive<any>({
   driverSearch: '',            // بحث قائمة السائقين
   cancelModalOrderId: null,    // إلغاء الطلب (اختيار سبب)
   txnModalOrderId: null,       // سجل العمليات
-  // ── مودالات شاشة الأوردر الجديد ──
+  // ── مودالات شاشة الطلب الجديد ──
   notesModalOpen: false,       // ملاحظات الطلب
   historyModalOpen: false,     // سجل طلبات العميل
-  historyOrders: [],           // نتائج السجل (من الخادم بالتليفون)
+  historyOrders: [],           // نتائج السجل (من الخادم بالهاتف)
   historyLoading: false,
-  reviewModalOpen: false,      // مراجعة الأوردر قبل التأكيد
+  reviewModalOpen: false,      // مراجعة الطلب قبل التأكيد
   reorderBusy: false,          // جارٍ إعادة طلب سابق
   complaintModalOrderId: null, // تقديم شكوى
   // شكاوى الشركة من الكلاود: خريطة onlineOrderId → عدد الشكاوى. مصدرها الخادم لا
@@ -199,7 +199,7 @@ export async function loadLiveData() {
 
     // الفروع: {id,name} — نضيف areas:[] حتى لا تنكسر مساعدات branchByArea.
     // ونحمل معها **جاهزيّة الفرع** كما حسبها الخادم (متصل/يوم عمله/هل يستقبل الآن):
-    // بدونها يَعِد الوكيل العميلَ بنصف ساعة وأوردرُه واقفٌ في الكلاود لا يعلم به أحد.
+    // بدونها يَعِد الوكيل العميلَ بنصف ساعة وطلبُه واقفٌ في الكلاود لا يعلم به أحد.
     state.branches = branches.map((b: any) => ({
       id: b.id, name: b.name, areas: [],
       online: !!b.online,
@@ -262,7 +262,7 @@ export async function loadLiveData() {
 
     state.availBranchId = state.branches[0] ? String(state.branches[0].id) : ''
     state.live = true
-    void loadOrders()          // أوردرات الشركة الحقيقية بدل المووك
+    void loadOrders()          // طلبات الشركة الحقيقية بدل المووك
     void loadStoppedItems()    // أصناف مطبخ الـPOS الموقوفة (لمنع ضربها)
     void loadCcStoppedItems()  // وأصناف أوقفها الكول‑سنتر لنفسه (مشتركة بين الوكلاء)
   } catch {
@@ -274,7 +274,7 @@ export async function loadLiveData() {
 /**
  * يوم **الفرع** تغيّر (فتح/إقفال على الـPOS) — يصل لحظياً عبر البثّ.
  *
- * يومُ الفرع شرطُ نزول الأوردر، فتأخّرُ خبره يعني وكيلاً يَعِد العميل وأوردره واقف —
+ * يومُ الفرع شرطُ نزول الطلب، فتأخّرُ خبره يعني وكيلاً يَعِد العميل وطلبه واقف —
  * أو يظنّه واقفاً وقد نزل. نعيد حساب جاهزيّة الفروع فوراً بدل انتظار الدورة.
  */
 export function applyBranchDay(branchId: number, businessDate: string | null) {
@@ -306,7 +306,7 @@ export function applyCcDay(e: { franchiseId?: number; businessDate?: string | nu
   void loadLiveData()   // جاهزيّة الفروع تُحتسب مقابل اليوم الجديد
 }
 
-// ── يوم عمل الكول‑سنتر (لازم يكون مفتوح لضرب أوردر) ──
+// ── يوم عمل الكول‑سنتر (لازم يكون مفتوح لضرب طلب) ──
 export async function loadBusinessDay() {
   if (!(session.mode === 'agent' && session.companyId)) return
   state.dayLoading = true
@@ -322,8 +322,8 @@ export async function loadBusinessDay() {
 // قد فُتح وأُقفل من قبل، جاء الرفض «هذا اليوم مُغلق بالفعل» بلا مخرج — إلا أن يُقفَل
 // يومُ فرعٍ ليتحرّك المشتقّ. وهو ربطٌ لا معنى له: النطاق فرنشايز لا فرع.
 //
-// صار الوكيل يختار التاريخ، **وأمامه أيام فروعه**: التطابق شرطُ نزول الأوردر، فاختيارٌ
-// على غير هدىً يعني أوردراتٍ تقف. الشرط نفسه لم يتغيّر.
+// صار الوكيل يختار التاريخ، **وأمامه أيام فروعه**: التطابق شرطُ نزول الطلب، فاختيارٌ
+// على غير هدىً يعني طلباتٍ تقف. الشرط نفسه لم يتغيّر.
 export async function openDayModal(mode: 'normal' | 'fix' = 'normal') {
   state.dayModal = { open: true, date: companyToday(), branches: [], loading: true, error: '', mode }
   try {
@@ -355,8 +355,8 @@ export async function confirmOpenDay() {
     const wasFix = state.dayModal.mode === 'fix'
     state.dayModal = { ...state.dayModal, open: false }
     showToast(wasFix
-      ? tx('تم فتح اليوم للإصلاح — لا تُضرَب عليه أوردرات', 'Day opened for fixing — no orders can be placed on it')
-      : tx('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'Business day opened — you can place orders now'), 'success')
+      ? tx('تم فتح اليوم للإصلاح — لا تُضرَب عليه طلبات', 'Day opened for fixing — no orders can be placed on it')
+      : tx('تم فتح يوم العمل — تقدر تضرب طلب دلوقتي', 'Business day opened — you can place orders now'), 'success')
     void loadLiveData()   // أيام الفروع وحالة جاهزيتها تُحتسب مقابل اليوم الجديد
   } catch (err: any) {
     // رسالة الخادم هي الأدقّ (تاريخٌ سبق قفلُه، أو بلا صلاحية) — تُعرض في المودال
@@ -372,7 +372,7 @@ export async function openBusinessDay() {
     const day = await contactOpenDay()
     state.onlineDay = day || null
     if (day?.businessDate) state.businessDate = String(day.businessDate).slice(0, 10)
-    showToast(tx('تم فتح يوم العمل — تقدر تضرب أوردر دلوقتي', 'Business day opened — you can place orders now'), 'success')
+    showToast(tx('تم فتح يوم العمل — تقدر تضرب طلب دلوقتي', 'Business day opened — you can place orders now'), 'success')
   } catch (err: any) {
     showToast(err?.response?.data?.message || tx('تعذّر فتح يوم العمل (تحتاج صلاحية فتح اليوم)', 'Could not open the business day (you need the open-day permission)'), 'error')
   } finally { state.dayLoading = false }
@@ -381,8 +381,8 @@ export async function openBusinessDay() {
 /**
  * إنهاء يوم الكول‑سنتر.
  *
- * الخادم يرفض القفل وفي اليوم أوردرٌ لسه واقف — والرفض يُعرَض كما جاء لأنه يحمل
- * **العدد**: «فيه ٢ أوردر لسه واقف» يقول للوكيل ما يفعله، بخلاف «تعذّر القفل».
+ * الخادم يرفض القفل وفي اليوم طلبٌ لسه واقف — والرفض يُعرَض كما جاء لأنه يحمل
+ * **العدد**: «فيه ٢ طلب لسه واقف» يقول للوكيل ما يفعله، بخلاف «تعذّر القفل».
  *
  * وبعد القفل يبقى النطاق بلا يوم مفتوح ⇒ تظهر «افتح اليوم» (بصلاحيتها هي). ولا
  * نفتح تلقائياً هنا: القفلُ فعلٌ والفتحُ فعلٌ آخر بمفتاحٍ آخر، ودمجُهما يفتح يوماً
@@ -412,19 +412,32 @@ export async function closeBusinessDay() {
       : tx('تم إنهاء يوم العمل', 'Business day ended'), 'success')
     void loadLiveData()   // جاهزية الفروع تُحتسب مقابل اليوم الجديد
   } catch (err: any) {
-    // رسالة الخادم تحمل سبب المنع وعدد الأوردرات الواقفة — تُعرَض كما هي
+    // رسالة الخادم تحمل سبب المنع وعدد الطلبات الواقفة — تُعرَض كما هي
     showToast(err?.response?.data?.message || tx('تعذّر إنهاء اليوم', 'Could not end the day'), 'error')
   } finally { state.dayLoading = false }
 }
 
-// ── أوردرات الكلاود → شكل جدول الكول‑سنتر (لشاشات التوصيل/المجدولة) ──
+// ── طلبات الكلاود → شكل جدول الكول‑سنتر (لشاشات التوصيل/المجدولة) ──
 // تحويل حالة الـPOS (new/received/preparing/ready/delivered/closed/cancelled/modified)
 // + حالة السائق (on_way) → حالة عرض الكول‑سنتر (تفادي «غير معروف»)
+/**
+ * حالة العرض = حالة الفرع نفسها، لا تفسيرٌ لها.
+ *
+ * **حالة السائق تتقدّم على القفل**: الكاشير يقفل الأوردر ماليّاً وهو يسلّمه للسائق،
+ * فتصير حالة الفرع «مقفول» — والقفل حالةٌ **ماليّة** لا حالةَ تسليم. كان الشرط الأول
+ * يترجمها «تم التسليم» فيتجمّد الأوردر عند أوّل تحميلٍ على سائق ولا يتحرّك بعدها،
+ * والوكيل يقول للعميل «اتسلّم» والسائق لم يخرج بعد.
+ */
 function mapPosStatus(s: string, driverStatus?: string): string {
-  if (s === 'delivered' || s === 'closed') return 'delivered'   // مقفول = تم التسليم
+  if (s === 'cancelled') return 'cancelled'
+  // مسار التوصيل: السائق هو الحقيقة ما دام له سطر
+  if (driverStatus === 'delivered') return 'delivered'
   if (driverStatus === 'on_way') return 'onway'
+  if (driverStatus === 'assigned') return 'withdriver'
+  // بلا سائق (استلام/تيك أواي، أو سلّمه الكاشير بيده): القفل تسليم
+  if (s === 'delivered' || s === 'closed') return 'delivered'
   switch (s) {
-    case 'new': case 'preparing': case 'ready': case 'cancelled': return s
+    case 'new': case 'preparing': case 'ready': return s
     case 'received': return 'new'
     case 'modified': return 'preparing'
     default: return 'new'   // أي قيمة غير متوقّعة → جديد بدل «غير معروف»
@@ -495,6 +508,9 @@ function mapCloudOrder(r: any): any {
     dailyNo: r.posDailyNumber ?? r.posOrderId ?? r.id,
     invoiceNo: String(r.posOrderNumber ?? r.posOrderId ?? r.id),
     employeeName: r.agentName || '—',
+    // تفصيل الدفع كما أُقفل في الفرع (قد يكون أكثر من سطر ومعه إكراميّة).
+    // فارغٌ = لم يُقفَل بعد — ولا نخترع له طريقة.
+    posPayments: Array.isArray(r.posPayments) ? r.posPayments : null,
     type, status,
     customerName: r.customerName, customerPhone: r.customerPhone,
     branchId: r.branchId,
@@ -519,7 +535,7 @@ function mapCloudOrder(r: any): any {
   }
 }
 
-// تحميل أوردرات الشركة من الكلاود إلى state.orders (وضع live)
+// تحميل طلبات الشركة من الكلاود إلى state.orders (وضع live)
 export async function loadOrders() {
   if (!(session.mode === 'agent' && session.companyId)) return
   // الشكاوى قبل التحويل: `mapCloudOrder` يقرأ `complaintsByOrder` ليضع علم الشكوى
@@ -530,7 +546,7 @@ export async function loadOrders() {
   } catch { /* نُبقي الحالي */ }
 }
 
-/** شكاوى الشركة → خريطة (أوردر → عدد). صامتة عند نقص صلاحية `complaints.view`. */
+/** شكاوى الشركة → خريطة (طلب → عدد). صامتة عند نقص صلاحية `complaints.view`. */
 export async function loadComplaints() {
   if (!(session.mode === 'agent' && session.companyId)) return
   if (!canViewComplaints()) return
@@ -623,9 +639,9 @@ export async function addComplaintUpdate(note: string, status: string) {
  *
  * لماذا: كان الحدث يصل فارغاً فيعيد **كل** وكيل جلب القائمة كاملة عند كل تغيّر
  * (يحدّه الـdebounce عند ~٢٫٥ طلب/ث لكل وكيل ⇒ ٢٥٠ طلب/ث عند ١٠٠ وكيل).
- * أغلب الأحداث تحديثُ حالةٍ لأوردر معروض بالفعل، فدمجه في مكانه يُلغي الطلب تماماً.
+ * أغلب الأحداث تحديثُ حالةٍ لطلب معروض بالفعل، فدمجه في مكانه يُلغي الطلب تماماً.
  *
- * نُحدِّث الموجود فقط. الأوردر الجديد (غير الموجود في القائمة) نتركه لإعادة الجلب،
+ * نُحدِّث الموجود فقط. الطلب الجديد (غير الموجود في القائمة) نتركه لإعادة الجلب،
  * لأن دخوله يعتمد على فلاتر الشاشة (التاريخ/الحالة/الفرع) التي لا يعرفها الحدث —
  * فلا نُدرج صفّاً قد لا يخصّ العرض الحالي. الإنشاء نادر (بسرعة كتابة الوكيل)،
  * والحجم كلّه في تحديثات الحالة القادمة من الفروع.
@@ -725,7 +741,7 @@ export function dismissToast(id: number) {
  * وصل حدث حضورٍ لفرع (اتصل / انقطع) عبر البثّ اللحظي.
  *
  * يحدّث حالة الفرع في مكانها فيتغيّر شريط الجاهزيّة فوراً بلا إعادة تحميل، **وينبّه**
- * الوكيل حين يعود فرعٌ كان أوردره واقفاً عليه: أوردره نزل المطبخ الآن، وكان سيظلّ
+ * الوكيل حين يعود فرعٌ كان طلبه واقفاً عليه: طلبه نزل المطبخ الآن، وكان سيظلّ
  * يعتذر للعميل عن طلبٍ صار قيد التحضير فعلاً.
  *
  * يمسّ بُعد «الاتصال» وحده — أبعاد يوم العمل لا تتغيّر بحدث حضور، فتبقى كما قالها الخادم.
@@ -736,14 +752,14 @@ export function applyBranchPresence(branchId: number, online: boolean) {
   const was = b.online
   b.online = online
   if (online && b.hold === 'offline') { b.hold = null; b.ready = true; b.holdMessage = null }
-  else if (!online && b.ready) { b.hold = 'offline'; b.ready = false; b.holdMessage = tx('الفرع غير متصل الآن — الأوردر محفوظ وسينزل تلقائياً أول ما يرجع الاتصال.', 'The branch is offline right now — the order is saved and will go through automatically when it reconnects.') }
+  else if (!online && b.ready) { b.hold = 'offline'; b.ready = false; b.holdMessage = tx('الفرع غير متصل الآن — الطلب محفوظ وسينزل تلقائياً أول ما يرجع الاتصال.', 'The branch is offline right now — the order is saved and will go through automatically when it reconnects.') }
   if (was === online) return                       // لا تغيّر فعلي ⇒ لا إزعاج
   if (!online) return                              // الانقطاع يظهر في الشريط بلا إشعار
-  // كم أوردر كان واقفاً على هذا الفرع؟ («sent» = لم يصل الفرع بعد)
+  // كم طلب كان واقفاً على هذا الفرع؟ («sent» = لم يصل الفرع بعد)
   const waiting = (state.orders || []).filter((o: any) => o.branchId === branchId && o.status === 'sent').length
   showToast(
     waiting > 0
-      ? tx(`${b.name} رجع أونلاين — ${waiting} أوردر واقف هينزل عليه دلوقتي`, `${b.name} is back online — ${waiting} held order(s) will go through now`)
+      ? tx(`${b.name} رجع أونلاين — ${waiting} طلب واقف هينزل عليه دلوقتي`, `${b.name} is back online — ${waiting} held order(s) will go through now`)
       : tx(`${b.name} رجع أونلاين`, `${b.name} is back online`),
     'success', waiting > 0 ? 9000 : 4000,
   )
@@ -784,10 +800,10 @@ export function getResolvedOrderBranchId(): number | null {
 }
 
 /**
- * جاهزيّة الفرع الذي سيذهب إليه الأوردر الحالي.
+ * جاهزيّة الفرع الذي سيذهب إليه الطلب الحالي.
  *
- * الأوردر لا يُدفع للفرع؛ الفرع يسحبه بنفسه حين يكون متصلاً وعلى نفس يوم العمل. فإن لم
- * يكن كذلك يقف الأوردر في الكلاود **صامتاً** — لا يضيع، لكن لا أحد في المطبخ يراه. هذه
+ * الطلب لا يُدفع للفرع؛ الفرع يسحبه بنفسه حين يكون متصلاً وعلى نفس يوم العمل. فإن لم
+ * يكن كذلك يقف الطلب في الكلاود **صامتاً** — لا يضيع، لكن لا أحد في المطبخ يراه. هذه
  * الدالة تكشف تلك الحالة قبل أن يَعِد الوكيل العميل بموعد.
  *
  * null = لم يُحدَّد فرع بعد (لم يُدخَل العنوان)، أو الوضع التجريبي — فلا حكم.
@@ -1059,11 +1075,11 @@ export function resetOrderDraft() {
 }
 
 /**
- * «أوردر جديد» = صفحةٌ بيضاء.
+ * «طلب جديد» = صفحةٌ بيضاء.
  *
  * كان مجرّد تبديل شاشة: يعود الوكيل إليها فيجد عميل المكالمة السابقة وسلّتها،
  * فيضرب الطلب على حساب من قبله. والتصفير لا يكون صامتاً حين يكون هناك ما يُفقَد —
- * فبند القائمة نفسه هو طريق العودة إلى سلّةٍ قائمة بعد نظرةٍ على شاشة الأوردرات.
+ * فبند القائمة نفسه هو طريق العودة إلى سلّةٍ قائمة بعد نظرةٍ على شاشة الطلبات.
  */
 /**
  * تصفير مسوّدة الطلب **مع إبقاء العميل** — لاختيار عميلٍ جديد وسط الشاشة.
@@ -1156,7 +1172,7 @@ export async function searchCustomer() {
     return
   }
 
-  // ── الوضع الحقيقي: بحث بالتليفون عبر contact API ──
+  // ── الوضع الحقيقي: بحث بالهاتف عبر contact API ──
   if (state.live) {
     try {
       const list = await contactCustomers(phone)
@@ -1290,7 +1306,7 @@ export function cancelCustomerForm() {
 async function saveCustomerLive() {
   const name = state.form.name.trim()
   const phone = state.form.phone.trim()
-  if (!name || !phone) { showToast(tx('يرجى تعبئة الاسم ورقم الموبايل', 'Please fill in the name and mobile number'), 'error'); return }
+  if (!name || !phone) { showToast(tx('يرجى تعبئة الاسم ورقم الهاتف', 'Please fill in the name and mobile number'), 'error'); return }
   const isDelivery = state.orderType === 'delivery'
   if (isDelivery && !state.form.regionId) { showToast(tx('يرجى اختيار المدينة', 'Please choose a city'), 'error'); return }
   if (isDelivery && sectionRequired() && !state.form.sectionId) { showToast(tx('يرجى اختيار الحيّ', 'Please choose a district'), 'error'); return }
@@ -1370,11 +1386,11 @@ export function saveCustomer() {
   const area = state.form.area
 
   if (!name || !phone) {
-    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم ورقم الموبايل', 'Please fill in the required fields: name and mobile number'), 'error')
+    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم ورقم الهاتف', 'Please fill in the required fields: name and mobile number'), 'error')
     return
   }
   if (state.orderType === 'delivery' && !area) {
-    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم، رقم الموبايل، والمنطقة', 'Please fill in the required fields: name, mobile number and area'), 'error')
+    showToast(tx('يرجى تعبئة الحقول الأساسية: الاسم، رقم الهاتف، والمنطقة', 'Please fill in the required fields: name, mobile number and area'), 'error')
     return
   }
 
@@ -1658,7 +1674,7 @@ export function openItemModal(itemId: number, cartItemId?: string) {
  * كان الحكم على `minSelect > 0`، و`minSelect` عددٌ أدنى لا إعلانُ إلزام: مجموعة
  * «صوصات» عند العميل `isRequired=false` و`minSelect=1` — أي «إن اخترتَ فواحدٌ على
  * الأكثر»، لا «لا بدّ أن تختار». فصارت الصوصاتُ إجباريةً في الكول‑سنتر وهي
- * اختياريةٌ في U‑Serve. وداشبورد U‑Serve صريح: `isRequired` = «إلزامية (لازم
+ * اختياريةٌ في U‑Serve. ولوحة التحكم U‑Serve صريح: `isRequired` = «إلزامية (لازم
  * العميل يختار)»، و`minSelect` = «أقل عدد اختيار».
  */
 export const isGroupRequired = (g: any) => !!g?.isRequired
@@ -1919,7 +1935,7 @@ export async function clearCart() {
 // ==========================================
 /**
  * رسوم الطلب = رسوم ربط (الفرع ↔ المكان) لا غير. الكول‑سنتر لا يُدخلها ولا يعدّلها:
- * تسعير التوصيل قرار الشركة في الداشبورد، و«المفتوحة» يحدّدها الفرع لكل مشوار.
+ * تسعير التوصيل قرار الشركة في لوحة التحكم، و«المفتوحة» يحدّدها الفرع لكل مشوار.
  */
 export function getEffectiveDeliveryFee(): number {
   return Number(state.deliveryFee || 0)
@@ -1942,7 +1958,7 @@ export function getCartTotal(): number {
 }
 
 export function canSubmitOrder(): boolean {
-  // الوضع الحقيقي: يكفي اسم + تليفون + سلة (العميل يُنشأ تلقائياً عند الإرسال)
+  // الوضع الحقيقي: يكفي اسم + هاتف + سلة (العميل يُنشأ تلقائياً عند الإرسال)
   if (state.live) {
     return state.cart.length > 0 && !!(state.form.phone || '').trim() && !!(state.form.name || '').trim()
   }
@@ -1950,7 +1966,7 @@ export function canSubmitOrder(): boolean {
 }
 
 // زرّ التأكيد يمرّ بالمراجعة دائماً: الوكيل يقرأ الفرع والعنوان والرسوم والإجمالي
-// قبل أن ينزل الطلب الفرعَ — والتصحيح بعد النزول يكون بالتليفون مع الفرع لا بضغطة.
+// قبل أن ينزل الطلب الفرعَ — والتصحيح بعد النزول يكون بالهاتف مع الفرع لا بضغطة.
 export function checkout() {
   if (state.live) {
     const blocker = liveReviewBlocker()
@@ -1963,11 +1979,11 @@ export function checkout() {
 
 // بناء ContactOrderInput وإرساله (cash on delivery حالياً)
 export async function submitOrder() {
-  if (state.live && state.onlineDay === null) { showToast(tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر', 'Open the call-center business day before placing an order'), 'warning'); return }
+  if (state.live && state.onlineDay === null) { showToast(tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order'), 'warning'); return }
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   const phone = (state.form.phone || '').trim()
   const name = (state.form.name || '').trim()
-  if (!phone || !name) { showToast(tx('يرجى إدخال اسم العميل ورقم الموبايل', 'Enter the customer name and mobile number'), 'warning'); return }
+  if (!phone || !name) { showToast(tx('يرجى إدخال اسم العميل ورقم الهاتف', 'Enter the customer name and mobile number'), 'warning'); return }
 
   const isDelivery = state.orderType === 'delivery'
   if (isDelivery && !state.form.regionId) { showToast(tx('يرجى اختيار المدينة', 'Please choose a city'), 'warning'); return }
@@ -1981,7 +1997,7 @@ export async function submitOrder() {
   }
   // طريقة الدفع اختياريّة افتراضياً — تُلزَم فقط إن ضبطت الشركة ذلك في الإعدادات
   if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'Choose a payment method (press the payment button under the cart)'), 'warning'); return }
-  // منع إرسال أوردر فيه صنف موقوف لفرع الطلب (محلي أو مطبخ POS)
+  // منع إرسال طلب فيه صنف موقوف لفرع الطلب (محلي أو مطبخ POS)
   {
     const bid = getResolvedOrderBranchId()
     const bad = state.cart.filter((i: any) => isItemStoppedForBranch(bid, i.itemId))
@@ -1990,13 +2006,13 @@ export async function submitOrder() {
 
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
-  // كاش → تحصيل عند التسليم؛ كي‑نت/لينك → مدفوع أونلاين
+  // كاش → تحصيل عند التسليم؛ كي‑نت/رابط → مدفوع أونلاين
   // طريقة الدفع المختارة من طرق الشركة (أو من قائمة `data.ts` حين لا تصل)
   const payMethod = companyPaymentMethods().find((m: any) => String(m.id) === String(state.paymentMethod)) || null
   // قائمة `data.ts` الاحتياطية لا تحمل `isCash` أصلاً: `!!undefined` كان يجعل الكاش
   // «مدفوعاً مسبقاً» فيُسجَّل الطلب بوضع دفعٍ خاطئ. نسأل عن وجود الحقل لا عن قيمته.
   // **بلا طريقةٍ أصلاً** (السياسة اختياريّة) ⇒ التحصيل عند التسليم. بدون هذا كان
-  // الفرع الأخير يعطي false فيُسجَّل الأوردر «مدفوعاً أونلاين» وهو لم يُحصَّل بعد.
+  // الفرع الأخير يعطي false فيُسجَّل الطلب «مدفوعاً أونلاين» وهو لم يُحصَّل بعد.
   const isCashPay = !state.paymentMethod ? true
     : payMethod && 'isCash' in payMethod ? !!payMethod.isCash
     : String(state.paymentMethod ?? '') === 'cash'
@@ -2062,12 +2078,12 @@ export async function submitOrder() {
 
   try {
     await contactCreateOrder(body)
-    showToast(state.isReservation ? tx('تم إنشاء الحجز ونزوله للفرع', 'Reservation created and sent to the branch') : tx('تم إنشاء الأوردر بنجاح', 'Order created'), 'success')
+    showToast(state.isReservation ? tx('تم إنشاء الحجز ونزوله للفرع', 'Reservation created and sent to the branch') : tx('تم إنشاء الطلب بنجاح', 'Order created'), 'success')
     resetOrderDraft()   // تجاوز الرسوم ورقم المنصّة والحجز خاصّةٌ بطلبٍ واحد لا تُورَّث
-    await loadOrders()   // حدّث القائمة قبل التنقّل عشان يظهر الأوردر الجديد
+    await loadOrders()   // حدّث القائمة قبل التنقّل عشان يظهر الطلب الجديد
     state.activeView = 'orders'
   } catch (err: any) {
-    showToast(err?.response?.data?.message || tx('فشل إنشاء الأوردر', 'Could not create the order'), 'error')
+    showToast(err?.response?.data?.message || tx('فشل إنشاء الطلب', 'Could not create the order'), 'error')
   }
 }
 
@@ -2205,7 +2221,7 @@ export function closeHistoryModal() { state.historyModalOpen = false }
 
 export async function showOrderHistory() {
   const phone = (state.form.phone || state.currentCustomer?.phone || '').trim()
-  if (!phone) { showToast(tx('ابحث عن العميل بالتليفون أولاً لرؤية سجل طلباته', 'Search for the customer by phone first to see their order history'), 'warning'); return }
+  if (!phone) { showToast(tx('ابحث عن العميل بالهاتف أولاً لرؤية سجل طلباته', 'Search for the customer by phone first to see their order history'), 'warning'); return }
   state.historyModalOpen = true
   if (!state.live) {
     // المووك: نفلتر القائمة الحالية بالعميل
@@ -2214,7 +2230,7 @@ export async function showOrderHistory() {
   }
   state.historyLoading = true
   try {
-    // الخادم يفلتر بالتليفون — القائمة المحمّلة قد لا تحمل إلا طلبات اليوم
+    // الخادم يفلتر بالهاتف — القائمة المحمّلة قد لا تحمل إلا طلبات اليوم
     const rows = await contactOrders({ phone, limit: 50 })
     state.historyOrders = Array.isArray(rows) ? rows.map(mapCloudOrder) : []
   } catch {
@@ -2231,7 +2247,7 @@ export async function showOrderHistory() {
  *   • صنف لم يعد في المنيو  ⇒ يُتخطّى مع تنبيه
  *   • صنف موقوف الآن (مطبخ الفرع أو الكول‑سنتر) ⇒ يُتخطّى مع تنبيه
  *   • تغيّر السعر ⇒ يُضاف بالسعر الجديد مع ذكر القديم والجديد
- * البنود تأتي من `GET /contact/orders/:id` لأن قائمة الأوردرات لا تحمل بنوداً.
+ * البنود تأتي من `GET /contact/orders/:id` لأن قائمة الطلبات لا تحمل بنوداً.
  */
 export async function reorderItems(orderId: number) {
   if (state.reorderBusy) return
@@ -2307,7 +2323,7 @@ export async function reorderItems(orderId: number) {
 export function reviewOrder() {
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   if (!state.currentCustomer) { showToast(tx('يرجى إضافة بيانات العميل أولاً', 'Add the customer details first'), 'warning'); return }
-  if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (كاش / كي نت / لينك)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
+  if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (نقدي / كي نت / رابط)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
 
   const orderBranchId = getResolvedOrderBranchId()
   const disabledItems = orderBranchId ? (state.disabledBranchItems[orderBranchId] || []) : []
@@ -2329,9 +2345,9 @@ export function closeReviewModal() { state.reviewModalOpen = false }
  * فلا يراجع الوكيل طلباً سيُرفَض. تُرجع أول مانع أو null.
  */
 function liveReviewBlocker(): string | null {
-  if (state.onlineDay === null) return tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الأوردر', 'Open the call-center business day before placing an order')
+  if (state.onlineDay === null) return tx('افتح يوم عمل الكول‑سنتر أولاً قبل ضرب الطلب', 'Open the call-center business day before placing an order')
   if (state.cart.length === 0) return tx('السلة فارغة', 'The cart is empty')
-  if (!(state.form.phone || '').trim() || !(state.form.name || '').trim()) return tx('يرجى إدخال اسم العميل ورقم الموبايل', 'Enter the customer name and mobile number')
+  if (!(state.form.phone || '').trim() || !(state.form.name || '').trim()) return tx('يرجى إدخال اسم العميل ورقم الهاتف', 'Enter the customer name and mobile number')
   if (state.orderType === 'delivery') {
     if (!state.form.regionId) return tx('يرجى اختيار المدينة', 'Please choose a city')
     if (sectionRequired() && !state.form.sectionId) return tx('اختر الحيّ — الفرع بيتحدد منه', 'Choose the district — the branch is derived from it')
@@ -2391,6 +2407,24 @@ export function searchOrderStatus() {
   state.statusResult = order || null
 }
 
+/**
+ * الحجز الذي بدأ الفرع ينفّذه يغادر «المجدولة» إلى «طلبات التوصيل».
+ *
+ * «المجدولة» قائمةُ انتظارٍ لمواعيد لم تحن، وأعمدتها مواعيد لا حالات. فما إن يجهّز
+ * الفرع الحجز يصير طلباً جارياً كأيّ طلب — له سائقٌ وحالةٌ تتغيّر حتى التسليم —
+ * وكان يظلّ حبيس جدولٍ لا يتابع شيئاً من ذلك، فيقرأه الوكيل «مجدولاً» وهو في الطريق.
+ *
+ * «تم تجهيزه» = `ready` وما بعدها؛ وما بعدها داخلٌ عمداً لأن فرعاً قد يقفز من
+ * «تحضير» إلى «مع السائق» مباشرةً، فاشتراطُ `ready` وحدها كان يترك الطلب عالقاً.
+ *
+ * ولا نشترط أن يكون الموعد قد حلّ: الفرع قد يجهّز مبكّراً، وتلك أحوجُ اللحظات
+ * لمتابعته لا لإخفائه. والتوصيل وحده ينتقل — الاستلام لا جدولَ توصيلٍ يتابعه.
+ */
+const SCHED_LIVE_STATUSES = ['ready', 'withdriver', 'onway', 'delivered']
+export function schedWentLive(o: any): boolean {
+  return !!o.scheduledDate && o.type === 'delivery' && SCHED_LIVE_STATUSES.includes(o.status)
+}
+
 // ==========================================
 // DELIVERY ORDERS TAB (نقلاً عن renderDeliveryOrders / filterOrders)
 // ==========================================
@@ -2398,7 +2432,7 @@ export function deliveryOrdersFiltered(): any[] {
   const bd = state.businessDate || todayISO()
   let filtered = state.orders.filter((o: any) =>
     o.type === 'delivery' &&
-    !o.scheduledDate &&
+    (!o.scheduledDate || schedWentLive(o)) &&
     (state.live || (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
   )
   if (state.filterStatus) filtered = filtered.filter((o: any) => o.status === state.filterStatus)
@@ -2488,7 +2522,7 @@ export function clearAllOrderFilters() {
 }
 
 /**
- * مغادرة شاشة أوردرات ⇒ لوحة التفاصيل تُطوى والفلاتر تُمسح.
+ * مغادرة شاشة طلبات ⇒ لوحة التفاصيل تُطوى والفلاتر تُمسح.
  *
  * `openOrderId` والفلاتر حالةٌ **عامّة واحدة** تتشاركها ثلاث شاشات: تبويب «طلبات
  * التوصيل» و«كل الطلبات» و«الطلبات المجدولة». فالطلب الذي يفتحه الوكيل في شاشةٍ كان
@@ -2505,7 +2539,7 @@ export function resetOrdersBrowsing() {
 // ==========================================
 // SCHEDULED ORDERS VIEW (نقلاً عن renderScheduledOrders)
 // ==========================================
-/** الحجوزات بعد الفلاتر — رقم فاتورة · موبايل · فرع · نوع. */
+/** الحجوزات بعد الفلاتر — رقم فاتورة · هاتف · فرع · نوع. */
 export function scheduledOrdersFiltered(): any[] {
   let list = scheduledOrdersList()
   list = byText(list, state.schedFilterInvoice, (o) => o.invoiceNo)
@@ -2523,7 +2557,7 @@ export function clearScheduledFilters() {
 }
 export function scheduledOrdersList(): any[] {
   return state.orders
-    .filter((o: any) => o.scheduledDate)
+    .filter((o: any) => o.scheduledDate && !schedWentLive(o))
     .slice()
     .sort((a: any, b: any) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
 }
@@ -2591,7 +2625,7 @@ export function stoppedItemsGroups(): any[] {
 
 // صلاحية إيقاف/تشغيل الأصناف — مفتاح مستقلّ (`callcenter.stop_items`) لا `manage`:
 // إيقاف صنف قرار تشغيليّ يومي، بينما `manage` مفتاح إدارة عام لا يُمنح لكل مشرف وردية.
-/** تغيير سياسة أخذ الأوردر — مفتاحٌ مستقلّ لا يرثه من يفتح اليوم. */
+/** تغيير سياسة أخذ الطلب — مفتاحٌ مستقلّ لا يرثه من يفتح اليوم. */
 export function canOrderSettings(): boolean {
   return (currentCompany()?.permissions || []).includes('callcenter.order_settings')
 }
@@ -2861,12 +2895,12 @@ export function canCancelOrder(): boolean {
  * الإلغاء ممكن **قبل نزول الطلب الفرع فقط**؛ بعدها يملكه الفرع (الخادم يرفض صراحةً).
  * الحالة `sent` = لم يصل الفرع بعد. نُخفي الزرّ بدل أن يضغطه الوكيل فيُرفَض.
  */
-/** صلاحية تعديل أوردرٍ قائم — مفتاحٌ مستقلّ عن الإلغاء وعن تعيين الفرع. */
+/** صلاحية تعديل طلبٍ قائم — مفتاحٌ مستقلّ عن الإلغاء وعن تعيين الفرع. */
 export function canEditOrder(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('callcenter.edit_order')
 }
 /**
- * هذا الأوردر بعينه: قبل «جاهز» فقط.
+ * هذا الطلب بعينه: قبل «جاهز» فقط.
  * ما إن يصير جاهزاً فقد خرج من المطبخ — والخادم يرفضه كذلك، وهذا حارس الشاشة
  * كي لا يبني الوكيل تعديلاً يُرفض بعد بنائه.
  */
@@ -2876,25 +2910,25 @@ export function canEditThisOrder(order: any): boolean {
 }
 
 /**
- * فتح أوردرٍ قائم للتعديل: يُحمَّل محتواه في السلّة وتتبدّل الشاشة لوضع التعديل.
+ * فتح طلبٍ قائم للتعديل: يُحمَّل محتواه في السلّة وتتبدّل الشاشة لوضع التعديل.
  *
  * **العنوان والفرع لا يُعدَّلان** (الخادم لا يقبلهما): تغييرهما يُعيد اشتقاق الفرع
- * ويوم العمل لأوردرٍ يمسكه فرعٌ بالفعل. العنوان الخطأ يُلغى ويُعاد إنشاؤه.
+ * ويوم العمل لطلبٍ يمسكه فرعٌ بالفعل. العنوان الخطأ يُلغى ويُعاد إنشاؤه.
  */
 export function startEditOrder(orderId: number) {
-  if (!canEditOrder()) { showToast(tx('لا تملك صلاحية تعديل الأوردرات', 'You do not have permission to edit orders'), 'warning'); return }
+  if (!canEditOrder()) { showToast(tx('لا تملك صلاحية تعديل الطلبات', 'You do not have permission to edit orders'), 'warning'); return }
   const order = state.orders.find((o: any) => o.id === orderId)
-  if (!order) { showToast(tx('الأوردر غير موجود', 'Order not found'), 'error'); return }
-  if (!canEditThisOrder(order)) { showToast(tx('الأوردر بقى جاهز — التعديل يكون من الفرع', 'The order is ready — edit it at the branch'), 'warning'); return }
+  if (!order) { showToast(tx('الطلب غير موجود', 'Order not found'), 'error'); return }
+  if (!canEditThisOrder(order)) { showToast(tx('الطلب بقى جاهز — التعديل يكون من الفرع', 'The order is ready — edit it at the branch'), 'warning'); return }
   if (!order.itemsLoaded || !Array.isArray(order.items) || !order.items.length) {
-    showToast(tx('جارٍ تحميل أصناف الأوردر — افتح تفاصيله ثم أعد المحاولة', 'Loading the order items — open its details and try again'), 'warning')
+    showToast(tx('جارٍ تحميل أصناف الطلب — افتح تفاصيله ثم أعد المحاولة', 'Loading the order items — open its details and try again'), 'warning')
     void viewOrderDetail(orderId)
     return
   }
 
   resetOrderDraft()            // يُخرج من أي تعديلٍ سابق ويُفرغ المسوّدة
   state.editingOrderId = orderId
-  // السلّة من بنود الأوردر — بنفس شكل سطر السلّة كي تعمل عليها كل أدوات الشاشة
+  // السلّة من بنود الطلب — بنفس شكل سطر السلّة كي تعمل عليها كل أدوات الشاشة
   state.cart = order.items.map((it: any, k: number) => ({
     cartItemId: 'e' + orderId + '-' + k,
     itemId: it.productId ?? null,
@@ -2918,7 +2952,7 @@ export function startEditOrder(orderId: number) {
   state.openOrderId = null     // لوحة التفاصيل تُطوى — الشاشة انتقلت للتعديل
   state.activeView = 'new-order'
   state.activeTab = 'menu'
-  showToast(tx(`تعديل الأوردر #${order.invoiceNo} — العنوان والفرع لا يتغيّران`, `Editing order #${order.invoiceNo} — address and branch stay as they are`), 'info')
+  showToast(tx(`تعديل الطلب #${order.invoiceNo} — العنوان والفرع لا يتغيّران`, `Editing order #${order.invoiceNo} — address and branch stay as they are`), 'info')
 }
 
 export function cancelOrderEdit() {
@@ -3137,7 +3171,7 @@ export function canManageComplaints(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('complaints.manage')
 }
 
-/** إرسال الشكوى للكلاود (وضع live) — تُنسب للوكيل وتظهر لموظف الشركة في الداشبورد. */
+/** إرسال الشكوى للكلاود (وضع live) — تُنسب للوكيل وتظهر لموظف الشركة في لوحة التحكم. */
 async function submitComplaintLive(orderId: number, text: string, category: string) {
   const order = state.orders.find((o: any) => o.id === orderId)
   try {

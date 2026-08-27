@@ -167,9 +167,9 @@ const resLabel = computed(() => {
       </div>
     </div>
 
-    <!-- شريطٌ يقول إنك تعدّل لا تنشئ — وإلا حُفظ التعديل ظنّاً أنه أوردر جديد -->
+    <!-- شريطٌ يقول إنك تعدّل لا تنشئ — وإلا حُفظ التعديل ظنّاً أنه طلب جديد -->
     <div v-if="state.editingOrderId" class="cart-edit-bar">
-      <span>{{ tx('تعديل أوردر قائم — العنوان والفرع لا يتغيّران', 'Editing an existing order — address and branch stay as they are') }}</span>
+      <span>{{ tx('تعديل طلب قائم — العنوان والفرع لا يتغيّران', 'Editing an existing order — address and branch stay as they are') }}</span>
       <button type="button" class="cart-edit-cancel" @click="cancelOrderEdit()">{{ tx('إلغاء التعديل', 'Cancel edit') }}</button>
     </div>
     <div class="cart-actions">
@@ -197,7 +197,7 @@ const resLabel = computed(() => {
         </span>
       </button>
 
-      <!-- وضع التعديل: الزرّ يحفظ على الأوردر القائم لا ينشئ جديداً -->
+      <!-- وضع التعديل: الزرّ يحفظ على الطلب القائم لا ينشئ جديداً -->
       <button v-if="state.editingOrderId" class="btn-submit-order" @click="saveOrderEdit()" :disabled="!state.cart.length">
         <span>{{ tx('حفظ التعديل', 'Save changes') }}</span>
       </button>
@@ -209,7 +209,7 @@ const resLabel = computed(() => {
 </template>
 
 <style scoped>
-/* وضع التعديل: لونٌ تحذيريّ هادئ — الوكيل لازم يعرف أنه لا ينشئ أوردراً جديداً */
+/* وضع التعديل: لونٌ تحذيريّ هادئ — الوكيل لازم يعرف أنه لا ينشئ طلباً جديداً */
 .cart-edit-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
   margin: 0 12px 10px; padding: 8px 11px;

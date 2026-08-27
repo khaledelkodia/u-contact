@@ -39,6 +39,35 @@ function itemDetails(item: any): string {
   return detailsStr
 }
 
+/**
+ * طريقة الدفع كما هي — لا كما نظنّها.
+ *
+ * كان الافتراض يملأ الفراغ («الفون • نقدي») لأوردرٍ لم يختر له أحدٌ طريقة، فيقرأ
+ * الوكيل تحصيلاً لم يحدث. الفراغ يبقى فراغاً حتى يقفله الفرع بطريقته الحقيقيّة.
+ */
+/** أسطر الدفع من الفرع: الطرق أوّلاً ثم الإكراميّة — كلٌّ بمبلغه. */
+const payLines = computed<any[]>(() => {
+  const p = order.value?.posPayments
+  if (!Array.isArray(p) || !p.length) return []
+  const pay = p.filter((x: any) => x.surplusType !== 'tips')
+  const tips = p.filter((x: any) => x.surplusType === 'tips')
+  return [...pay, ...tips]
+})
+
+/** اسم الطريقة، وإلا نوعها الخام (نقدي/شبكة) — لا «غير مسمّاة» لسطرٍ حقيقيّ. */
+function payMethodName(p: any): string {
+  if (p.methodName) return p.methodName
+  if (p.method === 'card') return tx('شبكة', 'Card')
+  if (p.method === 'cash') return tx('نقدي', 'Cash')
+  return tx('غير مسمّاة', 'Unnamed')
+}
+
+function paymentText(o: any): string {
+  if (o.paymentLabel) return o.paymentLabel
+  if (o.paymentMethod || o.paymentChannel) return getPaymentLabel(o.paymentChannel, o.paymentMethod)
+  return tx('لم تُحدَّد بعد — يحدّدها الفرع عند القفل', 'Not set yet — the branch sets it on closing')
+}
+
 const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.value.items.length : 0))
 </script>
 
@@ -178,7 +207,17 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
       <div class="dt-pay">
         <span v-html="icon('wallet', { size: 13 })"></span>
         {{ tx('طريقة الدفع:', 'Payment:') }}
-        <strong>{{ order.paymentLabel || getPaymentLabel(order.paymentChannel || 'phone', order.paymentMethod || 'cash') }}</strong>
+        <template v-if="!payLines.length"><strong>{{ paymentText(order) }}</strong></template>
+      </div>
+      <!-- أُقفل في الفرع: طرقه كما هي — قد تكون أكثر من واحدة، ومعها الإكراميّة -->
+      <div v-if="payLines.length" class="dt-paylines">
+        <div v-for="(p, k) in payLines" :key="k" class="dt-payline"
+             :class="{ 'is-tip': p.surplusType === 'tips' }">
+          <span>{{ p.surplusType === 'tips'
+            ? tx('إكراميّة', 'Tip')
+            : payMethodName(p) }}</span>
+          <span class="dt-payline-v">{{ formatCurrency(p.amount) }}</span>
+        </div>
       </div>
     </div>
   </div>
@@ -307,6 +346,15 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
   font-size: 12px; font-weight: 600; color: var(--text-secondary, #64748b);
 }
 .dt-pay strong { color: var(--text-primary, #0f172a); font-weight: 800; }
+/* أسطر الدفع: مبلغٌ لكل طريقة على محورٍ واحد، والإكراميّة مميَّزة فلا تُحسَب ثمناً */
+.dt-paylines { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 4px; }
+.dt-payline {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+  font-size: 12px; font-weight: 700; color: var(--text-primary, #0f172a);
+}
+.dt-payline-v { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dt-payline.is-tip { color: #b45309; }
+:global(body.dark-mode) .dt-payline.is-tip { color: #fbbf24; }
 
 /* ── الوضع الليلي ── */
 :global(body.dark-mode) .dt-sec-n,

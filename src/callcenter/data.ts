@@ -266,6 +266,7 @@ const ORDER_STATUSES = [
   { id: 'new', name: 'جديد', nameEn: 'New', color: '#3b82f6', icon: 'badge-new' },
   { id: 'preparing', name: 'جاري التحضير', nameEn: 'Preparing', color: '#f59e0b', icon: 'chef-hat' },
   { id: 'ready', name: 'جاهز', nameEn: 'Ready', color: '#8b5cf6', icon: 'check-circle' },
+  { id: 'withdriver', name: 'مع السائق', nameEn: 'With the driver', color: '#0ea5e9', icon: 'user' },
   { id: 'onway', name: 'في الطريق', nameEn: 'On the way', color: '#06b6d4', icon: 'bike' },
   { id: 'delivered', name: 'تم التسليم', nameEn: 'Delivered', color: '#22c55e', icon: 'package' },
   { id: 'cancelled', name: 'ملغي', nameEn: 'Cancelled', color: '#ef4444', icon: 'x-circle' }
@@ -273,9 +274,9 @@ const ORDER_STATUSES = [
 
 // ========== مصادر الطلب (channels) وطرق الدفع المتاحة لكل مصدر ==========
 const PAYMENT_METHODS = [
-  { id: 'cash', name: 'كاش',    nameEn: 'Cash',  icon: 'banknote', color: '#16a34a' },
+  { id: 'cash', name: 'نقدي',   nameEn: 'Cash',  icon: 'banknote', color: '#16a34a' },
   { id: 'knet', name: 'كي نت',  nameEn: 'K-Net', icon: 'credit-card',     color: '#2563eb' },
-  { id: 'link', name: 'لينك',   nameEn: 'Link',  icon: 'link',            color: '#7c3aed' }
+  { id: 'link', name: 'رابط',   nameEn: 'Link',  icon: 'link',            color: '#7c3aed' }
 ];
 
 const PAYMENT_CHANNELS = [

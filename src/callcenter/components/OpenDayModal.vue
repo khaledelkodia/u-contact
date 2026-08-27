@@ -5,7 +5,7 @@
  * كان الزرّ يفتح فوراً بتاريخٍ يشتقّه الخادم من أيام الفروع؛ فإن كان قد فُتح وأُقفل
  * جاء الرفض بلا مخرج إلا أن يُقفَل يومُ فرعٍ ليتحرّك المشتقّ.
  *
- * وشرطُ نزول الأوردر لم يتغيّر: الفرع يسحب أوردرات **يومه** وحدها. فعرضُ أيام الفروع
+ * وشرطُ نزول الطلب لم يتغيّر: الفرع يسحب طلبات **يومه** وحدها. فعرضُ أيام الفروع
  * هنا ليس زينةً — هو ما يجعل الاختيار مبنيّاً على علم.
  */
 import { computed } from 'vue'
@@ -17,7 +17,7 @@ import { icon } from '../icons'
 const isFix = computed(() => state.dayModal.mode === 'fix')
 const suggested = computed(() => suggestedDay())
 const branches = computed<any[]>(() => state.dayModal.branches || [])
-/** فروعٌ يومها = التاريخ المختار ⇒ أوردراتها ستنزل. */
+/** فروعٌ يومها = التاريخ المختار ⇒ طلباتها ستنزل. */
 const matching = computed(() => branches.value.filter((b) => b.businessDate === state.dayModal.date).length)
 </script>
 
@@ -31,10 +31,10 @@ const matching = computed(() => branches.value.filter((b) => b.businessDate === 
 
       <div class="modal-body">
         <!-- يومُ الإصلاح ليس يومَ تشغيل: يُفتح لمراجعة تاريخٍ بعينه ولا تُقبَل عليه
-             أوردرات. اللافتة تسبق كل شيء فلا يُخلَط الأمران. -->
+             طلبات. اللافتة تسبق كل شيء فلا يُخلَط الأمران. -->
         <div v-if="isFix" class="od-fix">
           <span class="inline-ico" v-html="icon('alert-circle', { size: 14 })"></span>
-          <span>{{ tx('يُفتح هذا اليوم للمراجعة والتصحيح فقط — لا يمكن ضرب أوردرات عليه.', 'This day opens for review and corrections only — no orders can be placed on it.') }}</span>
+          <span>{{ tx('يُفتح هذا اليوم للمراجعة والتصحيح فقط — لا يمكن ضرب طلبات عليه.', 'This day opens for review and corrections only — no orders can be placed on it.') }}</span>
         </div>
         <label class="od-lbl">{{ tx('تاريخ يوم العمل', 'Business day date') }}</label>
         <input type="date" v-model="state.dayModal.date" class="ce-input od-date">
@@ -48,7 +48,7 @@ const matching = computed(() => branches.value.filter((b) => b.businessDate === 
         </button>
 
         <!-- ── أيام الفروع ────────────────────────────────────────────────────
-             الأوردر لا ينزل إلا لفرعٍ يومُه = هذا التاريخ. -->
+             الطلب لا ينزل إلا لفرعٍ يومُه = هذا التاريخ. -->
         <div v-if="!isFix" class="od-head">
           <span class="od-lbl">{{ tx('فروعك الآن', 'Your branches now') }}</span>
           <span v-if="!state.dayModal.loading && branches.length" class="od-count"
@@ -69,10 +69,10 @@ const matching = computed(() => branches.value.filter((b) => b.businessDate === 
           </div>
         </div>
 
-        <!-- تحذيرٌ صريح: اختيارٌ لا يطابق أحداً يعني أوردراتٍ تقف ولا تنزل -->
+        <!-- تحذيرٌ صريح: اختيارٌ لا يطابق أحداً يعني طلباتٍ تقف ولا تنزل -->
         <div v-if="!isFix && !state.dayModal.loading && branches.length && matching === 0" class="od-warn">
           <span class="inline-ico" v-html="icon('alert-triangle', { size: 14 })"></span>
-          <span>{{ tx('مفيش فرع على التاريخ ده — الأوردرات هتقف ولا تنزل حتى يتطابق اليومان.',
+          <span>{{ tx('مفيش فرع على التاريخ ده — الطلبات هتقف ولا تنزل حتى يتطابق اليومان.',
                       'No branch is on this date — orders will wait and will not go through until the two days match.') }}</span>
         </div>
 

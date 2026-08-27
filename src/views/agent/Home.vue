@@ -62,8 +62,8 @@ function chooseFr(id: number | null) { setFranchise(id) }
 
         <div v-if="can('callcenter.view') || can('callcenter.create')" class="card pad" style="cursor:pointer;" @click="router.push('/app/orders')">
           <div class="logo" style="width:40px;height:40px;border-radius:11px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;margin-bottom:12px;"><Icon name="cart" /></div>
-          <div class="t-strong">{{ t('منصّة الأوردرات', 'Orders platform') }}</div>
-          <div class="muted" style="font-size:13px; margin-top:3px;">{{ t('ضرب الأوردرات ومتابعتها', 'Take & track orders') }}</div>
+          <div class="t-strong">{{ t('منصّة الطلبات', 'Orders platform') }}</div>
+          <div class="muted" style="font-size:13px; margin-top:3px;">{{ t('ضرب الطلبات ومتابعتها', 'Take & track orders') }}</div>
         </div>
 
         <div v-if="can('complaints.view') || can('complaints.manage')" class="card pad" style="opacity:.7;">

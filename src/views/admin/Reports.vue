@@ -35,7 +35,7 @@ onMounted(async () => { companies.value = await listCompanies().catch(() => []);
       <div>
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
           <div class="t">{{ t('تقارير الوكلاء', 'Agent reports') }}</div>
-          <span v-if="!loading && rows.length" class="n">{{ t(`${totals.orders} أوردر`, `${totals.orders} orders`) }}</span>
+          <span v-if="!loading && rows.length" class="n">{{ t(`${totals.orders} طلب`, `${totals.orders} orders`) }}</span>
         </div>
         <div class="d">{{ t('أداء كل وكيل عبر كل الشركات', 'Each agent’s performance across all companies') }}</div>
       </div>
@@ -47,7 +47,7 @@ onMounted(async () => { companies.value = await listCompanies().catch(() => []);
         <div class="val">{{ totals.agents }}<i>{{ t('وكيل', 'agents') }}</i></div>
       </div>
       <div class="stat">
-        <div class="lbl"><span>{{ t('الأوردرات', 'Orders') }}</span><span class="ic violet"><Icon name="ticket" /></span></div>
+        <div class="lbl"><span>{{ t('الطلبات', 'Orders') }}</span><span class="ic violet"><Icon name="ticket" /></span></div>
         <div class="val violet">{{ totals.orders }}<i>{{ t('طلب', 'orders') }}</i></div>
       </div>
       <div class="stat">
@@ -72,10 +72,10 @@ onMounted(async () => { companies.value = await listCompanies().catch(() => []);
 
     <div class="card tbl-wrap">
       <table>
-        <thead><tr><th>{{ t('الوكيل', 'Agent') }}</th><th>{{ t('الأوردرات', 'Orders') }}</th><th>{{ t('الإيراد', 'Revenue') }}</th><th>{{ t('نزل الفرع', 'Delivered') }}</th><th>{{ t('واقف', 'Pending') }}</th><th>{{ t('ملغي', 'Cancelled') }}</th><th>{{ t('الشكاوى', 'Complaints') }}</th></tr></thead>
+        <thead><tr><th>{{ t('الوكيل', 'Agent') }}</th><th>{{ t('الطلبات', 'Orders') }}</th><th>{{ t('الإيراد', 'Revenue') }}</th><th>{{ t('نزل الفرع', 'Delivered') }}</th><th>{{ t('واقف', 'Pending') }}</th><th>{{ t('ملغي', 'Cancelled') }}</th><th>{{ t('الشكاوى', 'Complaints') }}</th></tr></thead>
         <tbody>
           <tr v-if="loading"><td colspan="7" class="muted" style="text-align:center; padding:30px;">{{ t('جارٍ التحميل…', 'Loading…') }}</td></tr>
-          <tr v-else-if="!rows.length"><td colspan="7"><div class="empty"><div class="ic"><Icon name="chart" /></div><div>{{ t('لا توجد بيانات بعد', 'No data yet') }}</div><div style="font-size:12.5px; margin-top:4px;">{{ t('تظهر بعد تشغيل منصّة الأوردرات', 'Appears once the orders platform is live') }}</div></div></td></tr>
+          <tr v-else-if="!rows.length"><td colspan="7"><div class="empty"><div class="ic"><Icon name="chart" /></div><div>{{ t('لا توجد بيانات بعد', 'No data yet') }}</div><div style="font-size:12.5px; margin-top:4px;">{{ t('تظهر بعد تشغيل منصّة الطلبات', 'Appears once the orders platform is live') }}</div></div></td></tr>
           <tr v-for="r in rows" :key="r.agentId">
             <td><div class="t-strong">{{ r.agentName }}</div><div class="muted" style="font-size:12.5px;">{{ r.agentEmail }}</div></td>
             <td class="t-strong">{{ r.orders }}</td>

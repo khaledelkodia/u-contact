@@ -1,10 +1,10 @@
 <script setup lang="ts">
 /**
- * إعدادات يوم العمل — سلوك القفل وفي اليوم أوردراتٌ لم تنزل الفرع بعد.
+ * إعدادات يوم العمل — سلوك القفل وفي اليوم طلباتٌ لم تنزل الفرع بعد.
  *
- * الأوردر الواقف (لم يسحبه الفرع لاختلاف اليوم أو انقطاعه) يضيع بقفل يومه، فالمنع هو
+ * الطلب الواقف (لم يسحبه الفرع لاختلاف اليوم أو انقطاعه) يضيع بقفل يومه، فالمنع هو
  * الافتراضي. لكن بعض التشغيل يريد أن يمضي اليوم ويُرحَّل الواقف — وهو ما يفعله الفرع
- * بأوردراته غير المدفوعة. الخيار للشركة، لا حكمٌ نفرضه.
+ * بطلباته غير المدفوعة. الخيار للشركة، لا حكمٌ نفرضه.
  */
 import { onMounted, ref } from 'vue'
 import { contactDaySettings, contactSetDaySettings } from '../../api'
@@ -43,13 +43,13 @@ const OPTS = [
   {
     v: 'block' as const, ico: 'ban',
     ar: 'امنع القفل', en: 'Block closing',
-    arSub: 'لا يُقفَل اليوم وفيه أوردر لم ينزل الفرع — الأوردر الواقف يضيع بقفل يومه.',
+    arSub: 'لا يُقفَل اليوم وفيه طلب لم ينزل الفرع — الطلب الواقف يضيع بقفل يومه.',
     enSub: 'The day will not close while an order has not reached the branch — a waiting order is lost with its day.',
   },
   {
     v: 'carry' as const, ico: 'arrow-right',
     ar: 'اقفل ورحّل', en: 'Close and carry over',
-    arSub: 'يُقفَل اليوم وتنتقل الأوردرات الواقفة لليوم الجديد — نفس ما يفعله الفرع بأوردراته غير المدفوعة.',
+    arSub: 'يُقفَل اليوم وتنتقل الطلبات الواقفة لليوم الجديد — نفس ما يفعله الفرع بطلباته غير المدفوعة.',
     enSub: 'The day closes and waiting orders move to the new day — the same as the branch does with its unpaid orders.',
   },
 ]
@@ -59,7 +59,7 @@ const OPTS = [
   <div class="tab-panel active">
     <div class="ds-head">
       <h2 class="ds-title">{{ tx('إعدادات يوم العمل', 'Business day settings') }}</h2>
-      <p class="ds-lead">{{ tx('عند إنهاء اليوم وفيه أوردرات لم تنزل الفرع بعد:',
+      <p class="ds-lead">{{ tx('عند إنهاء اليوم وفيه طلبات لم تنزل الفرع بعد:',
                                'When ending the day while some orders have not reached the branch yet:') }}</p>
     </div>
 

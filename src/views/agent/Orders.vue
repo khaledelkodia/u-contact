@@ -21,7 +21,7 @@ async function openDay() {
 }
 const dayOpen = computed(() => day.value && day.value.status === 'open')
 
-// ── قائمة الأوردرات ────────────────────────────────────────────────────────────
+// ── قائمة الطلبات ────────────────────────────────────────────────────────────
 const orders = ref<any[]>([])
 const loading = ref(false)
 async function loadOrders(silent = false) {
@@ -41,7 +41,7 @@ async function loadLookups() {
   } catch { /* غير حاسم */ }
 }
 
-// ── فورم أوردر جديد ──────────────────────────────────────────────────────────────
+// ── فورم طلب جديد ──────────────────────────────────────────────────────────────
 const show = ref(false)
 const saving = ref(false)
 const form = reactive<any>({ customerPhone: '', customerName: '', regionId: null, branchId: null, addressText: '', paymentMode: 'cash_on_delivery', notes: '', items: [] })
@@ -54,7 +54,7 @@ function openForm() {
   show.value = true; loadLookups()
 }
 
-// بحث عميل بالتليفون (debounce)
+// بحث عميل بالهاتف (debounce)
 let custTimer: any
 function onPhone() {
   clearTimeout(custTimer)
@@ -105,7 +105,7 @@ const itemsTotal = computed(() => form.items.reduce((s: number, i: any) => s + N
 const grandTotal = computed(() => itemsTotal.value + Number(deliveryFee.value))
 
 async function submit() {
-  if (!String(form.customerPhone).trim()) { err.value = t('تليفون العميل مطلوب', 'Customer phone required'); return }
+  if (!String(form.customerPhone).trim()) { err.value = t('هاتف العميل مطلوب', 'Customer phone required'); return }
   if (!form.items.length) { err.value = t('أضف صنف واحد على الأقل', 'Add at least one item'); return }
   saving.value = true; err.value = ''
   try {
@@ -118,7 +118,7 @@ async function submit() {
       items: form.items.map((i: any) => ({ productId: i.productId, productName: i.productName, productNameEn: i.productNameEn, quantity: i.quantity, unitPrice: i.unitPrice })),
     })
     show.value = false; await loadOrders()
-  } catch (e: any) { err.value = e?.response?.data?.message || t('فشل إنشاء الأوردر', 'Failed to create order') }
+  } catch (e: any) { err.value = e?.response?.data?.message || t('فشل إنشاء الطلب', 'Failed to create order') }
   finally { saving.value = false }
 }
 
@@ -151,12 +151,12 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
   <div class="content">
     <div class="page-head">
       <div>
-        <div class="t"><Icon name="cart" /> {{ t('الأوردرات', 'Orders') }}</div>
-        <div class="d">{{ t('استقبل الأوردر وابعته للفرع، وتابع حالته والسائق لحظياً', 'Take orders, send to the branch, track status & driver live') }}</div>
+        <div class="t"><Icon name="cart" /> {{ t('الطلبات', 'Orders') }}</div>
+        <div class="d">{{ t('استقبل الطلب وابعته للفرع، وتابع حالته والسائق لحظياً', 'Take orders, send to the branch, track status & driver live') }}</div>
       </div>
       <div style="display:flex; gap:8px; align-items:center">
         <button class="btn ghost sm" @click="loadOrders()"><Icon name="clock" /> {{ t('تحديث', 'Refresh') }}</button>
-        <button v-if="can('callcenter.create')" class="btn" :disabled="!dayOpen" @click="openForm"><Icon name="plus" /> {{ t('أوردر جديد', 'New order') }}</button>
+        <button v-if="can('callcenter.create')" class="btn" :disabled="!dayOpen" @click="openForm"><Icon name="plus" /> {{ t('طلب جديد', 'New order') }}</button>
       </div>
     </div>
 
@@ -164,12 +164,12 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
 
     <!-- بانر يوم العمل -->
     <div v-if="!dayOpen" class="card pad" style="margin-bottom:14px; display:flex; align-items:center; justify-content:space-between; gap:12px">
-      <div class="muted">{{ t('يوم الكول‑سنتر مقفول — افتحه عشان تبدأ تستقبل أوردرات.', 'Call-center day is closed — open it to start taking orders.') }}</div>
+      <div class="muted">{{ t('يوم الكول‑سنتر مقفول — افتحه عشان تبدأ تستقبل طلبات.', 'Call-center day is closed — open it to start taking orders.') }}</div>
       <button v-if="can('callcenter.open')" class="btn" :disabled="dayBusy" @click="openDay">{{ t('افتح يوم العمل', 'Open day') }}</button>
     </div>
     <div v-else class="chip soft" style="margin-bottom:14px"><Icon name="check" /> {{ t('يوم مفتوح', 'Day open') }} · {{ String(day.businessDate).slice(0, 10) }}</div>
 
-    <!-- قائمة الأوردرات -->
+    <!-- قائمة الطلبات -->
     <div class="card">
       <div class="tbl-wrap">
         <table>
@@ -186,7 +186,7 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
           </thead>
           <tbody>
             <tr v-if="loading"><td colspan="7" class="muted" style="text-align:center; padding:22px">{{ t('جارٍ التحميل…', 'Loading…') }}</td></tr>
-            <tr v-else-if="!orders.length"><td colspan="7"><div class="empty"><div class="ic"><Icon name="cart" /></div>{{ t('مفيش أوردرات لسه', 'No orders yet') }}</div></td></tr>
+            <tr v-else-if="!orders.length"><td colspan="7"><div class="empty"><div class="ic"><Icon name="cart" /></div>{{ t('مفيش طلبات لسه', 'No orders yet') }}</div></td></tr>
             <tr v-for="o in orders" :key="o.id">
               <td class="t-strong">{{ o.posOrderId || o.id }}</td>
               <td>
@@ -207,17 +207,17 @@ onBeforeUnmount(() => { if (poll) clearInterval(poll) })
       </div>
     </div>
 
-    <!-- مودال أوردر جديد -->
+    <!-- مودال طلب جديد -->
     <div v-if="show" class="modal-bg" @click.self="show = false">
       <div class="modal" style="max-width:760px">
         <div class="m-head">
-          <span><Icon name="cart" /> {{ t('أوردر جديد', 'New order') }}</span>
+          <span><Icon name="cart" /> {{ t('طلب جديد', 'New order') }}</span>
           <button class="btn icon subtle" @click="show = false"><Icon name="x" /></button>
         </div>
         <div class="m-body">
           <!-- العميل -->
           <div class="field">
-            <label><Icon name="phone" /> {{ t('تليفون العميل', 'Customer phone') }}</label>
+            <label><Icon name="phone" /> {{ t('هاتف العميل', 'Customer phone') }}</label>
             <input class="input" dir="ltr" v-model="form.customerPhone" @input="onPhone" :placeholder="t('اكتب الرقم للبحث…', 'Type phone to search…')" />
             <div v-if="custMatches.length" class="pills" style="margin-top:6px">
               <button v-for="c in custMatches" :key="c.id" class="pill" @click="pickCustomer(c)"><Icon name="user" /> {{ c.name }} · {{ c.phone }}</button>

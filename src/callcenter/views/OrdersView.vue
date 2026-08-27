@@ -15,7 +15,7 @@ const showTotals = computed(() => canViewOrderTotals())
 const colCount = computed(() => (showTotals.value ? 12 : 11))
 
 // ── الصفحات ─────────────────────────────────────────────────────────────────
-// كانت كل صفوف اليوم تُرسَم دفعةً واحدة: مع كثرة الأوردرات يطول الجدول بلا حدّ
+// كانت كل صفوف اليوم تُرسَم دفعةً واحدة: مع كثرة الطلبات يطول الجدول بلا حدّ
 // ويصير البحث تمريراً. الصفحة تحدّ ما يُرسم وتعطي موضعاً معلوماً.
 const page = ref(1)
 const pageSize = ref(25)
@@ -110,6 +110,7 @@ function typeCell(order: any): string {
                   <option value="new">{{ tx('جديد', 'New') }}</option>
                   <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
                   <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
+                  <option value="withdriver">{{ tx('مع السائق', 'With the driver') }}</option>
                   <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
                   <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
                   <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>

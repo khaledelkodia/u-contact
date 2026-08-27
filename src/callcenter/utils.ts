@@ -55,7 +55,7 @@ export function formatCurrency(amount: any): string {
 
 // ── توقيت الشركة ─────────────────────────────────────────────────────────────
 // الوكيل قد يجلس في مصر ويخدم شركةً في عُمان. كل وقتٍ يخصّ الشركة — عرضاً وإدخالاً —
-// يتبع منطقتها هي لا ساعة جهازه: أوردرٌ نزل ٨م عند الفرع كان يُعرض ٧م للوكيل المصري،
+// يتبع منطقتها هي لا ساعة جهازه: طلبٌ نزل ٨م عند الفرع كان يُعرض ٧م للوكيل المصري،
 // وحجزٌ يكتبه «٨م» كان ينزل الفرع ١٠م.
 //
 // بلا منطقةٍ معروفة (شركةٌ بلا دولة، أو جلسةٌ قديمة قبل أن يبعث الخادم `timezone`)
@@ -167,6 +167,24 @@ export function formatBusinessDate(ymd: any): string {
 export function todayISO(): string { return companyToday() }
 
 // نفس formatTransactionTime الأصلي (وقت تعيين السائق في لوحة التفاصيل)
+/** يوم القيد بساعة **الشركة** — أساس تجميع السجلّ في أيام (لا ساعة جهاز الوكيل). */
+export function txnDayKey(iso: any): string {
+  const d = new Date(iso)
+  return isNaN(d.getTime()) ? '' : toCompanyWall(d).slice(0, 10)
+}
+/** رأس المجموعة: «الأربعاء، ٢٦ أغسطس ٢٠٢٦». */
+export function formatTxnDay(iso: any): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleDateString(locale(), { ...tzOpt(), weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+}
+/** الساعة وحدها — التاريخ في رأس المجموعة فلا يتكرّر في كل سطر. */
+export function formatTxnClock(iso: any): string {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return '-'
+  return d.toLocaleTimeString(locale(), { ...tzOpt(), hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })
+}
+
 export function formatTransactionTime(iso: any): string {
   if (!iso) return '-'
   const d = new Date(iso)

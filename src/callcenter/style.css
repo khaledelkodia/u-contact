@@ -5387,138 +5387,127 @@ body.dark-mode .txn-summary {
 }
 
 /* Timeline */
+/* ── سجلّ العمليات: خطُّ زمنٍ يُقرأ ──────────────────────────────────────────
+   كان الخيط شريطاً واحداً بموضعٍ مكتوبٍ بيده (`inset-inline-start: 42px` مقابل
+   مركز أيقونةٍ عند 41px) وطرفاه مقصوصان بـ«30px» تخمينيّة — فلا ينطبق على مراكز
+   الأيقونات ويظهر خارجاً عنها. صار **قطعةً لكل قيد** تُشتقّ من المتغيّر نفسه الذي
+   يحدّد مقاس الأيقونة، فلا ينحرف أحدهما عن الآخر أبداً.
+
+   والتاريخ كان يتكرّر كاملاً في كل سطر («الأربعاء، ٢٦ أغسطس ٢٠٢٦ • ٥:٣٤:٠٠ م»)
+   وأكثر السجلّات ليومٍ واحد — فصار رأساً للمجموعة والسطرُ يحمل ساعته وحدها. */
 .txn-timeline {
+  --txn-dot: 30px;                    /* قطر الأيقونة */
+  --txn-gap: 13px;                    /* بينها وبين البطاقة */
   position: relative;
-  padding: 18px 22px 22px;
+  padding: 14px 18px 18px;
   max-height: 60vh;
   overflow-y: auto;
 }
+.txn-empty { padding: 24px; text-align: center; font-size: 13px; color: var(--text-muted, #94a3b8); }
 
-.txn-timeline::before {
-  content: "";
-  position: absolute;
-  top: 30px;
-  bottom: 30px;
-  inset-inline-start: 42px;
-  width: 2px;
-  background: linear-gradient(180deg, var(--primary, #2563eb), rgba(0, 0, 0, 0.08));
-  border-radius: 2px;
+/* رأس اليوم — يفصل ويؤرّخ، فلا يحمل كلُّ سطرٍ تاريخه */
+.txn-day {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 14px 0 8px;
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--text-secondary, #64748b);
 }
-
-body.dark-mode .txn-timeline::before {
-  background: linear-gradient(180deg, #3b82f6, rgba(255, 255, 255, 0.08));
+.txn-day:first-child { margin-top: 0; }
+.txn-day::after {
+  content: '';
+  flex: 1 1 auto;
+  height: 1px;
+  background: var(--border-light, #f3f4f6);
 }
 
 .txn-item {
   position: relative;
   display: flex;
-  gap: 14px;
-  padding: 12px 0;
+  gap: var(--txn-gap);
+  padding-bottom: 10px;
 }
+/* قطعة الخيط: من مركز الأيقونة نزولاً — لا موضعَ مكتوبٌ بيد ولا أطرافَ مخمَّنة */
+.txn-item::before {
+  content: '';
+  position: absolute;
+  inset-inline-start: calc(var(--txn-dot) / 2 - 1px);
+  top: var(--txn-dot);
+  bottom: 0;
+  width: 2px;
+  background: var(--border, #e5e7eb);
+}
+.txn-item:last-child::before { display: none; }   /* آخر قيدٍ لا خيط بعده */
 
 .txn-icon {
   position: relative;
   z-index: 1;
   flex-shrink: 0;
-  width: 38px;
-  height: 38px;
+  width: var(--txn-dot);
+  height: var(--txn-dot);
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 18px;
-  box-shadow: 0 0 0 4px var(--white, #fff);
-  font-weight: 700;
+  display: grid;
+  place-items: center;
 }
-
-body.dark-mode .txn-icon {
-  box-shadow: 0 0 0 4px var(--surface, #1e293b);
-}
-
-.txn-item-latest .txn-icon {
-  box-shadow: 0 0 0 4px var(--white, #fff), 0 0 0 6px rgba(37, 99, 235, 0.18);
-  animation: txn-pulse 2.2s ease-in-out infinite;
-}
-
-body.dark-mode .txn-item-latest .txn-icon {
-  box-shadow: 0 0 0 4px var(--surface, #1e293b), 0 0 0 6px rgba(96, 165, 250, 0.22);
-}
-
-@keyframes txn-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
+.txn-icon svg { width: 15px; height: 15px; display: block; }
+/* الأحدث: حلقةٌ ساكنة لا نبضةٌ متحرّكة — السجلّ يُقرأ ولا يُلفت النظر إلى نفسه */
+.txn-item-latest .txn-icon { box-shadow: 0 0 0 3px var(--primary-lighter, #eff6ff); }
+body.dark-mode .txn-item-latest .txn-icon { box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.18); }
 
 .txn-body {
   flex: 1;
   min-width: 0;
-  background: var(--bg, #f8fafc);
-  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.06));
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #e5e7eb);
   border-radius: 12px;
-  padding: 10px 14px;
+  padding: 9px 12px;
 }
-
-body.dark-mode .txn-body {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.07);
-}
-
-.txn-item-latest .txn-body {
-  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
-  border-color: rgba(37, 99, 235, 0.2);
-}
-
-body.dark-mode .txn-item-latest .txn-body {
-  background: linear-gradient(180deg, rgba(59, 130, 246, 0.15), rgba(59, 130, 246, 0.05));
-  border-color: rgba(96, 165, 250, 0.3);
-}
+body.dark-mode .txn-body { background: var(--bg-card, #1e293b); border-color: rgba(148, 163, 184, 0.2); }
+.txn-item-latest .txn-body { border-color: var(--primary, #1a56db); background: var(--primary-lighter, #eff6ff); }
+body.dark-mode .txn-item-latest .txn-body { background: rgba(96, 165, 250, 0.12); border-color: rgba(96, 165, 250, 0.4); }
 
 .txn-row {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
   gap: 10px;
-  flex-wrap: wrap;
 }
-
 .txn-title {
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
-  color: var(--text-primary);
+  line-height: 1.4;
+  color: var(--text-primary, #0f172a);
+  min-width: 0;
 }
-
+/* الساعة رقمٌ يُقارَن لا حبّةٌ تُزاحم العنوان — كانت مؤطَّرةً بحدٍّ وحشوة */
 .txn-time {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: var(--text-secondary, #64748b);
+  flex: 0 0 auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
   font-variant-numeric: tabular-nums;
-  background: var(--white, #fff);
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--border-light, rgba(0, 0, 0, 0.06));
   white-space: nowrap;
 }
-
-body.dark-mode .txn-time {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #cbd5e1;
-}
-
 .txn-note {
-  margin-top: 6px;
-  font-size: 12.5px;
+  margin-top: 3px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-secondary, #475569);
   line-height: 1.55;
+  color: var(--text-secondary, #64748b);
+  overflow-wrap: anywhere;
 }
-
 .txn-by {
-  margin-top: 6px;
-  font-size: 11.5px;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 5px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--text-muted, #94a3b8);
 }
+.txn-by svg { width: 11px; height: 11px; display: block; }
 
 /* ================================================
    DRIVER (السائق)
@@ -7126,3 +7115,14 @@ body.dark-mode .od-detail { scrollbar-color: #64748b rgba(255, 255, 255, 0.06); 
 body.dark-mode .rv-list::-webkit-scrollbar-track,
 body.dark-mode .od-detail::-webkit-scrollbar-track { background: rgba(255, 255, 255, 0.06); }
 body.dark-mode .rv-list { box-shadow: inset 0 -14px 12px -12px rgba(0, 0, 0, 0.55); }
+
+/* ═══════════ وسم «مجدول» في جدول التوصيل ═══════════ */
+/* حجزٌ جهّزه الفرع فانتقل ليُتابَع هنا — الوسم يفسّر وجوده وسط طلبات اليوم */
+.sched-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-inline-start: 6px; padding: 1px 6px;
+  border-radius: 999px; font-size: 10px; font-weight: 800;
+  color: #7c3aed; background: #f3e8ff; border: 1px solid #e9d5ff;
+  white-space: nowrap; vertical-align: middle;
+}
+body.dark-mode .sched-chip { color: #d8b4fe; background: #3b0764; border-color: #6b21a8; }

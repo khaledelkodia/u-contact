@@ -117,7 +117,7 @@ async function save() {
               <div class="field"><label>{{ t('الاسم', 'Name') }}</label><input class="input" v-model="form.name" /></div>
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
                 <div class="field"><label>{{ t('البريد الإلكتروني', 'Email') }}</label><input class="input" v-model="form.email" type="email" /></div>
-                <div class="field"><label>{{ t('التليفون', 'Phone') }}</label><input class="input" v-model="form.phone" /></div>
+                <div class="field"><label>{{ t('الهاتف', 'Phone') }}</label><input class="input" v-model="form.phone" /></div>
               </div>
             </template>
             <div class="field"><label>{{ editingId == null ? t('كلمة المرور', 'Password') : t('كلمة مرور جديدة (اختياري)', 'New password (optional)') }}</label><input class="input" v-model="form.password" type="password" autocomplete="new-password" /></div>

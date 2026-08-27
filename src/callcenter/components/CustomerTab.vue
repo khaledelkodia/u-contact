@@ -152,8 +152,8 @@ function addressLine(addr: any): string {
         <input type="text" id="cust-name" :placeholder="tx('اسم العميل', 'Customer name')" v-model="state.form.name">
       </div>
       <div class="form-group">
-        <label for="cust-phone">{{ tx('رقم الموبايل', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
-        <input type="text" id="cust-phone" :placeholder="tx('رقم الموبايل', 'Mobile no.')" maxlength="15" v-model="state.form.phone">
+        <label for="cust-phone">{{ tx('رقم الهاتف', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
+        <input type="text" id="cust-phone" :placeholder="tx('رقم الهاتف', 'Mobile no.')" maxlength="15" v-model="state.form.phone">
       </div>
       <div class="form-group">
         <label for="cust-phone2">{{ tx('رقم آخر', 'Another number') }}</label>
@@ -199,7 +199,7 @@ function addressLine(addr: any): string {
           <option v-for="sec in sections" :key="sec.id" :value="sec.id">{{ sec.name }}</option>
         </select>
       </div>
-      <!-- الفرع المشتق ورسومه — أو تحذير صريح بدل أوردر يُحتجَز بصمت -->
+      <!-- الفرع المشتق ورسومه — أو تحذير صريح بدل طلب يُحتجَز بصمت -->
       <div class="form-group full-width" v-if="placeInfo" style="grid-column: 1 / -1;">
         <div v-if="placeInfo.ok" style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding:8px 12px; border-radius:8px; background:var(--success-light, #ecfdf5); border:1px solid var(--success, #10b981); font-size:13px;">
           <span style="font-weight:700; color:var(--success, #047857);">{{ tx('الفرع:', 'Branch:') }} {{ placeInfo.branch }}</span>

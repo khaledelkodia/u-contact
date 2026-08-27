@@ -83,7 +83,7 @@ onMounted(load)
 // يُصدَّر **المعروض** لا الكل: من صفّى ثم ضغط «تصدير» يقصد ما يراه. وBOM في أوّل
 // الملف لأن إكسل بدونه يقرأ العربية رموزاً.
 function exportCsv() {
-  const head = [t('الاسم', 'Name'), t('البريد', 'Email'), t('التليفون', 'Phone'), t('الحالة', 'Status'), t('الشركات', 'Companies'), t('عدد الصلاحيات', 'Permissions')]
+  const head = [t('الاسم', 'Name'), t('البريد', 'Email'), t('الهاتف', 'Phone'), t('الحالة', 'Status'), t('الشركات', 'Companies'), t('عدد الصلاحيات', 'Permissions')]
   const rows = shown.value.map((a: any) => [
     a.name, a.email, a.phone || '',
     a.isActive ? t('مفعّل', 'Active') : t('موقوف', 'Suspended'),
@@ -135,7 +135,7 @@ function toggleAllPerms(cid: number) {
 
 // ── مجموعات الصلاحيات ────────────────────────────────────────────────────────
 // ثلاث عشرة حبّةً متلاصقة كتلةٌ تُمسح بالعين ولا تُقرأ، فيُمنح المفتاح الخطأ لأن
-// «إلغاء أوردر» جاور «فتح اليوم» بلا رابط. المجموعات للعرض وحده — ما يُحفظ مفاتيحُ
+// «إلغاء طلب» جاور «فتح اليوم» بلا رابط. المجموعات للعرض وحده — ما يُحفظ مفاتيحُ
 // مسطّحة كما كانت، والباك‑إند لا يعرف إلا المفاتيح.
 const GROUPS = PERM_GROUPS.map((g) => ({ ...g, perms: permsOfGroup(g.key) }))
 const groupLabel = (g: any) => (isAr() ? g.ar : g.en)
@@ -289,7 +289,7 @@ async function save() {
             <div class="ag-legend">{{ t('بيانات الوكيل', 'Agent details') }}</div>
             <div class="field"><label>{{ t('الاسم', 'Name') }}</label><input class="input" v-model="form.name" /></div>
             <div class="field" v-if="editingId == null"><label>{{ t('البريد الإلكتروني', 'Email') }}</label><input class="input" v-model="form.email" type="email" placeholder="name@company.com" /></div>
-            <div class="field"><label>{{ t('التليفون', 'Phone') }}</label><input class="input" v-model="form.phone" dir="ltr" /></div>
+            <div class="field"><label>{{ t('الهاتف', 'Phone') }}</label><input class="input" v-model="form.phone" dir="ltr" /></div>
             <div class="field"><label>{{ editingId == null ? t('كلمة المرور', 'Password') : t('كلمة مرور جديدة (اختياري)', 'New password (optional)') }}</label><input class="input" v-model="form.password" type="password" autocomplete="new-password" placeholder="••••••••" /></div>
             <div class="field" v-if="editingId != null"><label>{{ t('الحالة', 'Status') }}</label><select v-model="form.isActive"><option :value="true">{{ t('مفعّل', 'Active') }}</option><option :value="false">{{ t('موقوف', 'Suspended') }}</option></select></div>
           </section>
@@ -319,7 +319,7 @@ async function save() {
                 <label class="ag-co-head">
                   <input type="checkbox" :checked="linked(c.id)" @change="toggleCompany(c.id)" />
                   <span class="t-strong">{{ coName(c) }}</span>
-                  <!-- شركة بلا فرع مفعّل: الوكيل يدخل ويضرب أوردراً يبقى في الكلاود
+                  <!-- شركة بلا فرع مفعّل: الوكيل يدخل ويضرب طلباً يبقى في الكلاود
                        بلا أن يسحبه فرع. نقولها هنا قبل الربط لا بعد أول طلب ضائع. -->
                   <span v-if="!Number(c.branchesCallCenter || 0)" class="chip soft"
                     style="background:var(--rose-soft); color:var(--rose); margin-inline-start:auto;">
@@ -333,7 +333,7 @@ async function save() {
                 </label>
 
                 <p v-if="linked(c.id) && !Number(c.branchesCallCenter || 0)" class="ag-warn">
-                  {{ t('لا فرع في هذه الشركة مفعّل عليه الكول‑سنتر — أي أوردر يضربه الوكيل لن ينزل أي فرع. فعّله من داشبورد U‑Serve › الشركة › الفروع.',
+                  {{ t('لا فرع في هذه الشركة مفعّل عليه الكول‑سنتر — أي طلب يضربه الوكيل لن ينزل أي فرع. فعّله من لوحة التحكم U‑Serve › الشركة › الفروع.',
                         'No branch in this company has the call center enabled — orders this agent takes will never reach a branch. Enable it from the U-Serve dashboard › company › branches.') }}
                 </p>
 

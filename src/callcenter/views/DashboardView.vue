@@ -14,7 +14,7 @@ const canOrders = computed(() => can('callcenter.view') || can('callcenter.creat
 
 function go(v: string) { if (v === 'new-order') { startNewOrder(); return } state.activeView = v }
 
-// ── ملخص التقارير (من أوردرات الفرع) ──
+// ── ملخص التقارير (من طلبات الفرع) ──
 const orders = computed<any[]>(() => state.orders || [])
 const STAT = [
   { key: 'delivered', ar: 'تم التوصيل', en: 'Delivered', color: '#16a34a' },
@@ -65,7 +65,7 @@ const shortcuts = computed(() => [
     <div class="kpi-grid">
       <div class="kpi">
         <div class="kpi-n">{{ kpis.count }}</div>
-        <div class="kpi-l">{{ ar ? 'إجمالي الأوردرات' : 'Total orders' }}</div>
+        <div class="kpi-l">{{ ar ? 'إجمالي الطلبات' : 'Total orders' }}</div>
       </div>
       <div class="kpi">
         <div class="kpi-n">{{ formatCurrency(kpis.sales) }}</div>
@@ -73,16 +73,16 @@ const shortcuts = computed(() => [
       </div>
       <div class="kpi">
         <div class="kpi-n">{{ kpis.delivery }}</div>
-        <div class="kpi-l">{{ ar ? 'أوردرات توصيل' : 'Delivery orders' }}</div>
+        <div class="kpi-l">{{ ar ? 'طلبات توصيل' : 'Delivery orders' }}</div>
       </div>
       <div class="kpi">
         <div class="kpi-n">{{ kpis.pickup }}</div>
-        <div class="kpi-l">{{ ar ? 'أوردرات استلام' : 'Pickup orders' }}</div>
+        <div class="kpi-l">{{ ar ? 'طلبات استلام' : 'Pickup orders' }}</div>
       </div>
     </div>
 
     <!-- حسب الحالة -->
-    <div class="sec-label">{{ ar ? 'الأوردرات حسب الحالة' : 'Orders by status' }}</div>
+    <div class="sec-label">{{ ar ? 'الطلبات حسب الحالة' : 'Orders by status' }}</div>
     <div class="status-row">
       <div v-for="s in byStatus" :key="s.key" class="st">
         <span class="st-dot" :style="{ background: s.color }"></span>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // شاشة الشكاوى: قائمة الشركة + تفاصيل الشكوى وتايم‑لاين متابعتها.
-// الشكوى نفسها يراها موظف الشركة من داشبورد U‑Serve — نفس السجلّ لا نسخة أخرى.
+// الشكوى نفسها يراها موظف الشركة من لوحة التحكم U‑Serve — نفس السجلّ لا نسخة أخرى.
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   state, loadComplaintsList, setComplaintsFilter, openComplaintDetail, closeComplaintDetail,

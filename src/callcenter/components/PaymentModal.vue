@@ -6,7 +6,7 @@ import { PAYMENT_CHANNELS } from '../data'
 import { icon } from '../icons'
 
 const channel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
-// طرق الدفع **من الشركة**: كانت ثلاثاً مكتوبةً في `data.ts` (كاش/كي‑نت/لينك)، فشركةٌ
+// طرق الدفع **من الشركة**: كانت ثلاثاً مكتوبةً في `data.ts` (كاش/كي‑نت/رابط)، فشركةٌ
 // تحصّل بـ«مدى» أو «STC Pay» لا تجدهما ويُسجَّل طلبها بطريقةٍ لا وجود لها عندها.
 // المصدر (الفون/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
 const methods = computed<any[]>(() => companyPaymentMethods())
@@ -45,7 +45,7 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
           </div>
           <div class="pm-methods">
             <p v-if="!methods.length" class="pm-empty">
-              {{ tx('لا توجد طرق دفع مفعّلة لهذه الشركة — عرّفها من داشبورد U‑Serve.', 'No active payment methods for this company — define them in the U-Serve dashboard.') }}
+              {{ tx('لا توجد طرق دفع مفعّلة لهذه الشركة — عرّفها من لوحة التحكم U‑Serve.', 'No active payment methods for this company — define them in the U-Serve dashboard.') }}
             </p>
             <button v-for="m in methods" :key="m.id" type="button" class="pm-method" :class="{ active: String(state.paymentMethod) === String(m.id) }" @click="setPaymentMethod(m.id)">
               <span class="pm-method-icon" :style="{ color: String(state.paymentMethod) === String(m.id) ? '#fff' : (m.color || (m.isCash ? '#16a34a' : '#2563eb')) }" v-html="icon(m.icon || (m.isCash ? 'banknote' : 'credit-card'), { size: 18 })"></span>

@@ -8,7 +8,7 @@ import {
 } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES, COMPLAINT_CATEGORIES } from '../data'
-import { formatCurrency, formatTransactionTime } from '../utils'
+import { formatCurrency, formatTransactionTime, txnDayKey, formatTxnDay, formatTxnClock } from '../utils'
 import { tx, nameOf } from '../lang'
 
 // نقلاً عن getStatusBadge (يُستخدم في ملخّص الحركات)
@@ -45,6 +45,19 @@ function doConfirmCancel() {
 
 // ── مودال الحركات ──
 const txns = computed<any[]>(() => (txnOrder.value ? orderTransactions(txnOrder.value) : []))
+
+// تجميعٌ في أيام: أكثر السجلّات ليومٍ واحد، فتكرارُ التاريخ في كل سطرٍ ضجيج.
+// الرأس يؤرّخ، والسطر يحمل ساعته وحدها. و«_i» تحفظ ترتيبَ القيد لتمييز الأحدث.
+const txnDays = computed(() => {
+  const groups: Array<{ key: string; label: string; items: any[] }> = []
+  txns.value.forEach((e: any, i: number) => {
+    const key = txnDayKey(e.at)
+    let g = groups[groups.length - 1]
+    if (!g || g.key !== key) { g = { key, label: formatTxnDay(e.at), items: [] }; groups.push(g) }
+    g.items.push({ ...e, _i: i })
+  })
+  return groups
+})
 
 // ── مودال الشكوى ──
 const complaintText = ref('')
@@ -133,20 +146,23 @@ function doSubmitComplaint() {
           </div>
         </div>
         <div class="txn-timeline">
-          <div v-if="txns.length === 0" style="padding:20px; text-align:center; color:var(--text-muted);">{{ tx('لا توجد عمليات مسجلة', 'No activity recorded') }}</div>
-          <div v-for="(entry, idx) in txns" :key="idx" class="txn-item" :class="{ 'txn-item-latest': idx === 0 }">
+          <div v-if="txns.length === 0" class="txn-empty">{{ tx('لا توجد عمليات مسجلة', 'No activity recorded') }}</div>
+          <template v-for="g in txnDays" :key="g.key">
+            <div class="txn-day">{{ g.label }}</div>
+          <div v-for="entry in g.items" :key="entry._i" class="txn-item" :class="{ 'txn-item-latest': entry._i === 0 }">
             <div class="txn-icon" :style="{ background: getTransactionMeta(entry).bg, color: getTransactionMeta(entry).color }">
               <span v-html="icon(getTransactionMeta(entry).icon, { size: 18 })"></span>
             </div>
             <div class="txn-body">
               <div class="txn-row">
                 <span class="txn-title">{{ getTransactionMeta(entry).title }}</span>
-                <span class="txn-time">{{ formatTransactionTime(entry.at) }}</span>
+                <span class="txn-time" :title="formatTransactionTime(entry.at)">{{ formatTxnClock(entry.at) }}</span>
               </div>
               <div v-if="entry.note" class="txn-note">{{ entry.note }}</div>
               <div v-if="entry.by" class="txn-by"><span v-html="icon('user', { size: 12 })"></span> {{ entry.by }}</div>
             </div>
           </div>
+          </template>
         </div>
       </div>
       <div class="modal-footer">

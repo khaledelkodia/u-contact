@@ -83,7 +83,7 @@ function tick() {
   clockZone.value = null
 }
 
-// ── تحديث لحظي لحالات الأوردرات عبر SSE (بدل البولينج) ──
+// ── تحديث لحظي لحالات الطلبات عبر SSE (بدل البولينج) ──
 let ordersES: EventSource | null = null
 let ordersDebounce: any
 function scheduleOrdersRefresh() {   // debounce: تجميع الأحداث المتتابعة في تحديث واحد
@@ -91,7 +91,7 @@ function scheduleOrdersRefresh() {   // debounce: تجميع الأحداث ال
   ordersDebounce = setTimeout(() => { if (state.live) void loadOrders() }, 400)
 }
 // الحدث صار يحمل الصفوف المتغيّرة: ندمجها في مكانها بلا أي طلب شبكة. إعادة الجلب تبقى
-// للحالات التي لا يغطّيها الدمج فقط (أوردر جديد غير معروض، أو حدث بلا حمولة من خادم قديم).
+// للحالات التي لا يغطّيها الدمج فقط (طلب جديد غير معروض، أو حدث بلا حمولة من خادم قديم).
 function onOrderEvent(ev: MessageEvent) {
   if (!state.live) return
   let rows: any[] | null = null
@@ -104,10 +104,10 @@ function openOrdersStream() {
   const url = contactOrdersStreamUrl()
   if (!url) return
   ordersES = new EventSource(url)
-  ordersES.addEventListener('order', onOrderEvent as EventListener)   // تغيّر أوردر (إنشاء/حالة)
+  ordersES.addEventListener('order', onOrderEvent as EventListener)   // تغيّر طلب (إنشاء/حالة)
   // إيقاف/تشغيل صنف — من مطبخ الـPOS أو من وكيل كول‑سنتر آخر → حدّث القائمتين لحظياً
   ordersES.addEventListener('availability', () => { void loadStoppedItems(); void loadCcStoppedItems() })
-  // حضور فرع (اتصل/انقطع): يحدّث شريط الجاهزيّة فوراً، ويُنبّه حين يعود فرعٌ عليه أوردر واقف
+  // حضور فرع (اتصل/انقطع): يحدّث شريط الجاهزيّة فوراً، ويُنبّه حين يعود فرعٌ عليه طلب واقف
   ordersES.addEventListener('branch', (ev: any) => {
     try {
       const d = JSON.parse(ev.data)
@@ -145,8 +145,8 @@ function initBusinessDate() {
  * يوم العمل المعروض = **يوم الكول‑سنتر المفتوح على الخادم** لا تاريخ الجهاز.
  *
  * كان يُقرأ من `state.businessDate` وهو محليّ بحت (localStorage أو تاريخ اليوم)، فيعرض
- * الهيدر «اليوم» بينما الأوردرات تُختَم بيومٍ مفتوحٍ قد يسبقه بأيام — وهو الرقم الذي
- * يقارنه حارسُ الكونكتور بيوم الفرع ليقرّر هل ينزل الأوردر. عرضُ تاريخٍ غير الذي يعمل
+ * الهيدر «اليوم» بينما الطلبات تُختَم بيومٍ مفتوحٍ قد يسبقه بأيام — وهو الرقم الذي
+ * يقارنه حارسُ الكونكتور بيوم الفرع ليقرّر هل ينزل الطلب. عرضُ تاريخٍ غير الذي يعمل
  * به النظام يجعل الوكيل يظن اليومَين متطابقين وهما ليسا كذلك.
  */
 const openDayISO = computed<string | null>(() => {
@@ -167,12 +167,12 @@ function toggleTheme() { dark.value = !dark.value; document.body.classList.toggl
 const myPerms = computed<string[]>(() => currentCompany()?.permissions || [])
 function can(perm: string) { return myPerms.value.includes(perm) }
 function hasAny(perms: string[]) { return perms.some((p) => myPerms.value.includes(p)) }
-// صلاحيات شاشة الكول‑سنتر (ضرب الأوردر)، وصلاحيات تستحق داشبورد الرئيسية
+// صلاحيات شاشة الكول‑سنتر (ضرب الطلب)، وصلاحيات تستحق لوحة التحكم الرئيسية
 const ORDER_PERMS = ['callcenter.view', 'callcenter.create', 'callcenter.edit']
 const DASH_PERMS = ['callcenter.users', 'complaints.view', 'complaints.manage', 'callcenter.manage']
 const dashboardWorthy = computed(() => hasAny(DASH_PERMS))
 const canOrders = computed(() => hasAny(ORDER_PERMS))
-// عناصر الهيدر (التاريخ/أوردر جديد/إنهاء اليوم) خاصة بشاشات الكول‑سنتر فقط — تختفي في الرئيسية
+// عناصر الهيدر (التاريخ/طلب جديد/إنهاء اليوم) خاصة بشاشات الكول‑سنتر فقط — تختفي في الرئيسية
 const CALLCENTER_VIEWS = ['new-order', 'orders', 'scheduled-orders']
 const isCallcenterView = computed(() => CALLCENTER_VIEWS.includes(state.activeView))
 
@@ -185,11 +185,11 @@ function pickFranchise(e: any) { const v = e.target.value; setFranchise(v ? Numb
 
 // ── التنقّل بين الشاشات ──
 const NAV = [
-  // الرئيسية = داشبورد (تظهر لمن يملك صلاحيات تستحقها)
+  // الرئيسية = لوحة التحكم (تظهر لمن يملك صلاحيات تستحقها)
   { view: 'dashboard', label: 'home', fallback: 'الرئيسية', anyOf: DASH_PERMS, svg: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>' },
   // الكول‑سنتر = مجموعة قائمة منسدلة فقط (بدون شاشة خاصة بها) — الكليك يفتح/يقفل القائمة
   { view: 'cc-group', label: 'call_center', fallback: 'الكول سنتر', anyOf: ORDER_PERMS, svg: '<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.362 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>', children: [
-    { view: 'new-order', label: 'new_order', fallback: 'أوردر جديد', anyOf: ORDER_PERMS, svg: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>' },
+    { view: 'new-order', label: 'new_order', fallback: 'طلب جديد', anyOf: ORDER_PERMS, svg: '<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>' },
     { view: 'orders', label: 'delivery_orders', fallback: 'طلبات التوصيل', anyOf: ['callcenter.view'], svg: '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>' },
     { view: 'scheduled-orders', label: 'scheduled_orders', fallback: 'طلبات مجدولة', anyOf: ['callcenter.view', 'callcenter.create'], svg: '<rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line>' },
   ] },
@@ -200,7 +200,7 @@ const NAV = [
   { view: 'cc-roles', label: 'roles', fallback: 'الأدوار', anyOf: ['callcenter.roles'], svg: '<path d="M12 2 3 6v6c0 5 3.8 9.3 9 10 5.2-.7 9-5 9-10V6z"/><polyline points="9 12 11 14 15 10"/>' },
   { view: 'users', label: 'users', fallback: 'المستخدمون', anyOf: ['callcenter.users'], svg: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
 ]
-// «أوردر جديد» ليس تبديلَ شاشة: يبدأ مسوّدةً نظيفة (بند القائمة وزرّ الهيدر سواء)
+// «طلب جديد» ليس تبديلَ شاشة: يبدأ مسوّدةً نظيفة (بند القائمة وزرّ الهيدر سواء)
 function showView(v: string) { if (v === 'new-order') { startNewOrder(); return } state.activeView = v }
 function navLabel(n: any) { return t(n.label) === n.label ? n.fallback : t(n.label) }
 
@@ -238,7 +238,7 @@ onMounted(() => {
 
   initData(); initBusinessDate()
   tick(); clockTimer = setInterval(tick, 1000)
-  openOrdersStream()   // بثّ لحظي لتغيّرات الأوردرات (SSE)
+  openOrdersStream()   // بثّ لحظي لتغيّرات الطلبات (SSE)
 
   // دمج الدخول: نستخدم هوية وكيل U-Contact مباشرةً (لا شاشة login مووك). الوكيل وصل هنا وهو مسجّل
   // دخول في U-Contact (الحارس يضمن ذلك). الدور: مشرف لو يملك صلاحية فتح/قفل اليوم، وإلا موظف.
@@ -246,7 +246,7 @@ onMounted(() => {
   const role = (perms.includes('callcenter.open') || perms.includes('callcenter.close')) ? 'supervisor' : 'agent'
   loginSuccess({ name: session.name || 'وكيل', role, branch: 'all', username: 'agent' })
 
-  // هبوط ذكي: من يملك صلاحيات إدارية يبدأ على داشبورد الرئيسية، ومن معه الكول‑سنتر فقط يدخل عليه مباشرةً
+  // هبوط ذكي: من يملك صلاحيات إدارية يبدأ على لوحة التحكم الرئيسية، ومن معه الكول‑سنتر فقط يدخل عليه مباشرةً
   state.activeView = dashboardWorthy.value ? 'dashboard' : 'new-order'
 
   // تحميل البيانات الحقيقية (فروع/مناطق/منتجات) + حالة يوم العمل — يبقى على المووك لو فشل أو مفيش شركة
@@ -259,10 +259,10 @@ watch(() => [session.companyId, session.franchiseId], () => { void loadLiveData(
 // تجديد التوكن ⇒ أعِد فتح التيّار بالتوكن الجديد وحده. (بلا تحميل بيانات: النطاق
 // لم يتغيّر، وإعادةُ تحميلها كل ربع ساعة لكل وكيل حِملٌ بلا مقابل.)
 watch(() => session.token, (t, prev) => { if (t && prev && t !== prev) openOrdersStream() })
-// عند دخول شاشة الأوردرات → حدّث من الكلاود
+// عند دخول شاشة الطلبات → حدّث من الكلاود
 watch(() => state.activeView, (v) => { if (state.live && (v === 'orders' || v === 'scheduled-orders')) void loadOrders() })
 // مغادرة القسم أو التبويب ⇒ تفاصيل الطلب المفتوحة تُطوى والفلاتر تُمسح. الحالة عامّة
-// تتشاركها شاشات الأوردرات الثلاث، فكان الوكيل ينتقل فيجد تفاصيل طلبٍ من شاشةٍ أخرى
+// تتشاركها شاشات الطلبات الثلاث، فكان الوكيل ينتقل فيجد تفاصيل طلبٍ من شاشةٍ أخرى
 // مفتوحةً أمامه، وفلتراً لم يكتبه هنا يُخفي صفوفاً بلا أن يرى سببها.
 watch(() => [state.activeView, state.activeTab], () => resetOrdersBrowsing())
 onBeforeUnmount(() => {
@@ -397,17 +397,17 @@ function toastIcon(type: string) {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8"/><path d="M8 12h8"/></svg>
           <span class="eod-label">{{ state.dayLoading ? tx('جارٍ الفتح…', 'Opening…') : tx('افتح اليوم', 'Open day') }}</span>
         </button>
-        <!-- «إصلاح يوم» — تاريخٌ بعينه للمراجعة، بلا ضربِ أوردرات. مفتاحٌ مستقلّ. -->
+        <!-- «إصلاح يوم» — تاريخٌ بعينه للمراجعة، بلا ضربِ طلبات. مفتاحٌ مستقلّ. -->
         <button v-if="isCallcenterView && state.live && can('callcenter.fix_day')" class="header-eod-btn"
           style="background:#d97706; color:#fff;" :disabled="state.dayLoading"
-          :title="tx('افتح تاريخاً بعينه للمراجعة — لا تُضرَب عليه أوردرات', 'Open a specific date for review — no orders can be placed on it')"
+          :title="tx('افتح تاريخاً بعينه للمراجعة — لا تُضرَب عليه طلبات', 'Open a specific date for review — no orders can be placed on it')"
           @click="openDayModal('fix')">
           <span class="inline-ico" v-html="icon('edit', { size: 15 })"></span>
           <span class="eod-label">{{ tx('إصلاح يوم', 'Fix a day') }}</span>
         </button>
         <!-- يوم مقفول ومفيش صلاحية فتح → تنبيه -->
         <span v-else-if="isCallcenterView && state.live && state.onlineDay === null" class="header-business-date" style="color:var(--danger,#dc2626);">
-          <span class="bd-value">{{ tx('اليوم مقفول — لا يمكن ضرب أوردر', 'Day is closed — orders cannot be placed') }}</span>
+          <span class="bd-value">{{ tx('اليوم مقفول — لا يمكن ضرب طلب', 'Day is closed — orders cannot be placed') }}</span>
         </span>
 <!-- لا يظهر إلا ويومٌ مفتوح فعلاً: «إنهاء اليوم» بلا يومٍ مفتوح زرٌّ لا معنى له -->
         <button v-if="canEod && isCallcenterView && state.live && state.onlineDay" class="header-eod-btn"
@@ -490,7 +490,7 @@ function toastIcon(type: string) {
    البنود كانت تطفو تحت رأسها بلا رابطٍ بصريّ، وأرضيّةٌ بيضاء بشفافيّة ٧٪ لم تكن
    تُرى أصلاً على تدرّج السايدبار الأزرق. المجموعة المفتوحة الآن **لوحةٌ غائرة**:
    أرضيّةٌ أغمق من التدرّج بظلٍّ داخليّ، ورأسٌ يفصله خطّ عن بنوده، والبند الحاليّ
-   **حبّةٌ بيضاء ممتلئة بنصٍّ أزرق** — لغةُ زرّ «أوردر جديد» نفسها، لا يخطئها النظر. */
+   **حبّةٌ بيضاء ممتلئة بنصٍّ أزرق** — لغةُ زرّ «طلب جديد» نفسها، لا يخطئها النظر. */
 .nav-group.open {
   margin: 8px;
   padding: 6px;

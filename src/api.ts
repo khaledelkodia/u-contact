@@ -57,7 +57,7 @@ export function companyDate(c?: Company | null): string | null {
 }
 
 // ── أرقام الهواتف — نفس منطق الخادم (cloud/api/src/common/phone.ts) ──────────
-// العميل يُعرَّف بـ(الشركة + التليفون)، والأرقام تدخل بأشكال مختلفة (محلي بصفر بادئ
+// العميل يُعرَّف بـ(الشركة + الهاتف)، والأرقام تدخل بأشكال مختلفة (محلي بصفر بادئ
 // من الـPOS، ودولي من هنا). نوحّد ما نرسله فلا يتكرّر الشخص الواحد.
 // كان النمط `/D+/g` — بلا باك‑سلاش. `\D` = «ما ليس رقماً»، أمّا `D` فحرفُ D نفسه: فلم
 // يكن التنظيف ينظّف شيئاً. الرقم النظيف («01012345678») ينجو بالصدفة، لكن أي رقمٍ فيه
@@ -265,16 +265,16 @@ export const createUser = (body: any) => api.post('/contact/users', body).then((
 export const updateUser = (id: number, body: any) => api.patch(`/contact/users/${id}`, body).then((r) => r.data)
 export const setUserPassword = (id: number, password: string) => api.post(`/contact/users/${id}/password`, { password }).then((r) => r.data)
 
-// ── شاشة ضرب الأوردر: lookups + إنشاء الأوردر + يوم العمل (كلها بهيدرز x-company-id/x-franchise-id تلقائياً) ──
+// ── شاشة ضرب الطلب: lookups + إنشاء الطلب + يوم العمل (كلها بهيدرز x-company-id/x-franchise-id تلقائياً) ──
 // الفروع: مفلترة بالفرنشايز المختار (الباك‑إند يقرأ x-franchise-id)
 export const contactBranches = () => api.get('/contact/lookup/branches').then((r) => r.data as { id: number; name: string }[])
 // المنتجات: id + اسم(ع/إن) + سعر + التصنيف (بدون صور). بحث اختياري بالاسم
 export const contactProducts = (q?: string) =>
   api.get('/contact/lookup/products', { params: q ? { q } : {} }).then((r) => r.data as ContactProduct[])
-// بحث العميل بالتليفون → العميل + عناوينه المحفوظة
+// بحث العميل بالهاتف → العميل + عناوينه المحفوظة
 export const contactCustomers = (phone: string) =>
   api.get('/contact/lookup/customers', { params: { phone } }).then((r) => r.data as ContactCustomer[])
-// حفظ/تحديث عميل + عنوانه المركّب مستقلاً (بدون أوردر)
+// حفظ/تحديث عميل + عنوانه المركّب مستقلاً (بدون طلب)
 // `addressId`: العنوان الذي يعدّله الوكيل. بدونه يطابق الخادم بالمحتوى فيُنشئ عنواناً
 // ثانياً متى غُيّر أحد حقول المطابقة — وهو جوهر التعديل. والردّ يحمله ليُنتقى بالمعرّف.
 export const contactSaveCustomer = (body: { name: string; phone: string; addressId?: number | null; regionName?: string | null; sectionName?: string | null; addressText?: string | null; block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null }) =>
@@ -286,16 +286,16 @@ export const contactPaymentMethods = () =>
   api.get('/contact/lookup/payment-methods').then((r) => r.data as ContactPaymentMethod[])
 export const contactOrderTypes = () =>
   api.get('/contact/lookup/order-types').then((r) => r.data as ContactOrderType[])
-// إنشاء أوردر (ينشئ/يربط العميل تلقائياً بالتليفون)
+// إنشاء طلب (ينشئ/يربط العميل تلقائياً بالهاتف)
 export const contactCreateOrder = (body: ContactOrderInput) => api.post('/contact/orders', body).then((r) => r.data)
-// قائمة الأوردرات + يوم العمل الحالي
+// قائمة الطلبات + يوم العمل الحالي
 export const contactOrders = (params: any = {}) => api.get('/contact/orders', { params }).then((r) => r.data)
-// تفاصيل أوردر ببنوده — القائمة لا تحمل البنود، وإعادة الطلب تحتاجها
+// تفاصيل طلب ببنوده — القائمة لا تحمل البنود، وإعادة الطلب تحتاجها
 export const contactOrder = (id: number) => api.get(`/contact/orders/${id}`).then((r) => r.data)
-// إلغاء أوردر — الخادم يرفضه بعد نزوله الفرع («الإلغاء يكون من الفرع»)
+// إلغاء طلب — الخادم يرفضه بعد نزوله الفرع («الإلغاء يكون من الفرع»)
 export const contactCancelOrder = (id: number) => api.post(`/contact/orders/${id}/cancel`).then((r) => r.data)
 export const contactBusinessDay = () => api.get('/contact/business-day/current').then((r) => r.data)
-// رابط بثّ SSE لتغيّرات الأوردرات (EventSource — auth عبر query لأنه لا يدعم الترويسات)
+// رابط بثّ SSE لتغيّرات الطلبات (EventSource — auth عبر query لأنه لا يدعم الترويسات)
 export function contactOrdersStreamUrl(): string | null {
   if (!session.token || !session.companyId) return null
   const base = String(api.defaults.baseURL || '').replace(/\/$/, '')
@@ -304,7 +304,7 @@ export function contactOrdersStreamUrl(): string | null {
   return `${base}/contact/orders/stream?${p.toString()}`
 }
 // ── الشكاوى ──
-// نفس سجلّ الشكاوى الذي يراه موظف الشركة من داشبورد U‑Serve؛ الشكوى المُنشأة من هنا
+// نفس سجلّ الشكاوى الذي يراه موظف الشركة من لوحة التحكم U‑Serve؛ الشكوى المُنشأة من هنا
 // تُنسب للوكيل فتظهر في تقارير الوكلاء.
 export const contactComplaints = (params: any = {}) =>
   api.get('/contact/complaints', { params }).then((r) => r.data as ContactComplaint[])
@@ -334,12 +334,12 @@ export const contactOpenDay = (businessDate?: string) => api.post('/contact/busi
 export const contactCloseDay = () => api.post('/contact/business-day/close').then((r) => r.data)
 // أيام فروع النطاق — إرشادُ شاشة فتح اليوم قبل اختيار التاريخ (شرط التطابق لم يتغيّر)
 export const contactBranchDays = () => api.get('/contact/business-day/branches').then((r) => r.data)
-// «إصلاح يوم»: يفتح تاريخاً بعينه (جديداً أو قديماً) للمراجعة — لا تُضرَب عليه أوردرات
+// «إصلاح يوم»: يفتح تاريخاً بعينه (جديداً أو قديماً) للمراجعة — لا تُضرَب عليه طلبات
 export const contactFixDay = (businessDate: string) => api.post('/contact/business-day/fix', { businessDate }).then((r) => r.data)
 
-// إعدادات يوم الشركة: block = امنع القفل وفيه أوردر واقف · carry = اقفل ورحّل
-// سياسة أخذ الأوردر — القراءة لمن يأخذ الأوردر، والتغيير بمفتاحه المستقلّ.
-// تعديل محتوى أوردرٍ قائم — الخادم يرفض ما تجاوز التحضير، والفرع يطبع الفرق وحده.
+// إعدادات يوم الشركة: block = امنع القفل وفيه طلب واقف · carry = اقفل ورحّل
+// سياسة أخذ الطلب — القراءة لمن يأخذ الطلب، والتغيير بمفتاحه المستقلّ.
+// تعديل محتوى طلبٍ قائم — الخادم يرفض ما تجاوز التحضير، والفرع يطبع الفرق وحده.
 export const contactUpdateOrder = (id: number, payload: any) =>
   api.put(`/contact/orders/${id}`, payload).then((r) => r.data)
 

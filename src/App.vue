@@ -70,7 +70,7 @@ watch(() => session.mode, (m) => { if (m === 'admin') ensureAdminCounts() }, { i
         <div class="group">{{ t('القائمة', 'Menu') }}</div>
         <router-link to="/app" class="navlink" :class="{ on: route.path === '/app' }"><Icon name="dashboard" /> {{ t('الرئيسية', 'Home') }}</router-link>
         <router-link v-if="can('callcenter.users')" to="/app/users" class="navlink" :class="{ on: route.path === '/app/users' }"><Icon name="users" /> {{ t('المستخدمون', 'Users') }}</router-link>
-        <router-link v-if="can('callcenter.view') || can('callcenter.create')" to="/app/orders" class="navlink" :class="{ on: route.path === '/app/orders' }"><Icon name="cart" /> {{ t('الأوردرات', 'Orders') }}</router-link>
+        <router-link v-if="can('callcenter.view') || can('callcenter.create')" to="/app/orders" class="navlink" :class="{ on: route.path === '/app/orders' }"><Icon name="cart" /> {{ t('الطلبات', 'Orders') }}</router-link>
       </template>
 
       <div class="spacer"></div>

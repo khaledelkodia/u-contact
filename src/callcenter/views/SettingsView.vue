@@ -9,9 +9,9 @@ import { contactSetOrderPolicy } from '../../api'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
 
-// ── سياسة أخذ الأوردر: هل طريقة الدفع إلزاميّة قبل نزوله للفرع؟ ─────────────
+// ── سياسة أخذ الطلب: هل طريقة الدفع إلزاميّة قبل نزوله للفرع؟ ─────────────
 // الافتراضي **اختياريّة**: كثيرٌ من التشغيل يحصّل على الباب، فتُحدَّد الطريقة عند
-// التسليم لا عند أخذ الأوردر. والشركة تُلزِم بها إن أرادت — قرارها لا حكمٌ نفرضه.
+// التسليم لا عند أخذ الطلب. والشركة تُلزِم بها إن أرادت — قرارها لا حكمٌ نفرضه.
 const paySaving = ref(false)
 const payErr = ref('')
 async function setPayRequired(v: boolean) {
@@ -45,11 +45,11 @@ function onToggle(row: any, ev: Event) {
     <div class="settings-section">
       <h2 class="dashboard-title" style="margin-bottom: 24px;">{{ tx('الإعدادات', 'Settings') }}</h2>
 
-      <!-- سياسة أخذ الأوردر — بمفتاحها المستقلّ: من يفتح اليوم لا يغيّر سياسة التحصيل -->
+      <!-- سياسة أخذ الطلب — بمفتاحها المستقلّ: من يفتح اليوم لا يغيّر سياسة التحصيل -->
       <div v-if="canOrderSettings()" class="settings-card">
-        <h3 class="settings-card-title">{{ tx('سياسة أخذ الأوردر', 'Order-taking policy') }}</h3>
+        <h3 class="settings-card-title">{{ tx('سياسة أخذ الطلب', 'Order-taking policy') }}</h3>
         <p style="color: var(--text-secondary); margin-bottom: 16px;">
-          {{ tx('طريقة الدفع اختياريّة افتراضياً — الوكيل يبعت الأوردر للفرع ويُحدَّد التحصيل عند التسليم. فعّل الإلزام لو شركتك تريد الطريقة محدَّدةً قبل نزول الأوردر.', 'The payment method is optional by default — the agent sends the order and collection is decided on delivery. Turn on the requirement if your company wants it set before the order reaches the branch.') }}
+          {{ tx('طريقة الدفع اختياريّة افتراضياً — الوكيل يبعت الطلب للفرع ويُحدَّد التحصيل عند التسليم. فعّل الإلزام لو شركتك تريد الطريقة محدَّدةً قبل نزول الطلب.', 'The payment method is optional by default — the agent sends the order and collection is decided on delivery. Turn on the requirement if your company wants it set before the order reaches the branch.') }}
         </p>
         <div class="pay-req-row">
           <label class="availability-switch" :style="paySaving ? 'opacity:.5; cursor:progress;' : ''">
@@ -60,8 +60,8 @@ function onToggle(row: any, ev: Event) {
           <div class="pay-req-txt">
             <strong>{{ tx('إلزام اختيار طريقة الدفع', 'Require a payment method') }}</strong>
             <span>{{ state.paymentRequired
-              ? tx('الأوردر لا ينزل للفرع بلا طريقة دفع.', 'The order will not reach the branch without a payment method.')
-              : tx('الوكيل يقدر يبعت الأوردر بلا طريقة دفع.', 'The agent may send the order without a payment method.') }}</span>
+              ? tx('الطلب لا ينزل للفرع بلا طريقة دفع.', 'The order will not reach the branch without a payment method.')
+              : tx('الوكيل يقدر يبعت الطلب بلا طريقة دفع.', 'The agent may send the order without a payment method.') }}</span>
           </div>
         </div>
         <p v-if="payErr" class="pay-req-err">{{ payErr }}</p>

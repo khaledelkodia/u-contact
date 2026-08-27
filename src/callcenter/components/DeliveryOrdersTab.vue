@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals } from '../store'
 import { t, tx, nameOf } from '../lang'
-import { formatCurrency } from '../utils'
+import { formatCurrency, formatDate } from '../utils'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import OrderDetail from './OrderDetail.vue'
@@ -27,8 +27,14 @@ function driverCell(order: any): string {
   // نصٌّ داخل HTML مبنيّ بالسلاسل — لا تراه مسوحُ القوالب فبقي عربياً
   return `<span class="driver-cell-empty">${tx('لم يُعين بعد', 'Not assigned yet')}</span>`
 }
+// الصف الآتي من حجزٍ يحمل وسمه وموعده في التلميح — وإلا بدا طلباً عادياً
+// ظهر فجأةً في جدول اليوم بلا سبب.
+function schedChip(order: any): string {
+  if (!order.scheduledDate) return ''
+  return `<span class="sched-chip" title="${tx('موعد الحجز:', 'Scheduled for:')} ${formatDate(order.scheduledDate)}">${icon('clock', { size: 11 })} ${tx('مجدول', 'Scheduled')}</span>`
+}
 function typeCell(order: any): string {
-  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(order.type === 'pickup' ? 'store' : 'bike', { size: 16 })}</span> ${order.type === 'pickup' ? tx('استلام', 'Pickup') : tx('توصيل', 'Delivery')}</span>`
+  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(order.type === 'pickup' ? 'store' : 'bike', { size: 16 })}</span> ${order.type === 'pickup' ? tx('استلام', 'Pickup') : tx('توصيل', 'Delivery')}</span>${schedChip(order)}`
 }
 </script>
 
@@ -51,6 +57,7 @@ function typeCell(order: any): string {
           <option value="new">{{ tx('جديد', 'New') }}</option>
           <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
           <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
+          <option value="withdriver">{{ tx('مع السائق', 'With the driver') }}</option>
           <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
           <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
           <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
