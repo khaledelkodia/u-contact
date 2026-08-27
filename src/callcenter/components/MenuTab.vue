@@ -160,10 +160,20 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
     <div id="menu-items-section" :class="{ hidden: !itemsVisible }">
       <div class="menu-items-header">
         <h3 class="menu-items-title" id="menu-items-title">{{ itemsTitle }}</h3>
-        <button class="menu-items-back menu-items-back-floating" @click="menuBack()">
-          <span class="menu-items-back-icon" v-html="icon(isEn ? 'arrow-left' : 'arrow-right', { size: 13 })"></span>
-          <span>{{ subsVisible || subCats.length ? tx('رجوع', 'Back') : t('back_to_categories') }}</span>
-        </button>
+        <div class="menu-items-nav">
+          <!-- «رجوع» يصعد درجةً واحدة؛ ومن داخل قسمٍ فرعيّ يلزم درجتان للقائمة
+               الرئيسية — رجوعٌ بعد رجوع. هذا يقفز إليها مباشرةً، ولا يظهر إلا حين
+               يكون هناك فرقٌ بينه وبين «رجوع» (أي حين للفئة أقسامٌ فرعيّة). -->
+          <button v-if="subCats.length" class="menu-items-home" @click="showAllCategories()"
+            :title="tx('العودة لكل التصنيفات', 'Back to all categories')">
+            <span class="menu-items-home-ico" v-html="icon('list', { size: 14 })"></span>
+            <span>{{ tx('القائمة الرئيسية', 'Main menu') }}</span>
+          </button>
+          <button class="menu-items-back menu-items-back-floating" @click="menuBack()">
+            <span class="menu-items-back-icon" v-html="icon(isEn ? 'arrow-left' : 'arrow-right', { size: 13 })"></span>
+            <span>{{ subsVisible || subCats.length ? tx('رجوع', 'Back') : t('back_to_categories') }}</span>
+          </button>
+        </div>
       </div>
       <div id="menu-items" class="menu-items">
         <div v-if="shownItems.length === 0" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">{{ isEn ? 'No items in this category' : 'لا توجد أصناف في هذا التصنيف' }}</div>
