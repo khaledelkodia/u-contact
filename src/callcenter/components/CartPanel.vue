@@ -57,6 +57,19 @@ function toggleTag() {
   if (tagOpen.value) nextTick(() => tagInput.value?.focus())
 }
 
+/**
+ * رقمُ الطلب — أو لا شيء.
+ *
+ * لا يوجد رقمٌ قبل أن يُنشئه الفرع، فالطلب الجديد يُعرَض «طلب جديد» لا برقمٍ
+ * مختلَق. وفي التعديل يُعرَض رقمُ الفاتورة الحقيقيّ — نفس ما تعرضه لوحة التفاصيل.
+ */
+const cartOrderNo = computed<string>(() => {
+  const id = state.editingOrderId
+  if (!id) return ''
+  const o = (state.orders || []).find((x: any) => x.id === id)
+  return o && o.invoiceNo ? `#${o.invoiceNo}` : ''
+})
+
 /** نصٌّ مختصر داخل الحبّة: القيمة إن وُجدت وإلا الاسم. */
 const resLabel = computed(() => {
   const v = String(state.reservationTime || '')
@@ -69,8 +82,12 @@ const resLabel = computed(() => {
   <div id="cart-panel" class="cart-panel">
     <div class="cart-header">
       <div>
-        <span class="cart-header-label">{{ t('order_number_label') }}</span>
-        <span class="cart-order-no" id="cart-order-no">#1027935</span>
+        <!-- الطلب الجديد بلا رقم: الفرع هو من يُنشئه عند نزوله. والرقم هنا كان
+             ثابتاً مكتوباً في القالب — يقرؤه الوكيل رقماً حقيقيّاً وهو ليس كذلك. -->
+        <span v-if="cartOrderNo" class="cart-header-label">{{ t('order_number_label') }}</span>
+        <span class="cart-order-no" id="cart-order-no" :class="{ 'is-draft': !cartOrderNo }">
+          {{ cartOrderNo || tx('طلب جديد', 'New order') }}
+        </span>
       </div>
       <button class="cart-delete-btn" @click="clearCart()" :title="tx('مسح السلة', 'Clear cart')"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-2 14a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"/></svg></button>
     </div>
@@ -304,4 +321,6 @@ const resLabel = computed(() => {
 
 :global(body.dark-mode) .ce-chip,
 :global(body.dark-mode) .ce-input { background: var(--bg-card, #1e293b); }
+/* «طلب جديد» نصٌّ لا رقم — أخفُّ وزناً وأصغرُ حجماً فلا يُقرأ رقمَ فاتورة */
+.cart-order-no.is-draft { font-size: 14px; font-weight: 700; opacity: .75; }
 </style>
