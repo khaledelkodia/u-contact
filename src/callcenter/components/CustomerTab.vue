@@ -92,38 +92,14 @@ function addressLine(addr: any): string {
          والنظام ينزّله بنوعه المعروف للفرع (توصيل=٥ · استلام=٦). -->
     <div class="order-type-selector">
       <button class="order-type-card btn-type-delivery" :class="{ active: state.orderType === 'delivery' }" @click="setOrderType('delivery')">
-        <span class="order-type-icon">
-          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <rect x="3" y="9" width="9" height="9" rx="1.5" fill="#fb923c" stroke="#c2410c" stroke-width="1.4"/>
-            <line x1="3" y1="13" x2="12" y2="13" stroke="#c2410c" stroke-width="1.4" stroke-linecap="round"/>
-            <line x1="7.5" y1="9" x2="7.5" y2="18" stroke="#c2410c" stroke-width="1.4" stroke-linecap="round"/>
-            <path d="M12 13h5l2.5-5H24" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-            <line x1="24" y1="8" x2="24" y2="13" stroke="#2563eb" stroke-width="2" stroke-linecap="round"/>
-            <path d="M12.2 18l3.6 5" stroke="#1e3a8a" stroke-width="2" stroke-linecap="round"/>
-            <path d="M19.8 13.5l3.2 7.3" stroke="#1e3a8a" stroke-width="2" stroke-linecap="round"/>
-            <circle cx="9" cy="24" r="3.2" fill="#334155" stroke="#0f172a" stroke-width="1.2"/>
-            <circle cx="9" cy="24" r="1.1" fill="#22d3ee"/>
-            <circle cx="23" cy="24" r="3.2" fill="#334155" stroke="#0f172a" stroke-width="1.2"/>
-            <circle cx="23" cy="24" r="1.1" fill="#22d3ee"/>
-          </svg>
-        </span>
+        <span class="order-type-icon" v-html="icon('bike', { size: 30 })"></span>
         <span class="order-type-text">
           <strong>{{ t('delivery_order') }}</strong>
           <small>{{ t('delivery_order_desc') }}</small>
         </span>
       </button>
       <button class="order-type-card btn-type-pickup" :class="{ active: state.orderType === 'pickup' }" @click="setOrderType('pickup')">
-        <span class="order-type-icon">
-          <svg viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <circle cx="8.5" cy="7" r="2.7" fill="#14b8a6" stroke="#0f766e" stroke-width="1.3"/>
-            <path d="M4.7 23v-5.4a3.8 3.8 0 0 1 3.8-3.8h0a3.8 3.8 0 0 1 3.8 3.8V23z" fill="#5eead4" stroke="#0f766e" stroke-width="1.3" stroke-linejoin="round"/>
-            <circle cx="23.5" cy="7" r="2.7" fill="#3b82f6" stroke="#1e40af" stroke-width="1.3"/>
-            <path d="M27.3 23v-5.4a3.8 3.8 0 0 0-3.8-3.8h0a3.8 3.8 0 0 0-3.8 3.8V23z" fill="#93c5fd" stroke="#1e40af" stroke-width="1.3" stroke-linejoin="round"/>
-            <path d="M14 17.5v-1.2a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1.2" fill="none" stroke="#92400e" stroke-width="1.4" stroke-linecap="round"/>
-            <rect x="12.5" y="17.5" width="7" height="7.5" rx="1.2" fill="#f59e0b" stroke="#92400e" stroke-width="1.3"/>
-            <line x1="14" y1="20" x2="18" y2="20" stroke="#92400e" stroke-width="1.1" stroke-linecap="round"/>
-          </svg>
-        </span>
+        <span class="order-type-icon" v-html="icon('store', { size: 30 })"></span>
         <span class="order-type-text">
           <strong>{{ t('pickup_order') }}</strong>
           <small>{{ t('pickup_order_desc') }}</small>

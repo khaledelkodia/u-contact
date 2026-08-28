@@ -1944,6 +1944,7 @@ body.dark-mode .branch-override-menu {
 }
 
 .order-type-icon {
+  color: var(--primary, #1a56db);   /* مصدر لون الخطّ — الأيقونة currentColor */
   width: 52px;
   height: 52px;
   display: flex;
@@ -1956,12 +1957,13 @@ body.dark-mode .branch-override-menu {
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* أيقونةُ خطٍّ واحد لا رسمةٌ ملوّنة: تأخذ لونها من البطاقة (currentColor)، فتنقلب
+   بيضاء وهي مختارة بلا قاعدةٍ ثانية. والظلّ سقط — كان يُلطّخ خطاً رفيعاً. */
 .order-type-icon svg {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   display: block;
   transition: transform 0.25s ease;
-  filter: drop-shadow(0 1px 1px rgba(15, 23, 42, 0.18));
 }
 
 .order-type-card:hover .order-type-icon {
@@ -1973,12 +1975,18 @@ body.dark-mode .branch-override-menu {
   transform: scale(1.08);
 }
 
+/* المربّع أبيضُ فوق بطاقةٍ زرقاء، فلونُ الخطّ يعود أزرق — والقاعدة الجماعيّة أعلاه
+   تجعله أبيض، وهذه بعدها فتغلبها. بدونها: أبيضُ داخل أبيضَ = أيقونةٌ مفقودة. */
 .order-type-card.active .order-type-icon {
+  color: #1a56db;   /* لونٌ صريح لا متغيّر: --primary تفتحُ ليلاً فتبهت فوق الأبيض */
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(15, 23, 42, 0.22), inset 0 0 0 1px rgba(255, 255, 255, 0.4);
 }
 
+/* المربّع يبقى أبيض ليلاً، فلونُ الخطّ يبقى الأزرقَ الغامق نفسه — لا الأزرقَ الفاتح
+   الذي تعطيه --primary ليلاً، فهو باهتٌ فوق الأبيض. */
 body.dark-mode .order-type-icon {
+  color: #1a56db;
   background: #ffffff;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
