@@ -74,6 +74,10 @@ function tick() {
   const c = currentCompany()
   const tz = c?.timezone || null
   const now = trueNow()
+  // نبضةُ الدقيقة للقوائم: الإسناد كلَّ ثانية، والقيمة لا تتغيّر إلا مرّةً في
+  // الدقيقة — فلا يُعاد رسم شيءٍ بينهما. بها ينتقل الحجز إلى «الطلبات» في موعده
+  // بلا انتظار حدثٍ من الخادم.
+  state.nowMin = Math.floor(now.getTime() / 60000)
   if (tz) {
     try {
       clock.value = now.toLocaleTimeString(locale(), { hour12: true, hour: 'numeric', minute: '2-digit', second: '2-digit', timeZone: tz })

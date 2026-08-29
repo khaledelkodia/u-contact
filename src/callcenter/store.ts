@@ -11,6 +11,7 @@ import {
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, phoneE164,
+  trueNow,
 } from '../api'
 import type { ContactOrderInput } from '../api'
 
@@ -26,6 +27,10 @@ export const state = reactive<any>({
   onlineDay: undefined,        // object=مفتوح · null=مقفول مؤكّد · undefined=غير معروف (فشل الفحص)
   dayLoading: false,
   branchOverrideId: null,      // تغيير الفرع يدوياً للطلب الحالي
+  // رقم الدقيقة الحالية (ساعة الخادم المصحَّحة). تُحدَّث كل ثانية من القشرة ولا
+  // تتغيّر قيمتها إلا مرّةً في الدقيقة — فيُعاد حساب «حان موعده» دقيقةً بدقيقة
+  // بلا استهلاك. بدونها يبقى الطلب في «المجدولة» حتى يهبّ حدثٌ آخر يوقظ الحساب.
+  nowMin: Math.floor(Date.now() / 60000),
   pendingOrderEvents: [],      // سجل عمليات الطلب الحالي → statusHistory عند التأكيد
   toasts: [],                  // إشعارات مرئية للوكيل { id, msg, type }
 
@@ -2540,6 +2545,32 @@ export function schedWentLive(o: any): boolean {
   return !!o.scheduledDate && o.type === 'delivery' && SCHED_LIVE_STATUSES.includes(o.status)
 }
 
+/**
+ * حان موعده؟ — مقارنةٌ بلحظةٍ مطلقة، فلا تدخل المناطق الزمنيّة في الحساب.
+ * وبساعة الخادم المصحَّحة (`trueNow`) لا ساعة الجهاز: جهازٌ مضبوطٌ خطأً كان
+ * سيقدّم المواعيد أو يؤخّرها ساعاتٍ على وكيلٍ واحدٍ دون بقيّة الوكلاء.
+ * والدقّة دقيقة (لا ثانية) لأن الحساب يتعلّق بـ`nowMin`.
+ */
+export function schedIsDue(o: any): boolean {
+  if (!o.scheduledDate) return false
+  const t = new Date(o.scheduledDate).getTime()
+  if (isNaN(t)) return false
+  void state.nowMin                       // تبعيّةٌ تفاعليّة: تُعيد الحساب كل دقيقة
+  return trueNow().getTime() >= t
+}
+
+/**
+ * غادر قائمةَ الانتظار ⇒ صار طلباً جارياً كأيّ طلب.
+ *
+ * سببان لا واحد: **حان موعده** (فالمجدولة قائمةُ مواعيدٍ لم تحن، لا سجلُّ اليوم),
+ * **أو** بدأ الفرع تنفيذه قبل موعده (فما عاد انتظاراً). وكان الشرط الثاني وحده،
+ * فطلبٌ حان موعدُه ولم يلمسه الفرع بعد يبقى في «المجدولة» ولا يظهر في «الطلبات» —
+ * وهو أحوجُ ما يكون للمتابعة في تلك اللحظة بالذات.
+ */
+export function schedLeftQueue(o: any): boolean {
+  return schedWentLive(o) || schedIsDue(o)
+}
+
 // ==========================================
 // DELIVERY ORDERS TAB (نقلاً عن renderDeliveryOrders / filterOrders)
 // ==========================================
@@ -2547,7 +2578,7 @@ export function deliveryOrdersFiltered(): any[] {
   const bd = state.businessDate || todayISO()
   let filtered = state.orders.filter((o: any) =>
     o.type === 'delivery' &&
-    (!o.scheduledDate || schedWentLive(o)) &&
+    (!o.scheduledDate || schedLeftQueue(o)) &&
     (state.live || (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
   )
   if (state.filterStatus) filtered = filtered.filter((o: any) => o.status === state.filterStatus)
@@ -2608,7 +2639,9 @@ function byText(list: any[], q: any, pick: (o: any) => any): any[] {
 export function allOrdersFiltered(): any[] {
   const bd = state.businessDate || todayISO()
   let filtered = state.orders.filter((o: any) =>
-    !o.scheduledDate &&
+    // الطلبات: تضمّ المجدولَ الذي غادر قائمة الانتظار — كان يُستبعَد كلُّ مجدولٍ
+    // مهما حان موعده، فيختفي الطلب من الشاشتين معاً بعد خروجه من «المجدولة».
+    (!o.scheduledDate || schedLeftQueue(o)) &&
     (state.live || (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
   )
   if (state.allFilterStatus) filtered = filtered.filter((o: any) => o.status === state.allFilterStatus)
@@ -2672,7 +2705,7 @@ export function clearScheduledFilters() {
 }
 export function scheduledOrdersList(): any[] {
   return state.orders
-    .filter((o: any) => o.scheduledDate && !schedWentLive(o))
+    .filter((o: any) => o.scheduledDate && !schedLeftQueue(o))
     .slice()
     .sort((a: any, b: any) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime())
 }
