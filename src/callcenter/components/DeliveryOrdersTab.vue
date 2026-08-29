@@ -54,6 +54,7 @@ function typeCell(order: any): string {
       <div style="flex: 1; min-width: 120px;">
         <select id="filter-status" v-model="state.filterStatus" style="padding: 8px 12px; font-size: 13px;">
           <option value="">{{ t('all_status') }}</option>
+          <option value="sent">{{ tx('لم يصل الفرع', 'Not at branch yet') }}</option>
           <option value="new">{{ tx('جديد', 'New') }}</option>
           <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
           <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
