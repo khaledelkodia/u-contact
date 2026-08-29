@@ -5,7 +5,6 @@ import { t, tx, nameOf } from '../lang'
 import { formatCurrency, formatDate } from '../utils'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
-import OrderDetail from './OrderDetail.vue'
 
 const orders = computed<any[]>(() => deliveryOrdersFiltered())
 // القيمة النهائية عمودٌ بصلاحية مستقلّة: من يتابع الحالات ليس بالضرورة من يرى الأرقام
@@ -108,16 +107,9 @@ function typeCell(order: any): string {
               <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'tab')">{{ tx('تفاصيل', 'Details') }}</button>
             </td>
           </tr>
-          <!-- لوحة التفاصيل: صفٌّ يمتدّ على الأعمدة كلها **تحت صفّه مباشرةً** —
-               كما في شاشة الطلبات. كانت أسفل الجدول كلِّه، فينقر الوكيل صفّاً في
-               أوّل صفحةٍ طويلة ثم ينزل يبحث عن اللوحة، ولا يعرف أيَّ صفٍّ يقرأ. -->
-          <tr v-if="state.openOrderId === order.id" class="od-inline">
-            <td :colspan="colCount">
-              <div class="od-inline-box" id="order-detail-container">
-                <OrderDetail :order-id="order.id" />
-              </div>
-            </td>
-          </tr>
+          <!-- لا لوحةَ تحت الصفّ: التفاصيل تُعرَض في عمود السلّة (`NewOrderView`),
+               فلا تُزحزَح الصفوف ولا يفقد الوكيل مكانه. ويبقى `row-open` وحده
+               ليدلّ على الصفّ المعروض. -->
           </template>
         </tbody>
       </table>

@@ -4,6 +4,7 @@ import {
   state, searchCustomer, showNewCustomerForm, showOrderHistory, showTab,
   toggleBranchOverride, closeBranchOverrideMenu, selectBranchOverride, resetBranchOverride,
   getAutoBranchId, infoBranchName, infoAddress, customerTodayCount, resolvedBranchStatus,
+  viewOrderDetail,
 } from '../store'
 import { t, tx } from '../lang'
 import { icon } from '../icons'
@@ -12,12 +13,23 @@ import MenuTab from '../components/MenuTab.vue'
 import DeliveryOrdersTab from '../components/DeliveryOrdersTab.vue'
 import OrderStatusTab from '../components/OrderStatusTab.vue'
 import CartPanel from '../components/CartPanel.vue'
+import OrderDetail from '../components/OrderDetail.vue'
 import CartModals from '../components/CartModals.vue'
 
 const wrapRoot = ref<HTMLElement | null>(null)
 
 const todayCount = computed(() => customerTodayCount())
 const autoBranchId = computed(() => getAutoBranchId())
+
+/**
+ * تفاصيل الطلب المفتوح تحلّ محلّ السلّة — لا تحت صفّه.
+ *
+ * جدول التوصيل عريض، وفتحُ اللوحة تحت الصفّ يدفع بقيّة الصفوف بعيداً فيفقد
+ * الوكيل مكانه في القائمة. وعمود السلّة فارغٌ في هذه اللحظة (لا يُبنى طلبٌ
+ * جديد أثناء متابعة طلبٍ قائم) — فهو المكان الطبيعيّ لها، بعرضٍ ثابتٍ لا يزحزح شيئاً.
+ * والمسوّدة لا تُمَسّ: العرضُ وحده يتبدّل، وتعود كما هي بإغلاق التفاصيل.
+ */
+const orderInCart = computed(() => state.activeTab === 'delivery-orders' && !!state.openOrderId)
 const overrideActiveId = computed(() => state.branchOverrideId || autoBranchId.value)
 // جاهزيّة الفرع الذي سيستقبل هذا الطلب. null = لم يُحدَّد فرع بعد ⇒ لا شريط.
 // يعتمد على state.branches (يتحدّث مع تحميل البيانات) وعلى الفرع المشتقّ من العنوان،
@@ -139,11 +151,40 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
         </div>
       </div>
 
-      <!-- CART PANEL (LEFT IN RTL) -->
-      <CartPanel />
+      <!-- CART PANEL (LEFT IN RTL) — أو تفاصيل الطلب المفتوح من تبويب التوصيل -->
+      <div v-if="orderInCart" class="cart-panel cart-panel-detail">
+        <div class="cpd-head">
+          <span class="cpd-title">{{ tx('تفاصيل الطلب', 'Order details') }}</span>
+          <button type="button" class="cpd-close" @click="viewOrderDetail(state.openOrderId)"
+            :title="tx('رجوع للسلّة', 'Back to the cart')" v-html="icon('x', { size: 15 })"></button>
+        </div>
+        <div class="cpd-body"><OrderDetail :order-id="state.openOrderId" /></div>
+      </div>
+      <CartPanel v-else />
 
     </div>
     <!-- مودالات السلة: ملاحظات · رسوم التوصيل · سجل العميل · المراجعة -->
     <CartModals />
   </section>
 </template>
+
+<style scoped>
+/* عمود التفاصيل: نفس هيكل السلّة (عرضٌ ثابت · لاصقٌ · عمود) + رأسٌ ثابتٌ وجسمٌ يمرّر. */
+.cart-panel-detail { padding: 0; }
+.cpd-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 12px 14px; border-bottom: 1px solid var(--border, #e5e7eb); flex-shrink: 0;
+}
+.cpd-title { font-size: 13px; font-weight: 800; color: var(--text-primary, #0f172a); }
+.cpd-close {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px; border: none; border-radius: 8px;
+  background: transparent; color: var(--text-muted, #94a3b8); cursor: pointer;
+  transition: background .14s, color .14s;
+}
+.cpd-close:hover { background: var(--bg, #f8fafc); color: var(--text-primary, #0f172a); }
+/* الجسم وحده يمرّر — الرأس يبقى مرئيّاً مهما طال الطلب */
+.cpd-body { flex: 1; overflow-y: auto; padding: 12px 14px; }
+/* اللوحة داخل عمودٍ ضيّق: بلا هوامشَ ولا ظلٍّ يضيّقانها أكثر */
+.cpd-body :deep(.order-detail-panel) { margin: 0; padding: 0; box-shadow: none; background: transparent; }
+</style>
