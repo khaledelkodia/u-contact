@@ -430,12 +430,21 @@ export async function closeBusinessDay() {
  */
 function mapPosStatus(s: string, driverStatus?: string): string {
   if (s === 'cancelled') return 'cancelled'
-  // مسار التوصيل: السائق هو الحقيقة ما دام له سطر
+  // **القفل نهاية المطاف** — يسبق راية السائق ولا تسبقه.
+  //
+  // حالة السائق في الفرع رايةٌ تتقدّم ولا تُصفَّر: تصير `on_way` حين ينطلق، ولا يكتب
+  // فيها أحدٌ `delivered` أبداً — لأن الفرع يقرأ حالة **الطلب** لا رايةَ السائق، فيخرج
+  // الطلب من «مع السائق» بالقفل. فلمّا قُدّمت الرايةُ هنا على القفل بقي الطلب المقفول
+  // «في الطريق» إلى الأبد عند الوكيل، وهو مدفوعٌ ومنتهٍ منذ ساعات.
+  if (s === 'closed') return 'delivered'
+  // ودون القفل: السائق هو الحقيقة ما دام له سطر — به وحده يُفرَّق «مع السائق» عن «في
+  // الطريق»، فحالة الطلب في الفرع تبقى 'delivered' في الحالتين.
   if (driverStatus === 'delivered') return 'delivered'
   if (driverStatus === 'on_way') return 'onway'
   if (driverStatus === 'assigned') return 'withdriver'
-  // بلا سائق (استلام/تيك أواي، أو سلّمه الكاشير بيده): القفل تسليم
-  if (s === 'delivered' || s === 'closed') return 'delivered'
+  // بلا سطر سائق (استلام/تيك أواي، أو سلّمه الكاشير بيده): حالة الفرع كما هي.
+  // ('closed' لم يعد يُذكَر هنا — أُخذ في الأعلى قبل راية السائق.)
+  if (s === 'delivered') return 'delivered'
   switch (s) {
     case 'new': case 'preparing': case 'ready': return s
     case 'received': return 'new'
