@@ -176,7 +176,8 @@ function hasExtras(item: any) { return Array.isArray(item.extras) && item.extras
         </div>
       </div>
       <div id="menu-items" class="menu-items">
-        <div v-if="shownItems.length === 0" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">{{ isEn ? 'No items in this category' : 'لا توجد أصناف في هذا التصنيف' }}</div>
+        <!-- فارغةٌ لأنها لم تصل بعد ≠ فارغةٌ لأنها لا تحوي شيئاً: الأولى انتظار -->
+        <div v-if="shownItems.length === 0" style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">{{ state.menuLoading ? (isEn ? 'Loading the menu…' : 'جارٍ تحميل القائمة…') : (isEn ? 'No items in this category' : 'لا توجد أصناف في هذا التصنيف') }}</div>
         <div v-for="item in shownItems" :key="item.id" class="menu-item-card" :class="{ 'menu-item-disabled': disabledItems.includes(item.id) }" @click="openItemModal(item.id)" :style="{ '--cat-color': itemCatColor(item) }">
           <div class="menu-item-cat-tag">{{ itemCatName(item) }}</div>
           <div class="menu-item-name">{{ itemName(item) }}</div>

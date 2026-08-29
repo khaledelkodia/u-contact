@@ -86,7 +86,8 @@ function typeCell(order: any): string {
         </thead>
         <tbody id="orders-table-body">
           <tr v-if="orders.length === 0"><td :colspan="colCount" style="text-align:center; padding:30px;">{{ tx('لا توجد طلبات توصيل في يوم العمل الحالي', 'No delivery orders in the current business day') }}</td></tr>
-          <tr v-for="order in orders" :key="order.id" :class="{ 'order-row-cancelled': order.status === 'cancelled' }" @click="viewOrderDetail(order.id)">
+          <template v-for="order in orders" :key="order.id">
+          <tr :class="{ 'order-row-cancelled': order.status === 'cancelled', 'row-open': state.openOrderId === order.id }" @click="viewOrderDetail(order.id, 'tab')">
             <td style="font-weight:700; font-size:16px;">{{ order.dailyNo }}</td>
             <td>
               #{{ order.invoiceNo }}
@@ -107,11 +108,19 @@ function typeCell(order: any): string {
               <button class="btn btn-sm btn-outline" @click.stop="viewOrderDetail(order.id, 'tab')">{{ tx('تفاصيل', 'Details') }}</button>
             </td>
           </tr>
+          <!-- لوحة التفاصيل: صفٌّ يمتدّ على الأعمدة كلها **تحت صفّه مباشرةً** —
+               كما في شاشة الطلبات. كانت أسفل الجدول كلِّه، فينقر الوكيل صفّاً في
+               أوّل صفحةٍ طويلة ثم ينزل يبحث عن اللوحة، ولا يعرف أيَّ صفٍّ يقرأ. -->
+          <tr v-if="state.openOrderId === order.id" class="od-inline">
+            <td :colspan="colCount">
+              <div class="od-inline-box" id="order-detail-container">
+                <OrderDetail :order-id="order.id" />
+              </div>
+            </td>
+          </tr>
+          </template>
         </tbody>
       </table>
-    </div>
-    <div id="order-detail-container">
-      <OrderDetail v-if="state.openOrderId" :order-id="state.openOrderId" />
     </div>
   </div>
 </template>

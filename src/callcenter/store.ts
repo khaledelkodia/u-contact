@@ -27,6 +27,7 @@ export const state = reactive<any>({
   onlineDay: undefined,        // object=مفتوح · null=مقفول مؤكّد · undefined=غير معروف (فشل الفحص)
   dayLoading: false,
   branchOverrideId: null,      // تغيير الفرع يدوياً للطلب الحالي
+  menuLoading: false,          // قائمة الشركة لم تصل بعد (لا «لا توجد أصناف» كاذبة)
   // رقم الدقيقة الحالية (ساعة الخادم المصحَّحة). تُحدَّث كل ثانية من القشرة ولا
   // تتغيّر قيمتها إلا مرّةً في الدقيقة — فيُعاد حساب «حان موعده» دقيقةً بدقيقة
   // بلا استهلاك. بدونها يبقى الطلب في «المجدولة» حتى يهبّ حدثٌ آخر يوقظ الحساب.
@@ -267,11 +268,16 @@ export async function loadLiveData() {
 
     state.availBranchId = state.branches[0] ? String(state.branches[0].id) : ''
     state.live = true
+    state.menuLoading = false
     void loadOrders()          // طلبات الشركة الحقيقية بدل المووك
     void loadStoppedItems()    // أصناف مطبخ الـPOS الموقوفة (لمنع ضربها)
     void loadCcStoppedItems()  // وأصناف أوقفها مركز الاتصال لنفسه (مشتركة بين الوكلاء)
   } catch {
-    // فشل التحميل → نبقى على المووك بدون كسر الشاشة
+    // فشل التحميل → نبقى على المووك بدون كسر الشاشة. والقائمة التجريبيّة تُبذَر **هنا**:
+    // لم تُبذَر عند الإقلاع كي لا تومض في وجه الوكيل، فلولا هذا لبقيت الشاشة فارغةً
+    // وعليها «جارٍ تحميل القائمة» إلى الأبد.
+    if (!state.menuItems.length) { state.menuCategories = [...MENU_CATEGORIES]; state.menuItems = [...MENU_ITEMS] }
+    state.menuLoading = false
     showToast(tx('تعذّر تحميل بيانات الشركة — سيتم استخدام بيانات تجريبية', 'Could not load company data — demo data will be used'), 'warning')
   }
 }
@@ -685,11 +691,22 @@ export function mergeOrderRows(rows: any[]): boolean {
 }
 
 // تهيئة الداتا (نفس منطق DOMContentLoaded الأصلي)
+/**
+ * وكيلٌ بشركةٍ مختارة ⇒ بياناته الحقيقية في الطريق (نفس شرط `loadLiveData`).
+ * تُعرَف قبل وصولها، فلا تُعرَض بيانات العرض التجريبيّة في انتظارها.
+ */
+export function liveExpected(): boolean { return session.mode === 'agent' && !!session.companyId }
+
 export function initData() {
   state.customers = [...SAMPLE_CUSTOMERS]
   state.orders = [...SAMPLE_ORDERS]
-  state.menuCategories = [...MENU_CATEGORIES]
-  state.menuItems = [...MENU_ITEMS]
+  // القائمة التجريبيّة (بصورها) كانت تُعرَض لحظةً عند كلّ تحديثٍ للصفحة ثم تُستبدَل
+  // بقائمة الشركة: صورٌ وأصنافٌ لا يعرفها المطعم تومض في وجه الوكيل، وقد ينقر أحدَها.
+  // لوكيلٍ حقيقيّ نبدأ فارغين ونقول «جارٍ التحميل» حتى تصل قائمته.
+  const demo = !liveExpected()
+  state.menuLoading = !demo
+  state.menuCategories = demo ? [...MENU_CATEGORIES] : []
+  state.menuItems = demo ? [...MENU_ITEMS] : []
   state.branches = [...BRANCHES]
   state.employees = [...EMPLOYEES]
   state.drivers = Array.isArray(DRIVERS) ? [...DRIVERS] : []
