@@ -19,7 +19,7 @@ function go(v: string) { if (v === 'new-order') { startNewOrder(); return } stat
 // ── ملخص التقارير (من طلبات الفرع) ──
 const orders = computed<any[]>(() => state.orders || [])
 const STAT = [
-  { key: 'delivered', ar: 'تم التوصيل', en: 'Delivered', color: '#16a34a' },
+  { key: 'delivered', ar: 'مغلق', en: 'Closed', color: '#16a34a' },
   { key: 'onway', ar: 'في الطريق', en: 'On the way', color: '#2563eb' },
   { key: 'preparing', ar: 'قيد التحضير', en: 'Preparing', color: '#d97706' },
   { key: 'ready', ar: 'جاهز', en: 'Ready', color: '#7c3aed' },

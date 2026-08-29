@@ -59,7 +59,7 @@ function typeCell(order: any): string {
           <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
           <option value="withdriver">{{ tx('مع السائق', 'With the driver') }}</option>
           <option value="onway">{{ tx('في الطريق', 'On the way') }}</option>
-          <option value="delivered">{{ tx('تم التسليم', 'Delivered') }}</option>
+          <option value="delivered">{{ tx('مغلق', 'Closed') }}</option>
           <option value="cancelled">{{ tx('ملغي', 'Cancelled') }}</option>
         </select>
       </div>

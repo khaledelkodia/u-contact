@@ -268,7 +268,7 @@ const ORDER_STATUSES = [
   { id: 'ready', name: 'جاهز', nameEn: 'Ready', color: '#8b5cf6', icon: 'check-circle' },
   { id: 'withdriver', name: 'مع السائق', nameEn: 'With the driver', color: '#0ea5e9', icon: 'user' },
   { id: 'onway', name: 'في الطريق', nameEn: 'On the way', color: '#06b6d4', icon: 'bike' },
-  { id: 'delivered', name: 'تم التسليم', nameEn: 'Delivered', color: '#22c55e', icon: 'package' },
+  { id: 'delivered', name: 'مغلق', nameEn: 'Closed', color: '#22c55e', icon: 'package' },
   { id: 'cancelled', name: 'ملغي', nameEn: 'Cancelled', color: '#ef4444', icon: 'x-circle' }
 ];
 
