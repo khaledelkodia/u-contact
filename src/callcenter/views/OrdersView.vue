@@ -90,7 +90,6 @@ function typeCell(order: any): string {
               <th>
                 <select class="uc-fcell" v-model="state.allFilterBranch">
                   <option value="">{{ tx('الكل', 'All') }}</option>
-                  <option value="sent">{{ tx('لم يصل الفرع', 'Not at branch yet') }}</option>
                   <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
                 </select>
               </th>
@@ -108,6 +107,7 @@ function typeCell(order: any): string {
               <th>
                 <select class="uc-fcell" v-model="state.allFilterStatus">
                   <option value="">{{ tx('الكل', 'All') }}</option>
+                  <option value="sent">{{ tx('لم يصل الفرع', 'Not at branch yet') }}</option>
                   <option value="new">{{ tx('جديد', 'New') }}</option>
                   <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
                   <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
