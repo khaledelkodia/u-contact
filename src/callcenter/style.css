@@ -4513,95 +4513,110 @@ body.dark-mode .pm-summary {
   margin-top: 10px;
 }
 
+/* بطاقة عنوانٍ محفوظ — تُقرأ بنظرة: مكانٌ بارز، تفصيلٌ خافت، وحالةٌ لا تزاحم زرّاً. */
 .address-card {
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 11px 13px;
   background: var(--white);
   cursor: pointer;
-  transition: var(--transition);
+  transition: border-color .15s, background .15s, box-shadow .15s;
   position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  box-shadow: var(--shadow-sm);
-  min-height: 90px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .04);
+  min-height: 84px;
   text-align: start;
 }
 
 .address-card:hover {
-  border-color: var(--primary-dark);
-  background: var(--primary-lighter);
+  border-color: var(--primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, .08);
 }
 
+/* المختار: حافّةٌ خضراء وشريطٌ في أوّل البطاقة — تمييزٌ يُرى بلا أن تغرق البطاقة
+   كلُّها في الأخضر فيصير النصُّ عليها أصعبَ قراءةً. */
 .address-card.selected {
   border-color: var(--success);
-  background: var(--success-light);
+  background: var(--white);
+  /* الشريط في **أوّل** البطاقة: عربيّةٌ يمينه وإنجليزيّةٌ يساره — والظلّ الداخليّ
+     لا يقبل الخصائص المنطقيّة، فيُقلَب بالاتّجاه كما في بقيّة الملفّ. */
+  box-shadow: inset -3px 0 0 0 var(--success), 0 1px 3px rgba(22, 163, 74, .12);
 }
+[dir="ltr"] .address-card.selected { box-shadow: inset 3px 0 0 0 var(--success), 0 1px 3px rgba(22, 163, 74, .12); }
 
-body.dark-mode .address-card.selected {
-  background: rgba(22, 163, 74, 0.15);
-}
+body.dark-mode .address-card { background: var(--bg-card, #1e293b); }
+body.dark-mode .address-card.selected { background: rgba(22, 163, 74, .10); }
 
 .address-card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 6px;
+  gap: 6px;
+  margin-bottom: 7px;
 }
+.address-card-spacer { flex: 1 1 auto; }
 
+/* الرقم علامةٌ لا عنوان: خافتٌ صغير، والمكانُ تحته هو ما يُقرأ */
 .address-card-title {
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--primary-dark);
+  font-weight: 800;
+  font-size: 10.5px;
+  letter-spacing: .02em;
+  color: var(--text-muted);
 }
 
-body.dark-mode .address-card-title {
-  color: var(--primary);
-}
-
+/* شارةٌ لا نصٌّ عريض: تُقرأ حالةً، ولا تنافس المكان في الحجم */
 .address-card-check {
-  color: var(--success);
-  font-weight: bold;
-  font-size: 15px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--success);
+  background: var(--success-light);
+  border-radius: 999px;
+  padding: 2px 7px;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+body.dark-mode .address-card-check { background: rgba(52, 211, 153, .16); }
+
+.address-card-place {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .address-card-details {
-  font-size: 12px;
-  color: var(--text-primary);
-  line-height: 1.4;
-  word-break: break-word;
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-top: 3px;
+  overflow-wrap: anywhere;
 }
 
+/* الحذف زرٌّ في الصفّ لا فوقه: رماديٌّ حتى يُقصَد، فيحمرّ. كان أحمر بنصف شفافية
+   دائماً — يجذب العين إلى الفعل الوحيد الذي لا رجعة فيه. */
 .address-card-delete-btn {
-  position: absolute;
-  top: 8px;
-  inset-inline-end: 8px;
+  flex-shrink: 0;
   background: transparent;
-  color: var(--danger);
+  color: var(--text-muted);
   border: none;
-  font-size: 14px;
-  padding: 4px;
+  padding: 0;
   cursor: pointer;
-  opacity: 0.5;
-  transition: var(--transition);
-  border-radius: var(--radius-sm);
-  display: flex;
+  border-radius: 7px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 24px;
   height: 24px;
+  transition: color .15s, background .15s;
 }
 
 .address-card-delete-btn:hover {
   background: var(--danger-light);
-  opacity: 1;
-}
-
-.address-card:hover .address-card-delete-btn {
-  opacity: 0.8;
+  color: var(--danger);
 }
 
 /* ========== Settings Branch Item Availability Grid ========== */

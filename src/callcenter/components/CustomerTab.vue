@@ -69,6 +69,31 @@ const placeInfo = computed<any>(() => {
 })
 
 // سطر العنوان في بطاقات العناوين المسجّلة — يدعم شكل الـAPI (label/region/address) والمووك (area/block/…)
+/** سطر المكان: «المدينة — الحيّ». هو عنوانُ البطاقة الحقيقيّ. */
+function addressPlace(addr: any): string {
+  if (!state.live) return String(addr.area || tx('عنوان محفوظ', 'Saved address'))
+  const parts = [addr.region, addr.section].filter(Boolean).map(String)
+  return parts.join(' — ') || String(addr.label || tx('عنوان محفوظ', 'Saved address'))
+}
+
+/**
+ * سطر التفصيل: النصّ الحرّ ثم القطعة والشارع والمبنى والدور والشقّة.
+ *
+ * كانت البطاقة تُبنى بـ`addressLine` فتعرض الاسمَ والمدينةَ والنصّ الحرّ فقط —
+ * والحقولُ الخمسة محفوظةٌ في القاعدة ولا تُعرَض، فيبدو العنوان كلمةً واحدة.
+ */
+function addressDetail(addr: any): string {
+  if (!state.live) return addressLine(addr)
+  const p: string[] = []
+  if (addr.address) p.push(String(addr.address))
+  if (addr.block) p.push(tx('ق ', 'Block ') + addr.block)
+  if (addr.street) p.push(tx('ش ', 'St. ') + addr.street)
+  if (addr.building) p.push(tx('مبنى ', 'Bldg ') + addr.building)
+  if (addr.floor) p.push(tx('ط ', 'Floor ') + addr.floor)
+  if (addr.apartment) p.push(tx('شقة ', 'Apt ') + addr.apartment)
+  return p.join('، ')
+}
+
 function addressLine(addr: any): string {
   if (state.live) {
     const parts: string[] = []
@@ -136,12 +161,21 @@ function addressLine(addr: any): string {
         <label>{{ tx('عناوين العميل المسجلة (اضغط للتحديد أو التعديل)', 'Saved customer addresses (click to select or edit)') }}</label>
         <div id="customer-addresses-list" class="customer-addresses-list">
           <div v-for="(addr, idx) in (state.currentCustomer?.addresses || [])" :key="idx" class="address-card" :class="{ selected: idx === state.selectedAddressIndex }" @click="selectAddress(idx)">
+            <!-- رأسُ البطاقة صفٌّ واحد: الرقمُ والشارةُ في أوّله والحذفُ في آخره.
+                 كان الحذف `position:absolute` في الزاوية نفسها التي تقف فيها شارة
+                 «نشط» — فيركب أحدهما الآخر: «✔Acti🗑». الصفُّ العاديّ لا يتصادم. -->
             <div class="address-card-header">
               <span class="address-card-title">{{ tx('عنوان', 'Address') }} #{{ idx + 1 }}</span>
-              <span v-if="idx === state.selectedAddressIndex" class="address-card-check"><span v-html="icon('check', { size: 12 })"></span> {{ tx('نشط', 'Active') }}</span>
+              <span v-if="idx === state.selectedAddressIndex" class="address-card-check">
+                <span v-html="icon('check', { size: 11 })"></span>{{ tx('نشط', 'Active') }}
+              </span>
+              <span class="address-card-spacer"></span>
+              <button v-if="canDeleteAddress()" type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" :title="tx('حذف العنوان', 'Delete address')" v-html="icon('trash', { size: 14 })"></button>
             </div>
-            <div class="address-card-details">{{ addressLine(addr) }}</div>
-            <button v-if="canDeleteAddress()" type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" :title="tx('حذف العنوان', 'Delete address')" v-html="icon('trash', { size: 14 })"></button>
+            <!-- المكان أوّلاً وبأكبر خطٍّ في البطاقة: هو ما يميّز عنواناً عن آخر.
+                 وكانت البطاقة تعرض «المدينة» وحدها فتظهر بكلمةٍ واحدة بلا معنى. -->
+            <div class="address-card-place">{{ addressPlace(addr) }}</div>
+            <div v-if="addressDetail(addr)" class="address-card-details">{{ addressDetail(addr) }}</div>
           </div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-add-new-address" @click="selectNewAddressState()" style="margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; width: auto; align-self: flex-start; background: var(--bg); color: var(--text-primary); border: 1.5px dashed var(--border);">
