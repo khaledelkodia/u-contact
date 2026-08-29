@@ -19,6 +19,9 @@ export const PERMS = [
   // تعديل محتوى طلبٍ قائم قبل أن يصير جاهزاً — مستقلٌّ عن «تعديل/تعيين فرع»:
   // تغيير ما يُطبخ قرارٌ آخر غير توجيه الطلب.
   { key: 'callcenter.edit_order', group: 'orders', ar: 'تعديل طلب قائم', en: 'Edit an open order' },
+  // حذف عنوانٍ من سجلّ العميل — لا رجعةَ فيه. الزرّ على شاشة أخذ الطلب فمكانه هنا،
+  // ومفتاحُه مستقلٌّ عن 'create'/'edit_order': من يأخذ طلباً لا يلزمه محوُ سجلٍّ.
+  { key: 'callcenter.delete_address', group: 'orders', ar: 'حذف عنوان عميل', en: 'Delete a customer address' },
   { key: 'callcenter.open', group: 'day', ar: 'فتح اليوم', en: 'Open day' },
   { key: 'callcenter.close', group: 'day', ar: 'قفل اليوم', en: 'Close day' },
   { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },

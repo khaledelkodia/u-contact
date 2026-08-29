@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
 import { t, tx } from '../lang'
 import { icon } from '../icons'
@@ -141,7 +141,7 @@ function addressLine(addr: any): string {
               <span v-if="idx === state.selectedAddressIndex" class="address-card-check"><span v-html="icon('check', { size: 12 })"></span> {{ tx('نشط', 'Active') }}</span>
             </div>
             <div class="address-card-details">{{ addressLine(addr) }}</div>
-            <button type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" :title="tx('حذف العنوان', 'Delete address')" v-html="icon('trash', { size: 14 })"></button>
+            <button v-if="canDeleteAddress()" type="button" class="address-card-delete-btn" @click="deleteAddress(idx, $event)" :title="tx('حذف العنوان', 'Delete address')" v-html="icon('trash', { size: 14 })"></button>
           </div>
         </div>
         <button type="button" class="btn btn-secondary btn-sm" id="btn-add-new-address" @click="selectNewAddressState()" style="margin-top: 10px; display: inline-flex; align-items: center; gap: 6px; width: auto; align-self: flex-start; background: var(--bg); color: var(--text-primary); border: 1.5px dashed var(--border);">

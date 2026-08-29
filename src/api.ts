@@ -279,6 +279,9 @@ export const contactCustomers = (phone: string) =>
 // ثانياً متى غُيّر أحد حقول المطابقة — وهو جوهر التعديل. والردّ يحمله ليُنتقى بالمعرّف.
 export const contactSaveCustomer = (body: { name: string; phone: string; addressId?: number | null; regionName?: string | null; sectionName?: string | null; addressText?: string | null; block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null }) =>
   api.post('/contact/customers', body).then((r) => r.data as { id: number })
+// حذف عنوانٍ محفوظ — محروسٌ بـ`callcenter.delete_address` على الخادم
+export const contactDeleteAddress = (addressId: number) =>
+  api.delete(`/contact/customers/addresses/${addressId}`).then((r) => r.data)
 // مناطق التوصيل → الفرع المشتق + الرسوم
 export const contactRegions = () => api.get('/contact/lookup/regions').then((r) => r.data as ContactRegion[])
 // طرق الدفع وأنواع الطلب كما عرّفتها الشركة — كانت مكتوبةً في كود الواجهة

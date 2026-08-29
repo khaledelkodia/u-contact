@@ -10,7 +10,7 @@ import {
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
-  contactCancelOrder, contactComplaint, contactComplaintUpdate, phoneE164,
+  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, phoneE164,
 } from '../api'
 import type { ContactOrderInput } from '../api'
 
@@ -1259,8 +1259,20 @@ export function selectNewAddressState() {
   showToast(tx('يمكنك الآن كتابة تفاصيل العنوان الجديد بالأسفل وضغط حفظ البيانات ليضاف للعميل', 'You can now type the new address below and press save to add it to the customer'), 'info')
 }
 
+/** حذفُ عنوانٍ محفوظ — صلاحيةٌ مستقلّة: الحذف لا رجعةَ فيه. */
+export function canDeleteAddress(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.delete_address')
+}
+
+/**
+ * حذفُ العنوان — على الخادم أوّلاً ثم على الشاشة.
+ *
+ * كان يُشطَب من الذاكرة وحدها ويُقال «تم الحذف»، فيعود مع أوّل تحديثٍ للصفحة.
+ * وعنوانٌ بلا معرّف لم يُحفَظ أصلاً (مسوّدةٌ في الشاشة) فيُزال محلّياً بلا نداء.
+ */
 export async function deleteAddress(idx: number, event?: Event) {
   if (event) event.stopPropagation()
+  if (!canDeleteAddress()) { showToast(tx('لا تملك صلاحية حذف العناوين', 'You do not have permission to delete addresses'), 'warning'); return }
   if (!(await askConfirm({
     title: tx('حذف هذا العنوان؟', 'Delete this address?'),
     body: tx('سيُحذف من سجل العميل.', 'It will be removed from the customer record.'),
@@ -1269,6 +1281,17 @@ export async function deleteAddress(idx: number, event?: Event) {
 
   const customer = state.currentCustomer
   if (!customer || !customer.addresses) return
+
+  // الخادم أوّلاً: لا نَعِد بحذفٍ لم يقع
+  const addrId = Number(customer.addresses[idx]?.id) || null
+  if (state.live && addrId) {
+    try {
+      await contactDeleteAddress(addrId)
+    } catch (err: any) {
+      showToast(err?.response?.data?.message || tx('تعذّر حذف العنوان', 'Could not delete the address'), 'error')
+      return
+    }
+  }
 
   customer.addresses.splice(idx, 1)
 
