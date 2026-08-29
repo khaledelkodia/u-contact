@@ -129,6 +129,17 @@ const resLabel = computed(() => {
           </div>
         </div>
       </div>
+
+      <!-- ملاحظة الطلب: آخرَ ما يقرؤه المطبخ، فآخرُ ما يُعرَض — تحت الأصناف كلّها.
+           نصٌّ حرّ قد يطول، فيُعرَض كاملاً ويلتفّ، ويُنقَر ليُعدَّل. -->
+      <div v-if="state.orderNotes" class="cart-note-row" @click="openOrderNotesModal()"
+        :title="tx('تعديل ملاحظة الطلب', 'Edit the order note')">
+        <div class="cart-note-head">
+          <span class="cart-note-ico" v-html="icon('message-square', { size: 13 })"></span>
+          <span>{{ tx('ملاحظة الطلب', 'Order note') }}</span>
+        </div>
+        <div class="cart-note-body">{{ state.orderNotes }}</div>
+      </div>
     </div>
 
     <!-- ── تفاصيل الطلب: رقم المنصّة · ملاحظة · حجز ────────────────────────────
@@ -145,7 +156,9 @@ const resLabel = computed(() => {
         <button type="button" class="ce-chip ce-chip-note" :class="{ 'is-set': !!state.orderNotes }"
           @click="openOrderNotesModal()" :title="state.orderNotes || tx('ملاحظة تظهر للفرع مع الطلب', 'A note shown to the branch with the order')">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-          <span class="ce-txt">{{ state.orderNotes || tx('ملاحظة', 'Note') }}</span>
+          <!-- عنوانٌ ثابت لا نصُّ الملاحظة: جملةٌ من سطرين تُقَصّ عند أوّل كلمتين في
+               حبّةٍ عرضُها ثلث العمود. النصّ كاملاً تحت الأصناف، واللون هنا يقول إنّها مكتوبة. -->
+          <span class="ce-txt">{{ tx('ملاحظة', 'Note') }}</span>
         </button>
 
         <button type="button" class="ce-chip" :class="{ 'is-set': state.isReservation }"
@@ -321,6 +334,29 @@ const resLabel = computed(() => {
 
 :global(body.dark-mode) .ce-chip,
 :global(body.dark-mode) .ce-input { background: var(--bg-card, #1e293b); }
+/* ملاحظة الطلب تحت الأصناف: بلونِ الحبّة نفسه فيُعرَف أنّهما شيءٌ واحد، وبعرضِ
+   العمود كاملاً فتُقرأ الجملة كما كُتبت — أسطرُها كما أدخلها الوكيل. */
+.cart-note-row {
+  margin-top: 10px;
+  padding: 9px 11px;
+  border: 1px solid var(--warning, #f59e0b);
+  border-radius: 10px;
+  background: var(--warning-light, #fef3c7);
+  cursor: pointer;
+}
+.cart-note-head {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 800; color: #b45309; margin-bottom: 3px;
+}
+.cart-note-head svg { flex-shrink: 0; }
+.cart-note-body {
+  font-size: 12.5px; font-weight: 600; color: #7c2d12; line-height: 1.55;
+  white-space: pre-wrap;      /* الأسطر كما كتبها الوكيل لا سطرٌ واحد ملتحم */
+  overflow-wrap: anywhere;    /* كلمةٌ طويلة بلا مسافات لا تدفع عرض العمود */
+}
+:global(body.dark-mode) .cart-note-row { background: rgba(245, 158, 11, .12); }
+:global(body.dark-mode) .cart-note-body { color: #fcd34d; }
+
 /* «طلب جديد» نصٌّ لا رقم — أخفُّ وزناً وأصغرُ حجماً فلا يُقرأ رقمَ فاتورة */
 .cart-order-no.is-draft { font-size: 14px; font-weight: 700; opacity: .75; }
 </style>
