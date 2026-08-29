@@ -1365,6 +1365,16 @@ async function saveCustomerLive() {
   const isDelivery = state.orderType === 'delivery'
   if (isDelivery && !state.form.regionId) { showToast(tx('يرجى اختيار المدينة', 'Please choose a city'), 'error'); return }
   if (isDelivery && sectionRequired() && !state.form.sectionId) { showToast(tx('يرجى اختيار الحيّ', 'Please choose a district'), 'error'); return }
+  // **لا حفظ بلا فرع.** العنوان الذي لا فرعَ له يصنع طلباً معلّقاً (`holdReason=no_branch`)
+  // لا ينزل مطبخاً ولا يراه أحد، والوكيل قد أغلق المكالمة واعداً بموعد. فالمنعُ هنا —
+  // عند الحفظ — أرخصُ من مطاردةِ طلبٍ ضائع بعده. والفرع يأتي من أحد ثلاثة: حيٌّ مربوط،
+  // أو مدينةٌ مربوطة، أو اختيارُ الوكيل يدويّاً من شريط أعلى الشاشة.
+  if (!getResolvedOrderBranchId()) {
+    showToast(isDelivery
+      ? tx('لا فرع يخدم هذا العنوان — اختر الفرع يدويّاً من أعلى الشاشة قبل الحفظ', 'No branch serves this address — pick a branch from the top bar before saving')
+      : tx('اختر فرع الاستلام قبل الحفظ', 'Choose the pickup branch before saving'), 'error', 7000)
+    return
+  }
   const region = currentArea()
   const section = (region?.sections || []).find((x: any) => x.id === state.form.sectionId) || null
   // العنوان الذي اختاره الوكيل من قائمة العميل — يُعدَّل هو بعينه.
@@ -2169,7 +2179,11 @@ export async function submitOrder() {
     body.building = state.form.building || null
     body.floor = state.form.floor || null
     body.apartment = state.form.apartment || null
-    body.branchId = state.selectedRegionBranchId || null
+    // **اختيار الوكيل اليدويّ يتقدّم على الاشتقاق.** كان يُرسَل المشتقُّ من المكان وحده،
+    // فيغيّر الوكيل الفرع من الشريط ويرى اسمه أمامه — والطلب يذهب لغيره أو يُعلَّق.
+    // والخادم يدعم اليدويَّ صراحةً ويقدّمه، ويقرأ الرسوم من ربط (المكان ↔ الفرع المختار).
+    // وهذا مقصودُ الزرّ أصلاً: فرعٌ مزدحمٌ أو مقفول ⇒ يُحوَّل الطلب لفرعٍ آخر.
+    body.branchId = getResolvedOrderBranchId()
   } else {
     body.branchId = state.form.pickupBranch ? parseInt(state.form.pickupBranch) : null
   }
