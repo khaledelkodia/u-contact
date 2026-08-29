@@ -987,18 +987,32 @@ export function selectSection(sectionId: any) {
 }
 
 // تحميل عميل حقيقي (من contactCustomers) + تعبئة أول عنوان
+/**
+ * قيمةُ حقلِ عنوانٍ محفوظ — والسلاسل `"null"`/`"undefined"` فراغ.
+ *
+ * عناوينُ قديمة خُزّنت بنصّ «null» حرفيّاً. قراءتُها كما هي تجعل الواجهة تبحث عن
+ * مدينةٍ اسمها «null» فلا تجدها ⇒ لا مدينة ⇒ **لا فرع** في رأس الشاشة. تنظيفُ
+ * الكتابة يمنع الجديد، وهذا يُنقذ ما هو مخزَّنٌ فعلاً.
+ */
+function addrText(v: any): string {
+  const t = String(v ?? '').trim()
+  return !t || t === 'null' || t === 'undefined' ? '' : t
+}
+
 function applyLiveAddress(addr: any) {
-  state.form.addressText = addr?.address || ''
+  state.form.addressText = addrText(addr?.address)
   // العنوان المركّب المحفوظ (قطعة/شارع/مبنى/دور/شقة)
-  state.form.block = addr?.block || ''
-  state.form.street = addr?.street || ''
-  state.form.building = addr?.building || ''
-  state.form.floor = addr?.floor || ''
-  state.form.apartment = addr?.apartment || ''
+  state.form.block = addrText(addr?.block)
+  state.form.street = addrText(addr?.street)
+  state.form.building = addrText(addr?.building)
+  state.form.floor = addrText(addr?.floor)
+  state.form.apartment = addrText(addr?.apartment)
   // العنوان محفوظ بالأسماء لا بالمعرّفات (لقطة وقت الطلب) — نطابقها لاستعادة الاختيار
-  const r = addr?.region ? state.regions.find((x: any) => x.name === addr.region) : null
+  const rName = addrText(addr?.region)
+  const r = rName ? state.regions.find((x: any) => x.name === rName) : null
   state.form.regionId = r ? r.id : null
-  const sec = r && addr?.section ? (r.sections || []).find((x: any) => x.name === addr.section) : null
+  const sName = addrText(addr?.section)
+  const sec = r && sName ? (r.sections || []).find((x: any) => x.name === sName) : null
   state.form.sectionId = sec ? sec.id : null
   applyPlace()
 }
