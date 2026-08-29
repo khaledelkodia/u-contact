@@ -16,7 +16,7 @@ const cur = computed(() => currentCompany())
 const can = (p: string) => !!cur.value?.permissions?.includes(p)
 
 const curFr = computed(() => currentFranchise())
-function pickCompany(e: any) { setCompany(Number(e.target.value)); if (route.path !== '/app') router.push('/app') }
+function pickCompany(e: any) { setCompany(Number(e.target.value)) }
 function pickFranchise(e: any) { const v = e.target.value; setFranchise(v ? Number(v) : null) }
 function signOut() { logout(); resetAdminCounts(); router.push('/login') }
 
@@ -67,10 +67,10 @@ watch(() => session.mode, (m) => { if (m === 'admin') ensureAdminCounts() }, { i
           </select>
         </template>
 
-        <div class="group">{{ t('القائمة', 'Menu') }}</div>
-        <router-link to="/app" class="navlink" :class="{ on: route.path === '/app' }"><Icon name="dashboard" /> {{ t('الرئيسية', 'Home') }}</router-link>
-        <router-link v-if="can('callcenter.users')" to="/app/users" class="navlink" :class="{ on: route.path === '/app/users' }"><Icon name="users" /> {{ t('المستخدمون', 'Users') }}</router-link>
-        <router-link v-if="can('callcenter.view') || can('callcenter.create')" to="/app/orders" class="navlink" :class="{ on: route.path === '/app/orders' }"><Icon name="cart" /> {{ t('الطلبات', 'Orders') }}</router-link>
+        <!-- روابط الشل القديم (الرئيسية/المستخدمون/الطلبات) حُذفت مع شاشاتها:
+             لكلٍّ نسخةٌ أحدث داخل مركز الاتصال، وله مسارُه الآن. وكلُّ مسارات الوكيل
+             تعمل بتخطيطٍ كامل، فلا يُعرَض هذا الشل له أصلاً — بقيت مبدّلات الشركة
+             أعلاه لا أكثر. -->
       </template>
 
       <div class="spacer"></div>

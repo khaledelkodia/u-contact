@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { pathForView, viewForPath, ORDER_PERMS, DASH_PERMS } from './ccRoutes'
 import ccStyles from './style.css?inline'
 import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, applyBranchDay, applyCcDay, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
 import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
@@ -9,6 +10,7 @@ import { icon } from './icons'
 import { session, currentCompany, currentFranchise, setCompany, setFranchise, logout as apiLogout, contactOrdersStreamUrl, trueNow, clockOff } from '../api'
 
 const router = useRouter()
+const route = useRoute()
 import ConfirmBox from './components/ConfirmBox.vue'
 import OpenDayModal from './components/OpenDayModal.vue'
 import DashboardView from './views/DashboardView.vue'
@@ -168,8 +170,7 @@ const myPerms = computed<string[]>(() => currentCompany()?.permissions || [])
 function can(perm: string) { return myPerms.value.includes(perm) }
 function hasAny(perms: string[]) { return perms.some((p) => myPerms.value.includes(p)) }
 // صلاحيات شاشة مركز الاتصال (ضرب الطلب)، وصلاحيات تستحق لوحة التحكم الرئيسية
-const ORDER_PERMS = ['callcenter.view', 'callcenter.create', 'callcenter.edit']
-const DASH_PERMS = ['callcenter.users', 'complaints.view', 'complaints.manage', 'callcenter.manage']
+// ORDER_PERMS / DASH_PERMS مستوردةٌ من `ccRoutes` — تقرؤها القائمةُ والراوتر معاً
 const dashboardWorthy = computed(() => hasAny(DASH_PERMS))
 const canOrders = computed(() => hasAny(ORDER_PERMS))
 // عناصر الهيدر (التاريخ/طلب جديد/إنهاء اليوم) خاصة بشاشات مركز الاتصال فقط — تختفي في الرئيسية
@@ -201,6 +202,9 @@ const NAV = [
   { view: 'users', label: 'users', fallback: 'المستخدمون', anyOf: ['callcenter.users'], svg: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>' },
 ]
 // «طلب جديد» ليس تبديلَ شاشة: يبدأ مسوّدةً نظيفة (بند القائمة وزرّ الهيدر سواء)
+// «طلب جديد» ليس تبديلَ شاشة: يبدأ مسوّدةً نظيفة (بند القائمة وزرّ الهيدر سواء).
+// والتنقّل يضبط `activeView`، والمراقبُ أدناه يتبعه بالمسار — فكلُّ من يبدّل الشاشة
+// من أيّ مكان (المتجر · الأزرار · الإعدادات) يغيّر الرابط معه بلا تعديلٍ عنده.
 function showView(v: string) { if (v === 'new-order') { startNewOrder(); return } state.activeView = v }
 function navLabel(n: any) { return t(n.label) === n.label ? n.fallback : t(n.label) }
 
@@ -228,6 +232,24 @@ const viewComponent = computed(() => {
 })
 
 
+/**
+ * الشاشة والمسار وجهان لشيءٍ واحد.
+ *
+ * الشاشةُ تتغيّر من أماكن كثيرة (المتجر يفتح «الطلبات» بعد الحفظ، والإعدادات تفتح
+ * «الأصناف الموقوفة»، والأزرار…). فبدل تعديل كل موضع، يتبع المسارُ الشاشةَ هنا،
+ * وتتبع الشاشةُ المسارَ عند فتح رابطٍ مباشر أو ضغط زرّ الرجوع. وكلٌّ لا يتحرّك إلا
+ * حين يختلفان، فلا حلقة.
+ */
+function syncViewToRoute(v: string) {
+  const p = pathForView(v)
+  if (p && route.path !== p) void router.replace(p)
+}
+watch(() => state.activeView, syncViewToRoute)
+watch(() => route.path, (p) => {
+  const v = viewForPath(p)
+  if (v && state.activeView !== v) state.activeView = v
+})
+
 onMounted(() => {
   // حقن CSS التصميم + Font Awesome، وضبط RTL
   styleEl = document.createElement('style'); styleEl.id = 'cc-styles'; styleEl.textContent = ccStyles; document.head.appendChild(styleEl)
@@ -247,7 +269,12 @@ onMounted(() => {
   loginSuccess({ name: session.name || 'وكيل', role, branch: 'all', username: 'agent' })
 
   // هبوط ذكي: من يملك صلاحيات إدارية يبدأ على لوحة التحكم الرئيسية، ومن معه مركز الاتصال فقط يدخل عليه مباشرةً
-  state.activeView = dashboardWorthy.value ? 'dashboard' : 'new-order'
+  // هبوط: المسار الذي فُتح فعلاً يتقدّم — رابطٌ مباشر أو تحديثُ صفحة يجب أن يبقى
+  // مكانه. وحارسُ الراوتر ضَمِن الصلاحية قبل الوصول. وإلا فالهبوط الذكيّ: من يملك
+  // صلاحياتٍ إدارية يبدأ على لوحة التحكم، ومن معه المركز فقط يدخل عليه مباشرةً.
+  const landed = viewForPath(route.path)
+  state.activeView = landed || (dashboardWorthy.value ? 'dashboard' : 'new-order')
+  syncViewToRoute(state.activeView)
 
   // تحميل البيانات الحقيقية (فروع/مناطق/منتجات) + حالة يوم العمل — يبقى على المووك لو فشل أو مفيش شركة
   void loadLiveData()
