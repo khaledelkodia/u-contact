@@ -262,7 +262,7 @@ const CANCELLATION_REASONS = [
 ];
 
 const ORDER_STATUSES = [
-  { id: 'sent', name: 'لم يصل الفرع', nameEn: 'Not at branch yet', color: '#94a3b8', icon: 'badge-new' },
+  { id: 'sent', name: 'لم يصل الفرع', nameEn: 'Sent', color: '#94a3b8', icon: 'badge-new' },
   { id: 'new', name: 'جديد', nameEn: 'New', color: '#3b82f6', icon: 'badge-new' },
   { id: 'preparing', name: 'جاري التحضير', nameEn: 'Preparing', color: '#f59e0b', icon: 'chef-hat' },
   { id: 'ready', name: 'جاهز', nameEn: 'Ready', color: '#8b5cf6', icon: 'check-circle' },

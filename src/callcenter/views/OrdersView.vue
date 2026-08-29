@@ -107,7 +107,7 @@ function typeCell(order: any): string {
               <th>
                 <select class="uc-fcell" v-model="state.allFilterStatus">
                   <option value="">{{ tx('الكل', 'All') }}</option>
-                  <option value="sent">{{ tx('لم يصل الفرع', 'Not at branch yet') }}</option>
+                  <option value="sent">{{ tx('لم يصل الفرع', 'Sent') }}</option>
                   <option value="new">{{ tx('جديد', 'New') }}</option>
                   <option value="preparing">{{ tx('جاري التحضير', 'Preparing') }}</option>
                   <option value="ready">{{ tx('جاهز', 'Ready') }}</option>
