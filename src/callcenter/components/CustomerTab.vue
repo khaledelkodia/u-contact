@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, toggleBlacklist, canBlockCustomer, customerFlag, customerFlagLabel, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, toggleBlacklist, canBlockCustomer, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
 import { t, tx } from '../lang'
 import { icon } from '../icons'
@@ -140,10 +140,7 @@ function addressLine(addr: any): string {
     <form id="customer-form" class="customer-form" @submit.prevent>
       <div class="form-group">
         <label for="cust-name">{{ tx('الاسم', 'Name') }}</label>
-        <!-- خلفيّةُ الاسم تقول حالة العميل بالنظرة: محظور · عليه ملاحظة/شكوى · طلبَ اليوم.
-             والعنوان (title) يشرح اللون — لونٌ بلا شرحٍ لغزٌ يُحفَظ لا معلومةٌ تُقرأ. -->
-        <input type="text" id="cust-name" :placeholder="tx('اسم العميل', 'Customer name')" v-model="state.form.name"
-          :class="customerFlag() ? 'cf-' + customerFlag() : null" :title="customerFlagLabel() || undefined">
+        <input type="text" id="cust-name" :placeholder="tx('اسم العميل', 'Customer name')" v-model="state.form.name">
       </div>
       <div class="form-group">
         <label for="cust-phone">{{ tx('رقم الهاتف', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
@@ -289,20 +286,6 @@ function addressLine(addr: any): string {
 </template>
 
 <style scoped>
-/* حالةُ العميل خلفيّةً متدرّجة على حقل الاسم — تبدأ من أوّل السطر (حيث تبدأ العين)
-   وتخفت نحو آخره فلا تطمس النصّ. والتدرّج اتّجاهيّ: يُقلَب مع اللغة. */
-#cust-name.cf-today,
-#cust-name.cf-comment,
-#cust-name.cf-blocked { font-weight: 800; }
-/* التدرّج كان يبدأ من ٢٦٪ شفافيّة ويختفي عند ٧٨٪ من العرض — لونٌ يكاد لا يُرى على
-   خلفيّةٍ بيضاء. صار يبدأ مشبعاً (٧٠٪) ويبقى ظاهراً حتى آخر الحقل (٢٢٪)، والنصّ
-   يُغمَّق ليقرأ فوقه. */
-#cust-name.cf-today   { background-image: linear-gradient(to left, rgba(22, 163, 74, .70), rgba(22, 163, 74, .22)); border-color: #16a34a; color: #14532d; }
-#cust-name.cf-comment { background-image: linear-gradient(to left, rgba(245, 158, 11, .78), rgba(245, 158, 11, .24)); border-color: #d97706; color: #7c2d12; }
-#cust-name.cf-blocked { background-image: linear-gradient(to left, rgba(220, 38, 38, .70), rgba(220, 38, 38, .20)); border-color: #dc2626; color: #7f1d1d; }
-[dir="ltr"] #cust-name.cf-today   { background-image: linear-gradient(to right, rgba(22, 163, 74, .70), rgba(22, 163, 74, .22)); }
-[dir="ltr"] #cust-name.cf-comment { background-image: linear-gradient(to right, rgba(245, 158, 11, .78), rgba(245, 158, 11, .24)); }
-[dir="ltr"] #cust-name.cf-blocked { background-image: linear-gradient(to right, rgba(220, 38, 38, .70), rgba(220, 38, 38, .20)); }
 /* شريط أنواع الطلب — بديلُ البطاقتين حين تُعرِّف الشركة أنواعها */
 /* تحذير نوع الطلب: تنبيهٌ لا خطأ — الطلب لم يُرسَل بعد */
 .ot-warn {

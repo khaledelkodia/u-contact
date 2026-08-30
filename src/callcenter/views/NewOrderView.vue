@@ -173,13 +173,23 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 </template>
 
 <style scoped>
-/* علامةُ حالة العميل على الاسم في الشريط — حبّةٌ ملوّنة تُقرأ من بعيد. */
+/* علامةُ حالة العميل — حبّةٌ واحدة على الاسم في الشريط (والحقل يبقى أبيض: لونان
+   لمعنًى واحد يشتّتان، والشريط هو المفتوح طوال المكالمة).
+   نقطةٌ قبل الاسم تقول الحالة حتى لمن لا يميّز الألوان، وتدرّجٌ خفيف وظلٌّ يرفعانها
+   عن الشريط فتُقرأ حبّةً لا خلفيّةً ملوّنة. */
 #info-name.ifl-today, #info-name.ifl-comment, #info-name.ifl-blocked {
-  padding: 2px 9px; border-radius: 999px; font-weight: 800;
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 11px; border-radius: 999px;
+  font-weight: 800; letter-spacing: .01em; line-height: 1.7;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .18);
 }
-#info-name.ifl-today   { background: #16a34a; color: #fff; }
-#info-name.ifl-comment { background: #f59e0b; color: #422006; }
-#info-name.ifl-blocked { background: #dc2626; color: #fff; }
+#info-name.ifl-today::before, #info-name.ifl-comment::before, #info-name.ifl-blocked::before {
+  content: ''; width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor; opacity: .8; flex-shrink: 0;
+}
+#info-name.ifl-today   { background-image: linear-gradient(135deg, #22c55e, #15803d); color: #fff; }
+#info-name.ifl-comment { background-image: linear-gradient(135deg, #fbbf24, #d97706); color: #3f2004; }
+#info-name.ifl-blocked { background-image: linear-gradient(135deg, #f87171, #b91c1c); color: #fff; }
 /* عمود التفاصيل: نفس هيكل السلّة (عرضٌ ثابت · لاصقٌ · عمود) + رأسٌ ثابتٌ وجسمٌ يمرّر. */
 .cart-panel-detail { padding: 0; }
 .cpd-head {
