@@ -1089,7 +1089,8 @@ function loadLiveCustomer(c: any) {
   state.form.phone = c.phone || ''
   state.form.phone2 = ''
   state.form.notes = ''
-  state.form.blacklist = false
+  // (كان هنا `state.form.blacklist = false` — بقيّةٌ من زمن العلامة المحلّية. يُنفَّذ
+  //  بعد قراءة الحظر من الخادم بأسطر، فيمحوه دائماً: العميل محظورٌ والخانة فارغة.)
   if (c.addresses && c.addresses.length > 0) {
     const def = c.addresses.find((a: any) => a.isDefault) || c.addresses[0]
     state.selectedAddressIndex = c.addresses.indexOf(def)
