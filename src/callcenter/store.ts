@@ -945,15 +945,35 @@ export function customerTodayCount(): number {
  * **عليه شكوى أو ملاحظة** (تُقرأ قبل الوعد بموعد)، ثم **طلبَ اليوم** (تكرارٌ محتمل).
  * لونٌ واحد لا ثلاثة: ثلاثةُ ألوانٍ معاً لا تقول شيئاً.
  */
-export function customerFlag(): 'blocked' | 'comment' | 'today' | null {
+/**
+ * سببُ العلامة البرتقالية بعينه: ملاحظةٌ مكتوبة أم شكوى مفتوحة أم كلاهما.
+ *
+ * اللونان واحد، والسبب ليس كذلك — فوكيلٌ حذف الملاحظة ورأى اللون باقياً يظنّ أن
+ * الحذف لم يقع، وهو باقٍ لشكوى. يُفصَّل هنا ليقوله العنوان (`title`) صراحةً.
+ */
+function customerFlagWhy(): { note: boolean; complaint: boolean } {
+  const c = state.currentCustomer
+  if (!c) return { note: false, complaint: false }
+  const note = !!String((c as any).ccNotes ?? '').trim() || !!String(state.form.notes ?? '').trim()
+  const mine = digitsOf(c.phone)
+  const complaint = state.orders.some((o: any) =>
+    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) && o.hasComplaint)
+  return { note, complaint }
+}
+
+/**
+ * حالةُ العميل لوناً — أربعٌ مرتَّبةٌ بالخطورة، ويظهر الأعلى وحده:
+ * **محظور** (لا طلبَ أصلاً) ← **شكوى مفتوحة** (شيءٌ لم يُغلَق بعد) ←
+ * **ملاحظة** (كتبها وكيل) ← **طلبَ اليوم** (تكرارٌ محتمل).
+ * والشكوى فُصلت عن الملاحظة بلونها: مصدران مختلفان وفعلان مختلفان.
+ */
+export function customerFlag(): 'blocked' | 'complaint' | 'note' | 'today' | null {
   const c = state.currentCustomer
   if (!c) return null
   if (c.isBlacklisted) return 'blocked'
-  const hasNote = !!String((c as any).ccNotes ?? '').trim() || !!String(state.form.notes ?? '').trim()
-  const mine = digitsOf(c.phone)
-  const hasComplaint = state.orders.some((o: any) =>
-    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) && o.hasComplaint)
-  if (hasComplaint || hasNote) return 'comment'
+  const why = customerFlagWhy()
+  if (why.complaint) return 'complaint'
+  if (why.note) return 'note'
   if (customerTodayCount() > 0) return 'today'
   return null
 }
@@ -961,11 +981,17 @@ export function customerFlag(): 'blocked' | 'comment' | 'today' | null {
 /** شرحُ اللون — اللون وحده لا يُعلّم أحداً معناه. */
 export function customerFlagLabel(): string {
   const f = customerFlag()
-  if (f === 'blocked') return tx('عميل محظور — لا يمكن أخذ طلبٍ له', 'Blocked customer — no order can be taken')
-  if (f === 'comment') return tx('عليه ملاحظة أو شكوى — راجعها قبل الوعد', 'Has a note or complaint — check it first')
+  if (f === 'blocked') return tx('عميل محظور — مينفعش تاخد له طلب', 'Blocked customer — no order can be taken')
+  if (f === 'complaint') {
+    const why = customerFlagWhy()
+    return why.note
+      ? tx('عليه شكوى مفتوحة وملاحظة — اقرأهما قبل ما تكلّمه', 'Has an open complaint and a note — read both before talking to them')
+      : tx('عليه شكوى مفتوحة — اقرأها قبل ما تكلّمه', 'Has an open complaint — read it before talking to them')
+  }
+  if (f === 'note') return tx('عليه ملاحظة — اقرأها قبل ما تكلّمه', 'Has a note — read it before talking to them')
   if (f === 'today') {
     const n = customerTodayCount()
-    return tx(`طلب اليوم بالفعل (${n}) — تأكّد أنه ليس تكراراً`, `Already ordered today (${n}) — check it is not a duplicate`)
+    return tx(`طلب النهاردة بالفعل (${n}) — اتأكّد إنه مش تكرار`, `Already ordered today (${n}) — check it is not a duplicate`)
   }
   return ''
 }

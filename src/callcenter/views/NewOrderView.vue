@@ -177,18 +177,21 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
    لمعنًى واحد يشتّتان، والشريط هو المفتوح طوال المكالمة).
    نقطةٌ قبل الاسم تقول الحالة حتى لمن لا يميّز الألوان، وتدرّجٌ خفيف وظلٌّ يرفعانها
    عن الشريط فتُقرأ حبّةً لا خلفيّةً ملوّنة. */
-#info-name.ifl-today, #info-name.ifl-comment, #info-name.ifl-blocked {
+#info-name.ifl-today, #info-name.ifl-note, #info-name.ifl-complaint, #info-name.ifl-blocked {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 3px 11px; border-radius: 999px;
   font-weight: 800; letter-spacing: .01em; line-height: 1.7;
   box-shadow: 0 1px 3px rgba(15, 23, 42, .18);
 }
-#info-name.ifl-today::before, #info-name.ifl-comment::before, #info-name.ifl-blocked::before {
+#info-name.ifl-today::before, #info-name.ifl-note::before, #info-name.ifl-complaint::before, #info-name.ifl-blocked::before {
   content: ''; width: 6px; height: 6px; border-radius: 50%;
   background: currentColor; opacity: .8; flex-shrink: 0;
 }
 #info-name.ifl-today   { background-image: linear-gradient(135deg, #22c55e, #15803d); color: #fff; }
-#info-name.ifl-comment { background-image: linear-gradient(135deg, #fbbf24, #d97706); color: #3f2004; }
+#info-name.ifl-note      { background-image: linear-gradient(135deg, #fbbf24, #d97706); color: #3f2004; }
+/* الشكوى بنفسجيّ: لونٌ لا يشبه التحذير (برتقاليّ) ولا المنع (أحمر) ولا الاطمئنان
+   (أخضر) — فلا يُقرأ واحدٌ منها، وهي حالةٌ ثالثةٌ لها فعلُها الخاصّ. */
+#info-name.ifl-complaint { background-image: linear-gradient(135deg, #a78bfa, #6d28d9); color: #fff; }
 #info-name.ifl-blocked { background-image: linear-gradient(135deg, #f87171, #b91c1c); color: #fff; }
 /* عمود التفاصيل: نفس هيكل السلّة (عرضٌ ثابت · لاصقٌ · عمود) + رأسٌ ثابتٌ وجسمٌ يمرّر. */
 .cart-panel-detail { padding: 0; }
