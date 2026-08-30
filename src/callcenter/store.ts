@@ -918,14 +918,56 @@ export function onAreaChange() {
 }
 
 // ── فلاج "طلب اليوم" (نقلاً عن updateCustomerTodayBadge) ──
+/** أرقام العميل بلا رموز — المقارنة بها لأن الصيغ تختلف (+20 · 0020 · محلّي). */
+function digitsOf(v: any): string { const AR = '٠١٢٣٤٥٦٧٨٩'; return String(v ?? '').replace(/[٠-٩]/g, (d) => String(AR.indexOf(d))).replace(/\D/g, '') }
+
+/**
+ * عدد طلبات العميل في يوم العمل الحالي.
+ *
+ * كانت المطابقة بـ`o.customerId` — وهو حقلٌ **لا يضعه** `mapCloudOrder` أصلاً، فكان
+ * العدّاد صفراً أبداً. المطابقة بالهاتف (كما في سجلّ العميل) هي العاملة.
+ */
 export function customerTodayCount(): number {
   const c = state.currentCustomer
   if (!c) return 0
   const bd = state.businessDate || todayISO()
+  const mine = digitsOf(c.phone)
   return state.orders.filter((o: any) =>
-    o.customerId === c.id &&
+    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) &&
     (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd
   ).length
+}
+
+/**
+ * حالةُ العميل بلونٍ واحد — تُقرأ بالنظرة قبل أن يبدأ الوكيل الكلام.
+ *
+ * الترتيب بالخطورة لا بالتساوي: **محظور** يتقدّم على كلّ شيء (لا طلبَ أصلاً)، ثم
+ * **عليه شكوى أو ملاحظة** (تُقرأ قبل الوعد بموعد)، ثم **طلبَ اليوم** (تكرارٌ محتمل).
+ * لونٌ واحد لا ثلاثة: ثلاثةُ ألوانٍ معاً لا تقول شيئاً.
+ */
+export function customerFlag(): 'blocked' | 'comment' | 'today' | null {
+  const c = state.currentCustomer
+  if (!c) return null
+  if (c.isBlacklisted) return 'blocked'
+  const hasNote = !!String(c.notes ?? '').trim() || !!String(state.form.notes ?? '').trim()
+  const mine = digitsOf(c.phone)
+  const hasComplaint = state.orders.some((o: any) =>
+    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) && o.hasComplaint)
+  if (hasComplaint || hasNote) return 'comment'
+  if (customerTodayCount() > 0) return 'today'
+  return null
+}
+
+/** شرحُ اللون — اللون وحده لا يُعلّم أحداً معناه. */
+export function customerFlagLabel(): string {
+  const f = customerFlag()
+  if (f === 'blocked') return tx('عميل محظور — لا يمكن أخذ طلبٍ له', 'Blocked customer — no order can be taken')
+  if (f === 'comment') return tx('عليه ملاحظة أو شكوى — راجعها قبل الوعد', 'Has a note or complaint — check it first')
+  if (f === 'today') {
+    const n = customerTodayCount()
+    return tx(`طلب اليوم بالفعل (${n}) — تأكّد أنه ليس تكراراً`, `Already ordered today (${n}) — check it is not a duplicate`)
+  }
+  return ''
 }
 
 // ==========================================
