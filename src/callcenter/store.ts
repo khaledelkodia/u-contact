@@ -156,6 +156,7 @@ export const state = reactive<any>({
   // شكاوى الشركة من الكلاود: خريطة onlineOrderId → عدد الشكاوى. مصدرها الخادم لا
   // الذاكرة المحلية، وإلا مُسحت مع أول حدث SSE (mergeOrderRows يستبدل الصفّ كاملاً).
   complaintsByOrder: {},
+  openComplaintsByOrder: {},  // الشكاوى الحيّة وحدها — علامةُ العميل تقرأ هذه
   // ── شاشة الشكاوى ──
   complaintsList: [],          // صفوف الشكاوى المعروضة
   complaintsLoading: false,
@@ -583,11 +584,17 @@ export async function loadComplaints() {
   try {
     const rows = await contactComplaints()
     const map: any = {}
+    // خريطةٌ ثانية للشكاوى الحيّة وحدها (مفتوحة/قيد المعالجة). الأولى تبقى كما هي
+    // لعلامة الصفّ في الجدول — أثرٌ تاريخيّ لا ينقضي بالحلّ. أمّا علامةُ العميل
+    // فتقول «عليه شيءٌ لم يُغلَق بعد»، وكانت تعدّ المحلولة والمغلقة معها فتبقى للأبد.
+    const live: any = {}
     for (const c of rows || []) {
       if (c.onlineOrderId == null) continue
       map[c.onlineOrderId] = (map[c.onlineOrderId] || 0) + 1
+      if (c.status !== 'resolved' && c.status !== 'closed') live[c.onlineOrderId] = (live[c.onlineOrderId] || 0) + 1
     }
     state.complaintsByOrder = map
+    state.openComplaintsByOrder = live
   } catch { /* نُبقي الحالي */ }
 }
 
@@ -957,7 +964,8 @@ function customerFlagWhy(): { note: boolean; complaint: boolean } {
   const note = !!String((c as any).ccNotes ?? '').trim() || !!String(state.form.notes ?? '').trim()
   const mine = digitsOf(c.phone)
   const complaint = state.orders.some((o: any) =>
-    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) && o.hasComplaint)
+    (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine))
+    && !!state.openComplaintsByOrder[o.id])
   return { note, complaint }
 }
 
