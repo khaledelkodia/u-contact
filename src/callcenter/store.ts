@@ -949,7 +949,7 @@ export function customerFlag(): 'blocked' | 'comment' | 'today' | null {
   const c = state.currentCustomer
   if (!c) return null
   if (c.isBlacklisted) return 'blocked'
-  const hasNote = !!String(c.notes ?? '').trim() || !!String(state.form.notes ?? '').trim()
+  const hasNote = !!String((c as any).ccNotes ?? '').trim() || !!String(state.form.notes ?? '').trim()
   const mine = digitsOf(c.phone)
   const hasComplaint = state.orders.some((o: any) =>
     (o.customerId === c.id || (!!mine && digitsOf(o.customerPhone) === mine)) && o.hasComplaint)
@@ -1130,7 +1130,8 @@ function loadLiveCustomer(c: any) {
   state.form.name = c.name || ''
   state.form.phone = c.phone || ''
   state.form.phone2 = ''
-  state.form.notes = ''
+  // ملاحظة الوكيل تأتي من الخادم — كان الحقل يُفرَّغ دائماً فلا شيء يظهر مهما كُتب
+  state.form.notes = (c as any)?.ccNotes || ''
   // (كان هنا `state.form.blacklist = false` — بقيّةٌ من زمن العلامة المحلّية. يُنفَّذ
   //  بعد قراءة الحظر من الخادم بأسطر، فيمحوه دائماً: العميل محظورٌ والخانة فارغة.)
   if (c.addresses && c.addresses.length > 0) {
@@ -1498,6 +1499,8 @@ async function saveCustomerLive() {
   try {
     const saved = await contactSaveCustomer({
       name, phone: phoneE164(phone, companyDial()),
+      // ملاحظة الوكيل: لم تكن تُرسَل إطلاقاً — يكتبها ويحفظ فلا تُخزَّن ولا تعود
+      ccNotes: state.form.notes || null,
       addressId: editingId,
       regionName: region ? region.name : null,
       sectionName: section ? section.name : null,
