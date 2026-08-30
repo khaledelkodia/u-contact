@@ -1069,11 +1069,16 @@ function goToMenu() {
 function loadLiveCustomer(c: any) {
   // عميلٌ آخر = مكالمةٌ أخرى (نفس قاعدة `loadCustomerData`): بحثٌ عن عميلٍ جديد
   // كان يُبقي سلّة السابق ورقمَ منصّته ودفعه في هذا المسار وحده.
+  // **«تغيّر» = من عميلٍ إلى آخر، لا من لا‑أحدٍ إلى أحد.** كان `!prev` يعدّ الحالة
+  // الأولى تغييراً، فالوكيل الذي بنى السلّة ثم تذكّر أن يُدخل رقم العميل يجدها فارغة
+  // ويعيد الطلب من أوّله. لا عميلَ قبله ⇒ لا مكالمةَ سابقة تُخلَط بهذه: السلّة له.
+  // وحمايةُ الخلط باقيةٌ كما هي: عميلٌ آخر (معرّفٌ أو هاتفٌ مختلف) يصفّر المسوّدة.
   const prev = state.currentCustomer
-  const changed = !prev
-    || (c?.id != null && prev.id != null && String(prev.id) !== String(c.id))
-    || String(prev.phone || '') !== String(c?.phone || '')
+  const changed = !!prev
+    && ((c?.id != null && prev.id != null && String(prev.id) !== String(c.id))
+      || String(prev.phone || '') !== String(c?.phone || ''))
   if (changed) resetDraftForNewCustomer()
+  else if (!prev && state.cart.length) showToast(tx('تم ربط العميل بالطلب — السلّة كما هي', 'Customer linked to this order — the cart is unchanged'), 'success')
   state.currentCustomer = c
   state.form.name = c.name || ''
   state.form.phone = c.phone || ''
@@ -1188,11 +1193,16 @@ export function loadCustomerData(customer: any) {
   // الشرط «تغيّر العميل» لا «كل تحميل»: هذه الدالّة تُستدعى أيضاً بعد حفظ تعديلٍ
   // على العميل الحالي (تصحيح عنوان مثلاً) — والتصفير حينها يمحو سلّةً بناها الوكيل
   // للتوّ.
+  // **«تغيّر» = من عميلٍ إلى آخر، لا من لا‑أحدٍ إلى أحد.** كان `!prev` يعدّ الحالة
+  // الأولى تغييراً، فالوكيل الذي بنى السلّة ثم تذكّر أن يُدخل رقم العميل يجدها فارغة
+  // ويعيد الطلب من أوّله. لا عميلَ قبله ⇒ لا مكالمةَ سابقة تُخلَط بهذه: السلّة له.
+  // وحمايةُ الخلط باقيةٌ كما هي: عميلٌ آخر (معرّفٌ أو هاتفٌ مختلف) يصفّر المسوّدة.
   const prev = state.currentCustomer
-  const changed = !prev
-    || (customer?.id != null && prev.id != null && String(prev.id) !== String(customer.id))
-    || String(prev.phone || '') !== String(customer?.phone || '')
+  const changed = !!prev
+    && ((customer?.id != null && prev.id != null && String(prev.id) !== String(customer.id))
+      || String(prev.phone || '') !== String(customer?.phone || ''))
   if (changed) resetDraftForNewCustomer()
+  else if (!prev && state.cart.length) showToast(tx('تم ربط العميل بالطلب — السلّة كما هي', 'Customer linked to this order — the cart is unchanged'), 'success')
   state.currentCustomer = customer
   state.form.name = customer.name
   state.form.phone = customer.phone
@@ -1249,7 +1259,9 @@ export async function searchCustomer() {
         showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
         // مسوّدةٌ نظيفة تماماً: `clearCartSilently` وحدها كانت تُبقي رقم المنصّة
         // والدفع والحجز من المكالمة السابقة على عميلٍ جديد لم يُنشأ بعد.
-        resetDraftForNewCustomer()
+        // وبشرط أن تكون ثمّة مكالمةٌ سابقة أصلاً: بحثٌ أوّلُ عن رقمٍ غير مسجَّل لا
+        // يمحو سلّةً بناها الوكيل قبل أن يسأل عن الرقم.
+        if (state.currentCustomer) resetDraftForNewCustomer()
         clearCustomerData()
         state.form.phone = phone
         state.activeTab = 'customer-data'
@@ -1275,7 +1287,7 @@ export async function searchCustomer() {
     )
   } else {
     showToast(tx('العميل غير موجود. يرجى إضافة بياناته.', 'Customer not found. Please add their details.'), 'info')
-    resetDraftForNewCustomer()
+    if (state.currentCustomer) resetDraftForNewCustomer()
     clearCustomerData()
     state.form.phone = phone
     state.activeTab = 'customer-data'
