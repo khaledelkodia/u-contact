@@ -4,6 +4,7 @@ import {
   state, searchCustomer, showNewCustomerForm, showOrderHistory, showTab,
   toggleBranchOverride, closeBranchOverrideMenu, selectBranchOverride, resetBranchOverride,
   getAutoBranchId, infoBranchName, infoAddress, customerTodayCount, resolvedBranchStatus,
+  customerFlag, customerFlagLabel,
   viewOrderDetail,
 } from '../store'
 import { t, tx } from '../lang'
@@ -71,7 +72,10 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
         <div id="customer-info-bar" class="customer-info-bar" :class="{ hidden: !state.showCustomerInfo }">
           <div class="info-item">
             <span class="info-label">{{ t('customer_label') }}</span>
-            <span class="info-value" id="info-name" :class="{ 'info-name-today': todayCount > 0 }">{{ state.currentCustomer?.name || '-' }}</span>
+            <!-- نفس علامة حقل الاسم: الشريط هو ما تراه العين أوّلاً وهي مفتوحةٌ طوال
+                 المكالمة، فحصرُ اللون في تبويب البيانات يخفيه ما إن ينتقل الوكيل للمنيو. -->
+            <span class="info-value" id="info-name" :class="customerFlag() ? 'ifl-' + customerFlag() : null"
+              :title="customerFlagLabel() || undefined">{{ state.currentCustomer?.name || '-' }}</span>
             <span class="info-customer-today" :class="{ hidden: todayCount === 0 }" id="info-customer-today" :title="tx('هذا العميل لديه طلب في يوم العمل الحالي', 'This customer already has an order in the current business day')">
               <span class="today-dot"></span>
               <span class="today-text">{{ tx('طلب اليوم', 'Today’s order') }}</span>
@@ -169,6 +173,13 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
 </template>
 
 <style scoped>
+/* علامةُ حالة العميل على الاسم في الشريط — حبّةٌ ملوّنة تُقرأ من بعيد. */
+#info-name.ifl-today, #info-name.ifl-comment, #info-name.ifl-blocked {
+  padding: 2px 9px; border-radius: 999px; font-weight: 800;
+}
+#info-name.ifl-today   { background: #16a34a; color: #fff; }
+#info-name.ifl-comment { background: #f59e0b; color: #422006; }
+#info-name.ifl-blocked { background: #dc2626; color: #fff; }
 /* عمود التفاصيل: نفس هيكل السلّة (عرضٌ ثابت · لاصقٌ · عمود) + رأسٌ ثابتٌ وجسمٌ يمرّر. */
 .cart-panel-detail { padding: 0; }
 .cpd-head {

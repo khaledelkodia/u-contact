@@ -294,12 +294,15 @@ function addressLine(addr: any): string {
 #cust-name.cf-today,
 #cust-name.cf-comment,
 #cust-name.cf-blocked { font-weight: 800; }
-#cust-name.cf-today   { background-image: linear-gradient(to left, rgba(22, 163, 74, .26), rgba(22, 163, 74, 0) 78%); border-color: rgba(22, 163, 74, .55); }
-#cust-name.cf-comment { background-image: linear-gradient(to left, rgba(245, 158, 11, .30), rgba(245, 158, 11, 0) 78%); border-color: rgba(245, 158, 11, .60); }
-#cust-name.cf-blocked { background-image: linear-gradient(to left, rgba(220, 38, 38, .28), rgba(220, 38, 38, 0) 78%); border-color: rgba(220, 38, 38, .60); }
-[dir="ltr"] #cust-name.cf-today   { background-image: linear-gradient(to right, rgba(22, 163, 74, .26), rgba(22, 163, 74, 0) 78%); }
-[dir="ltr"] #cust-name.cf-comment { background-image: linear-gradient(to right, rgba(245, 158, 11, .30), rgba(245, 158, 11, 0) 78%); }
-[dir="ltr"] #cust-name.cf-blocked { background-image: linear-gradient(to right, rgba(220, 38, 38, .28), rgba(220, 38, 38, 0) 78%); }
+/* التدرّج كان يبدأ من ٢٦٪ شفافيّة ويختفي عند ٧٨٪ من العرض — لونٌ يكاد لا يُرى على
+   خلفيّةٍ بيضاء. صار يبدأ مشبعاً (٧٠٪) ويبقى ظاهراً حتى آخر الحقل (٢٢٪)، والنصّ
+   يُغمَّق ليقرأ فوقه. */
+#cust-name.cf-today   { background-image: linear-gradient(to left, rgba(22, 163, 74, .70), rgba(22, 163, 74, .22)); border-color: #16a34a; color: #14532d; }
+#cust-name.cf-comment { background-image: linear-gradient(to left, rgba(245, 158, 11, .78), rgba(245, 158, 11, .24)); border-color: #d97706; color: #7c2d12; }
+#cust-name.cf-blocked { background-image: linear-gradient(to left, rgba(220, 38, 38, .70), rgba(220, 38, 38, .20)); border-color: #dc2626; color: #7f1d1d; }
+[dir="ltr"] #cust-name.cf-today   { background-image: linear-gradient(to right, rgba(22, 163, 74, .70), rgba(22, 163, 74, .22)); }
+[dir="ltr"] #cust-name.cf-comment { background-image: linear-gradient(to right, rgba(245, 158, 11, .78), rgba(245, 158, 11, .24)); }
+[dir="ltr"] #cust-name.cf-blocked { background-image: linear-gradient(to right, rgba(220, 38, 38, .70), rgba(220, 38, 38, .20)); }
 /* شريط أنواع الطلب — بديلُ البطاقتين حين تُعرِّف الشركة أنواعها */
 /* تحذير نوع الطلب: تنبيهٌ لا خطأ — الطلب لم يُرسَل بعد */
 .ot-warn {

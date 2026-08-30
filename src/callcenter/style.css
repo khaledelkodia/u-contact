@@ -7186,3 +7186,10 @@ body.dark-mode .rv-list { box-shadow: inset 0 -14px 12px -12px rgba(0, 0, 0, 0.5
   white-space: nowrap; vertical-align: middle;
 }
 body.dark-mode .sched-chip { color: #d8b4fe; background: #3b0764; border-color: #6b21a8; }
+
+
+/* حالةُ العميل على حقل الاسم في الوضع الليلي — هنا لا في الأنماط المحصورة:
+   `:global(X) Y` في هذا المشروع يُنتج `X` وحدها فتُلوَّن الصفحة كلُّها. */
+body.dark-mode #cust-name.cf-today   { color: #dcfce7; }
+body.dark-mode #cust-name.cf-comment { color: #fef3c7; }
+body.dark-mode #cust-name.cf-blocked { color: #fee2e2; }
