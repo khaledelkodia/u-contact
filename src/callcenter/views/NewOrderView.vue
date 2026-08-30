@@ -29,7 +29,7 @@ const autoBranchId = computed(() => getAutoBranchId())
  * جديد أثناء متابعة طلبٍ قائم) — فهو المكان الطبيعيّ لها، بعرضٍ ثابتٍ لا يزحزح شيئاً.
  * والمسوّدة لا تُمَسّ: العرضُ وحده يتبدّل، وتعود كما هي بإغلاق التفاصيل.
  */
-const orderInCart = computed(() => state.activeTab === 'delivery-orders' && !!state.openOrderId)
+const orderInCart = computed(() => (state.activeTab === 'delivery-orders' || state.activeTab === 'order-status') && !!state.openOrderId)
 const overrideActiveId = computed(() => state.branchOverrideId || autoBranchId.value)
 // جاهزيّة الفرع الذي سيستقبل هذا الطلب. null = لم يُحدَّد فرع بعد ⇒ لا شريط.
 // يعتمد على state.branches (يتحدّث مع تحميل البيانات) وعلى الفرع المشتقّ من العنوان،

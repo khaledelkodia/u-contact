@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, toggleBlacklist, canBlockCustomer, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
 import { t, tx } from '../lang'
 import { icon } from '../icons'
@@ -266,7 +266,9 @@ function addressLine(addr: any): string {
       </div>
       <div class="form-group">
         <div class="checkbox-group">
-          <input type="checkbox" id="cust-blacklist" v-model="state.form.blacklist">
+          <!-- الخانة قرارٌ على الخادم لا علامةٌ محلّية: تُكتب فوراً، وتختفي لمن لا يملك مفتاحها -->
+          <input type="checkbox" id="cust-blacklist" :checked="state.form.blacklist" :disabled="!canBlockCustomer()"
+            @change="toggleBlacklist(($event.target as HTMLInputElement).checked)">
           <label for="cust-blacklist">{{ t('blacklist_label') }}</label>
         </div>
       </div>

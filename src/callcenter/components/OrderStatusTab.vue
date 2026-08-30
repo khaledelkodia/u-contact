@@ -1,15 +1,30 @@
 <script setup lang="ts">
-import { tx } from '../lang'
-import { state, searchOrderStatus } from '../store'
+import { computed } from 'vue'
+import { tx, nameOf } from '../lang'
+import { state, searchOrderStatus, viewOrderDetail, canViewOrderTotals } from '../store'
 import { t } from '../lang'
 import { icon } from '../icons'
-import { formatCurrency } from '../utils'
+import { ORDER_STATUSES } from '../data'
+import { formatCurrency, formatTxnClock } from '../utils'
+
+// نفس شارة الحالة المستعملة في الجدولين — لا شكلٌ ثالثٌ للحالة نفسها
+function statusBadge(status: string): string {
+  const s = ORDER_STATUSES.find((x: any) => x.id === status)
+  if (!s) return `<span class="status-badge">${tx('غير معروف', 'Unknown')}</span>`
+  return `<span class="status-badge status-${status}">${icon(s.icon, { size: 13 })} ${nameOf(s)}</span>`
+}
+
+const results = computed<any[]>(() => (Array.isArray(state.statusResult) ? state.statusResult : []))
+const showTotals = computed(() => canViewOrderTotals())
 </script>
 
 <template>
   <div id="panel-order-status" class="tab-panel" :class="{ active: state.activeTab === 'order-status' }">
-    <div class="search-bar-container" style="margin-bottom: 20px; display: flex; gap: 10px;">
-      <input type="text" id="status-search-input" :placeholder="tx('ابحث برقم الفاتورة أو الهاتف...', 'Search by invoice no. or phone…')" style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border);" v-model="state.statusSearch" @keyup.enter="searchOrderStatus()">
+    <div class="search-bar-container" style="margin-bottom: 16px; display: flex; gap: 10px;">
+      <input type="text" id="status-search-input"
+        :placeholder="tx('رقم الفاتورة أو الطلب اليومي أو الهاتف أو رقم المنصّة…', 'Invoice, daily no., phone or platform no.…')"
+        style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--border);"
+        v-model="state.statusSearch" @keyup.enter="searchOrderStatus()">
       <button class="btn btn-primary" @click="searchOrderStatus()">{{ tx('بحث', 'Search') }}</button>
     </div>
     <div id="order-status-content">
@@ -23,17 +38,56 @@ import { formatCurrency } from '../utils'
       <div v-else-if="state.statusResult === null" class="empty-state">
         <div class="empty-state-icon" v-html="icon('search', { size: 48 })"></div>
         <h3 class="empty-state-title">{{ tx('لا يوجد طلب', 'No order') }}</h3>
-        <p class="empty-state-desc">{{ tx('لم يتم العثور على طلب مطابق للبحث.', 'No order matched your search.') }}</p>
+        <!-- نقول أين بحثنا: نتيجةٌ فارغة بلا نطاقٍ معلوم تُقرأ «الطلب غير موجود» وهو موجودٌ أمس -->
+        <p class="empty-state-desc">{{ tx('لا طلب مطابق في طلبات يوم العمل المفتوح.', 'No matching order in the open business day.') }}</p>
       </div>
-      <!-- نتيجة مبسّطة (متتبّع الحالة الكامل في مرحلة لاحقة) -->
-      <div v-else class="order-status-result" style="background: var(--white); padding: 18px; border-radius: var(--radius); box-shadow: var(--shadow-sm); border: 1px solid var(--border-light);">
-        <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
-          <strong>{{ tx('فاتورة', 'Invoice') }} #{{ state.statusResult.invoiceNo }}</strong>
-          <span style="font-weight:700;">{{ formatCurrency(state.statusResult.total) }}</span>
+      <!-- النتائج: كلُّها لا أوّلها، وكلُّ بطاقةٍ تفتح لوحة التفاصيل الكاملة -->
+      <div v-else class="os-list">
+        <p class="os-count">
+          {{ results.length === 1 ? tx('نتيجة واحدة', 'One result')
+             : tx(`${results.length} نتائج — الأحدث أولاً`, `${results.length} results — newest first`) }}
+        </p>
+        <div v-for="o in results" :key="o.id" class="os-card" :class="{ open: state.openOrderId === o.id }"
+          @click="viewOrderDetail(o.id, 'status')"
+          :title="tx('اضغط لعرض التفاصيل الكاملة', 'Click for full details')">
+          <div class="os-row">
+            <strong class="os-inv">{{ tx('فاتورة', 'Invoice') }} #{{ o.invoiceNo }}</strong>
+            <span v-if="showTotals" class="os-total">{{ formatCurrency(o.total) }}</span>
+          </div>
+          <!-- الحالة أوّلاً: هي سبب هذا التبويب أصلاً، وكانت لا تُعرَض إطلاقاً -->
+          <div class="os-row os-status-row">
+            <span v-html="statusBadge(o.status)"></span>
+            <span v-if="o.driverName" class="os-driver"><span v-html="icon('bike', { size: 13 })"></span> {{ o.driverName }}</span>
+            <span class="os-time">{{ formatTxnClock(o.createdAt) }}</span>
+          </div>
+          <div class="os-meta">{{ o.customerName }} — <span dir="ltr">{{ o.customerPhone }}</span></div>
+          <div class="os-meta">{{ o.branchName }} · {{ tx('طلب رقم', 'Order no.') }} {{ o.dailyNo }}</div>
         </div>
-        <div style="color:var(--text-muted); font-size:13px;">{{ state.statusResult.customerName }} — {{ state.statusResult.customerPhone }}</div>
-        <div style="margin-top:8px;">{{ state.statusResult.branchName }}</div>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.os-count { font-size: 11.5px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-bottom: 8px; }
+.os-list { display: flex; flex-direction: column; gap: 10px; }
+/* بطاقةٌ تُنقَر: نفس لغة بطاقات العناوين — حافّةٌ تتلوّن، وشريطٌ في أوّل المفتوحة */
+.os-card {
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.os-card:hover { border-color: var(--primary, #1a56db); box-shadow: 0 2px 8px rgba(15, 23, 42, .08); }
+.os-card.open { border-color: var(--primary, #1a56db); box-shadow: inset -3px 0 0 0 var(--primary, #1a56db); }
+:global([dir="ltr"]) .os-card.open { box-shadow: inset 3px 0 0 0 var(--primary, #1a56db); }
+.os-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.os-status-row { justify-content: flex-start; gap: 10px; margin: 7px 0 5px; flex-wrap: wrap; }
+.os-inv { font-size: 13.5px; }
+.os-total { font-weight: 800; font-size: 13.5px; white-space: nowrap; }
+.os-driver { display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.os-time { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-inline-start: auto; }
+.os-meta { font-size: 12px; color: var(--text-muted, #94a3b8); line-height: 1.6; }
+</style>

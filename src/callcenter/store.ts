@@ -11,6 +11,7 @@ import {
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, phoneE164,
+  contactSetCustomerBlocked,
   trueNow,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -1079,7 +1080,11 @@ function loadLiveCustomer(c: any) {
       || String(prev.phone || '') !== String(c?.phone || ''))
   if (changed) resetDraftForNewCustomer()
   else if (!prev && state.cart.length) showToast(tx('تم ربط العميل بالطلب — السلّة كما هي', 'Customer linked to this order — the cart is unchanged'), 'success')
+  // الحظر يأتي من الخادم الآن (الفرع أو الداشبورد أو مركز الاتصال) — لا علامةً محلّية
+  // تضيع مع أوّل تحديثٍ للصفحة كما كان.
+  if (c && typeof c === 'object') c.isBlacklisted = !!(c as any).isBlocked
   state.currentCustomer = c
+  state.form.blacklist = !!(c as any)?.isBlocked
   state.form.name = c.name || ''
   state.form.phone = c.phone || ''
   state.form.phone2 = ''
@@ -1310,6 +1315,34 @@ export function selectNewAddressState() {
 }
 
 /** حذفُ عنوانٍ محفوظ — صلاحيةٌ مستقلّة: الحذف لا رجعةَ فيه. */
+/** حظرُ عميل قرارٌ يمنعه من الطلب — صلاحيةٌ مستقلّة عن تعديل بياناته. */
+export function canBlockCustomer(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.block_customer')
+}
+
+/**
+ * حظرُ العميل الحالي أو فكُّه — على الخادم، لا في خانةٍ محلّية.
+ *
+ * كانت الخانة تُحفَظ في الذاكرة وحدها: لا تصل الخادم، فتضيع مع التحديث، ولا يراها
+ * الفرع ولا الداشبورد. ولا تمنع طلباً. الآن قرارٌ واحدٌ يراه الجميع ويمنع فعلاً.
+ */
+export async function toggleBlacklist(next: boolean) {
+  if (!canBlockCustomer()) { showToast(tx('لا تملك صلاحية حظر العملاء', 'You do not have permission to block customers'), 'warning'); state.form.blacklist = !next; return }
+  const cust = state.currentCustomer
+  if (!cust?.id) { showToast(tx('احفظ بيانات العميل أولاً', 'Save the customer first'), 'warning'); state.form.blacklist = !next; return }
+  if (!state.live) { cust.isBlacklisted = next; return }
+  try {
+    const r = await contactSetCustomerBlocked(Number(cust.id), next)
+    cust.isBlacklisted = !!r?.isBlocked
+    state.form.blacklist = !!r?.isBlocked
+    showToast(r?.isBlocked ? tx('تم حظر العميل — لا يمكن أخذ طلباتٍ له', 'Customer blocked — no orders can be taken')
+                           : tx('تم فكّ حظر العميل', 'Customer unblocked'), 'success')
+  } catch (err: any) {
+    state.form.blacklist = !next   // الخانة تعود لحقيقتها: لا نُظهر حظراً لم يقع
+    showToast(err?.response?.data?.message || tx('تعذّر تغيير حالة الحظر', 'Could not change the block state'), 'error')
+  }
+}
+
 export function canDeleteAddress(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('callcenter.delete_address')
 }
@@ -2469,6 +2502,8 @@ export async function reorderItems(orderId: number) {
 export function reviewOrder() {
   if (state.cart.length === 0) { showToast(tx('السلة فارغة', 'The cart is empty'), 'warning'); return }
   if (!state.currentCustomer) { showToast(tx('يرجى إضافة بيانات العميل أولاً', 'Add the customer details first'), 'warning'); return }
+  // الحظر يمنع فعلاً لا يحذّر: الخادم يرفض أيضاً، والحارسان لا يتعارضان.
+  if (state.currentCustomer.isBlacklisted) { showToast(tx('العميل محظور — لا يمكن أخذ طلبٍ له', 'Customer is blocked — no order can be taken'), 'error', 7000); return }
   if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (نقدي / كي نت / رابط)', 'Choose a payment method (Cash / KNET / Link)'), 'warning'); return }
 
   const orderBranchId = getResolvedOrderBranchId()
@@ -2547,13 +2582,34 @@ export function confirmReview() {
 // ==========================================
 // ORDER STATUS SEARCH (نقلاً عن searchOrderStatus)
 // ==========================================
+/**
+ * بحثُ «حالة الطلب» — يرجّع **كلَّ** المطابِقات، الأحدثُ أوّلاً.
+ *
+ * كان يرجّع أوّل نتيجةٍ وحدها: عميلٌ طلب مرّتين اليوم يُعرَض له طلبٌ واحد ولا يُعرَف
+ * أيُّهما. وكان يطابق برقم الفاتورة والهاتف فقط — والعميل على الهاتف يقول رقمه
+ * اليوميّ («طلب رقم ٧») أو رقمه على المنصّة، لا رقم الفاتورة.
+ *
+ * الأرقام تُوحَّد قبل المقارنة: العربية (٠١٢…) لا يعرفها `includes` مع اللاتينية،
+ * فبحثٌ برقمٍ منسوخٍ من رسالة يعود فارغاً بلا سبب ظاهر.
+ */
 export function searchOrderStatus() {
   const query = (state.statusSearch || '').trim().toLowerCase()
   if (!query) { state.statusResult = undefined; return }
-  const order = state.orders.find((o: any) =>
-    o.invoiceNo.toLowerCase() === query || o.customerPhone.includes(query)
+  const AR = '٠١٢٣٤٥٦٧٨٩'
+  const lat = (v: any) => String(v ?? '').replace(/[٠-٩]/g, (d) => String(AR.indexOf(d)))
+  const digits = lat(query).replace(/\D/g, '')
+  // القاعدتان الرقميّتان لا تُطبَّقان إلا على مُدخَلٍ رقميٍّ خالص: البحث عن «TLB-9»
+  // كان يستخرج منه ٩ فيطابق **الطلب اليوميّ رقم ٩** لعميلٍ آخر لا علاقة له بالمنصّة.
+  const numeric = /^[0-9]+$/.test(lat(query).replace(/[\s-]/g, ''))
+  const hits = state.orders.filter((o: any) =>
+    String(o.invoiceNo ?? '').toLowerCase() === query
+    || (numeric && String(o.dailyNo ?? '') === digits)
+    || String(o.orderTag ?? '').toLowerCase() === query
+    || (numeric && digits.length >= 4 && lat(o.customerPhone).replace(/\D/g, '').includes(digits))
   )
-  state.statusResult = order || null
+  // الأحدثُ أوّلاً: العميل يسأل عن آخر طلبٍ له في الغالب
+  hits.sort((a: any, b: any) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+  state.statusResult = hits.length ? hits : null
 }
 
 /**

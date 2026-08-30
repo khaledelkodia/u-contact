@@ -22,6 +22,8 @@ export const PERMS = [
   // حذف عنوانٍ من سجلّ العميل — لا رجعةَ فيه. الزرّ على شاشة أخذ الطلب فمكانه هنا،
   // ومفتاحُه مستقلٌّ عن 'create'/'edit_order': من يأخذ طلباً لا يلزمه محوُ سجلٍّ.
   { key: 'callcenter.delete_address', group: 'orders', ar: 'حذف عنوان عميل', en: 'Delete a customer address' },
+  // الحظر يمنع العميل من الطلب أصلاً — قرارٌ أثقل من تعديل بيانات، فمفتاحه مستقلّ
+  { key: 'callcenter.block_customer', group: 'orders', ar: 'حظر عميل / فكّ الحظر', en: 'Block / unblock a customer' },
   { key: 'callcenter.open', group: 'day', ar: 'فتح اليوم', en: 'Open day' },
   { key: 'callcenter.close', group: 'day', ar: 'قفل اليوم', en: 'Close day' },
   { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },

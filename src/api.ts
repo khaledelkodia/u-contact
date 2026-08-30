@@ -280,6 +280,9 @@ export const contactCustomers = (phone: string) =>
 export const contactSaveCustomer = (body: { name: string; phone: string; addressId?: number | null; regionName?: string | null; sectionName?: string | null; addressText?: string | null; block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null }) =>
   api.post('/contact/customers', body).then((r) => r.data as { id: number })
 // حذف عنوانٍ محفوظ — محروسٌ بـ`callcenter.delete_address` على الخادم
+// حظر عميل / فكّ حظره — محروسٌ بـ`callcenter.block_customer` على الخادم
+export const contactSetCustomerBlocked = (customerId: number, blocked: boolean) =>
+  api.post(`/contact/customers/${customerId}/block`, { blocked }).then((r) => r.data as { isBlocked: boolean })
 export const contactDeleteAddress = (addressId: number) =>
   api.delete(`/contact/customers/addresses/${addressId}`).then((r) => r.data)
 // مناطق التوصيل → الفرع المشتق + الرسوم
@@ -370,7 +373,7 @@ export const contactCcStoppedItems = () => api.get('/contact/lookup/cc-stopped-i
 export const contactSetCcStopped = (body: { branchId: number; productId: number; stopped: boolean }) =>
   api.post('/contact/cc-stopped-items', body).then((r) => r.data as { ok: boolean })
 export interface ContactAddress { id: number; label: string | null; region: string | null; section: string | null; address: string | null; isDefault: boolean; block: string | null; street: string | null; building: string | null; floor: string | null; apartment: string | null }
-export interface ContactCustomer { id: number; name: string; phone: string; addresses: ContactAddress[] }
+export interface ContactCustomer { id: number; name: string; phone: string; isBlocked?: boolean; blockedAt?: string | null; addresses: ContactAddress[] }
 // الحيّ — حامل الفرع والرسوم الفعليّ. `branchId` هنا محسوب على الخادم: ربطه الخاص
 // إن وُجد، وإلا ربط مدينته بالوراثة — فلا تكرّر القاعدة على الواجهة.
 export interface ContactSection { id: number; name: string; nameEn: string | null; branchId: number | null; fee: number; isFree: boolean }
