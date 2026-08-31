@@ -564,8 +564,19 @@ function buildTimeline(r: any, statusLabel: string): any[] {
   // نزول الفرع: `deliveredAt` هو وقتُه الحقيقيّ — الخادم يختمه لحظةَ **قبول الفرع**
   // للأوردر لا لحظةَ تسليمه للعميل (`sync.service`: status='delivered' = وصل الفرع).
   if (r.posOrderId) {
+    // **الرقم الذي يعرفه الفرع، لا معرّف صفّه.** كان يُعرَض `posOrderId` — معرّفٌ
+    // داخليٌّ في قاعدة الفرع (#10269) لا يجده أحدٌ هناك ولا يظهر على فاتورةٍ ولا
+    // شاشة. الرقم اليوميّ هو ما ينادي به الفرع، ثم رقم الفاتورة. وبلا أيّهما —
+    // طلبٌ قديمٌ نزل قبل أن يُرسَل الرقمان — نقول «نزل الفرع» بلا رقم: **لا رقمَ
+    // خيرٌ من رقمٍ لا يُستعمَل.** (نفسُ التصحيح وقع على أرقام القائمة وفات هذا السطر.)
+    const posNo = r.posDailyNumber ?? r.posOrderNumber ?? null
+    const what = r.posDailyNumber != null
+      ? tx('رقمه اليوميّ هناك', 'daily no. there')
+      : tx('رقم فاتورته هناك', 'invoice no. there')
     out.push({ type: 'branch', status: 'branch', at: r.deliveredAt || r.posStatusAt || null, by: tx('الفرع', 'Branch'),
-      note: tx(`نزل الفرع — رقم الطلب هناك #${r.posOrderId}`, `Reached the branch — order no. there #${r.posOrderId}`) })
+      note: posNo != null
+        ? tx(`نزل الفرع — ${what} #${posNo}`, `Reached the branch — ${what} #${posNo}`)
+        : tx('نزل الفرع', 'Reached the branch') })
   } else if (r.holdReason === 'no_branch') {
     out.push({ type: 'held', status: 'held', at: null, by: '—', note: tx('محتجَز: لا فرع يخدم المنطقة — يحتاج تعييناً يدوياً', 'On hold: no branch serves this area — needs manual assignment') })
   }
