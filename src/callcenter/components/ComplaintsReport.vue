@@ -1,7 +1,11 @@
 <script setup lang="ts">
 // تقرير الشكاوى: أعدادٌ مجمَّعة يقرؤها المشرف في نظرة — لا جدولُ صفوفٍ يُعدّ باليد.
-// الخادم يجمّع، والشاشة ترسم. الرسمُ بـSVG وCSS بلا مكتبةٍ خارجية: أربعةُ أشكالٍ
-// بسيطة لا تستحقّ ٢٠٠ كيلوبايت في الحزمة.
+// الخادم يجمّع، والشاشة ترسم. الرسمُ بـSVG بلا مكتبةٍ خارجية: ثلاثةُ أشكالٍ لا تستحقّ
+// ٢٠٠ كيلوبايت في الحزمة.
+//
+// **لونا السلسلتين (#2563eb الوارد · #16a34a المحلول) مُتحقَّقٌ منهما**: يمرّان فحوص
+// نطاق الإضاءة والتشبّع وفصلِ عمى الألوان والتباين على لوحَي النهار والليل معاً — فلا
+// يُستبدلان بالتقدير. ولا يُعتمَد اللون وحده: لكلّ سلسلةٍ مفتاحٌ مكتوب.
 import { computed, onMounted } from 'vue'
 import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel } from '../store'
 import { tx, lang } from '../lang'
@@ -12,11 +16,17 @@ const rep = computed<any>(() => state.complaintsReport)
 const countOf = (k: string) =>
   (rep.value?.byStatus || []).find((x: any) => x.key === k)?.count ?? 0
 
+function fmtHours(h: number): string {
+  if (h < 1) return tx(`${Math.round(h * 60)} دقيقة`, `${Math.round(h * 60)} min`)
+  if (h < 48) return tx(`${Math.round(h * 10) / 10} ساعة`, `${Math.round(h * 10) / 10} h`)
+  return tx(`${Math.round(h / 24)} يوم`, `${Math.round(h / 24)} d`)
+}
+
 const kpis = computed(() => {
   const r = rep.value
   if (!r) return []
-  const done = (countOf('resolved') + countOf('closed'))
-  // نسبة الحلّ على الإجماليّ — صفرٌ في المقام يعطي NaN تظهر للمستخدم
+  const done = countOf('resolved') + countOf('closed')
+  // صفرٌ في المقام يعطي NaN تظهر للمستخدم
   const rate = r.total ? Math.round((done / r.total) * 100) : 0
   return [
     { k: 'total', label: tx('إجمالي الشكاوى', 'Total complaints'), value: String(r.total), tone: 'neutral' },
@@ -33,32 +43,33 @@ const kpis = computed(() => {
   ]
 })
 
-function fmtHours(h: number): string {
-  if (h < 1) return tx(`${Math.round(h * 60)} دقيقة`, `${Math.round(h * 60)} min`)
-  if (h < 48) return tx(`${Math.round(h * 10) / 10} ساعة`, `${Math.round(h * 10) / 10} h`)
-  return tx(`${Math.round(h / 24)} يوم`, `${Math.round(h / 24)} d`)
-}
-
 // ── الحالات: حلقةٌ واحدة تقول التوزيع ───────────────────────────────────────
+// ألوانُ حالةٍ محجوزة (لا تُعاد استعمالاً لسلسلةٍ عادية)، ومعها الاسمُ مكتوباً.
 const STATUS_TONE: Record<string, string> = {
-  open: '#3b82f6', in_progress: '#f59e0b', resolved: '#16a34a', closed: '#64748b',
+  open: '#2563eb', in_progress: '#d97706', resolved: '#16a34a', closed: '#64748b',
 }
+const R = 52, CIRC = 2 * Math.PI * R
 const donut = computed(() => {
   const rows = (rep.value?.byStatus || []).filter((x: any) => x.count > 0)
   const total = rows.reduce((s: number, x: any) => s + x.count, 0)
   if (!total) return { total: 0, arcs: [] as any[] }
-  const C = 2 * Math.PI * 54          // محيط الدائرة (r=54)
   let acc = 0
   const arcs = rows.map((x: any) => {
     const frac = x.count / total
-    const arc = { key: x.key, count: x.count, frac, len: frac * C, off: -acc * C, color: STATUS_TONE[x.key] || '#94a3b8' }
+    // فجوةُ سطحٍ ٢px بين القطاعات — الحدُّ يُرى بلا خطٍّ إضافيّ
+    const gap = rows.length > 1 ? 2 : 0
+    const arc = {
+      key: x.key, count: x.count, frac,
+      len: Math.max(0, frac * CIRC - gap), off: -acc * CIRC,
+      color: STATUS_TONE[x.key] || '#64748b',
+    }
     acc += frac
     return arc
   })
   return { total, arcs }
 })
 
-// ── السلسلة اليومية: الأيام الفارغة تُملأ فالفجوة تُرى فجوةً لا تُطوى ────────
+// ── السلسلة اليومية ─────────────────────────────────────────────────────────
 const series = computed(() => {
   const rows = (rep.value?.daily || []) as any[]
   if (!rows.length) return { days: [] as any[], max: 0 }
@@ -66,35 +77,83 @@ const series = computed(() => {
   const last = new Date(rows[rows.length - 1].date + 'T00:00:00Z').getTime()
   const byDate = new Map(rows.map((r: any) => [r.date, r]))
   const days: any[] = []
-  // سقفٌ للأعمدة: مدىً طويلٌ جداً يُرسم بأيامه الواردة فقط بدل ألفِ عمودٍ بعرض صفر
+  // الأيامُ الفارغة تُملأ فتُرى الفجوة فجوةً لا تُطوى. ومدىً أطول من ثلاثة أشهر
+  // يُرسَم بأيامه الواردة فقط بدل مئاتِ الأعمدة بعرضٍ لا يُرى.
   const span = Math.round((last - first) / 864e5) + 1
-  if (span > 92) {
-    for (const r of rows) days.push({ date: r.date, total: r.total, resolved: r.resolved })
-  } else {
-    for (let t = first; t <= last; t += 864e5) {
-      const k = new Date(t).toISOString().slice(0, 10)
-      const r: any = byDate.get(k)
-      days.push({ date: k, total: r?.total ?? 0, resolved: r?.resolved ?? 0 })
-    }
+  if (span > 92) rows.forEach((r: any) => days.push({ date: r.date, total: r.total, resolved: r.resolved }))
+  else for (let t = first; t <= last; t += 864e5) {
+    const k = new Date(t).toISOString().slice(0, 10)
+    const r: any = byDate.get(k)
+    days.push({ date: k, total: r?.total ?? 0, resolved: r?.resolved ?? 0 })
   }
   return { days, max: Math.max(...days.map((d) => d.total), 1) }
 })
 
-const W = 720, H = 180, PAD = 8
-const barW = computed(() => Math.max(2, (W - PAD * 2) / Math.max(series.value.days.length, 1) - 2))
-const xAt = (i: number) => PAD + i * ((W - PAD * 2) / Math.max(series.value.days.length, 1))
-const yAt = (v: number) => H - (v / series.value.max) * (H - 24)
+// إحداثيّاتٌ حقيقية: `preserveAspectRatio` يبقى على أصله فلا تُمطّ الأعمدة عرضاً.
+const W = 760, H = 230
+const PAD = { t: 14, r: 12, b: 30, l: 34 }
+const plotW = W - PAD.l - PAD.r
+const plotH = H - PAD.t - PAD.b
+const baseY = PAD.t + plotH
 
-// تسميةُ محورٍ خفيفة: أوّلُ يومٍ وآخره ووسطُه — لا ثلاثون تاريخاً متراكبة
+// سقفٌ للمحور يصعد لأرقامٍ مستديرة، **ومعه متّسعٌ ١٥٪**: بلا المتّسع يلامس أطولُ
+// عمودٍ حافّةَ الرسم وتُقصّ تسميتُه فوقه — وهو أوّلُ رقمٍ تقع عليه العين.
+const yMax = computed(() => {
+  const m = series.value.max
+  const step = m <= 5 ? 1 : m <= 20 ? 5 : m <= 100 ? 10 : 50
+  return Math.max(step, Math.ceil((m * 1.15) / step) * step)
+})
+const ticks = computed(() => {
+  const m = yMax.value
+  const raw = [0, m / 2, m].map((v) => Math.round(v))
+  return Array.from(new Set(raw)).map((v) => ({ v, y: baseY - (v / m) * plotH }))
+})
+
+// عرضُ الخانة مسقوف: يومان لا يعنيان عمودين بعرض نصف الرسم.
+// والعمودان **يسعان خانتَهما دائماً**: حدٌّ أدنى ثابت للعرض مع مدىً طويل يجعل
+// الزوجَ أعرضَ من خانته، فيتداخل اليومان ويفيض آخرُهما عن حدّ الرسم.
+const lay = computed(() => {
+  const n = series.value.days.length || 1
+  const slot = Math.min(plotW / n, 68)
+  const gap = slot < 8 ? 1 : 2
+  const x0 = PAD.l + (plotW - slot * n) / 2
+  const barW = Math.max(1.5, Math.min(slot * 0.36, 18, (slot - gap) / 2))
+  return { slot, x0, barW, gap }
+})
+const hAt = (v: number) => (v / yMax.value) * plotH
+// طرفٌ مستديرٌ أعلى العمود وحده — القاعدة تبقى مستقيمةً على المحور
+function barPath(x: number, v: number, w: number): string {
+  const h = hAt(v)
+  if (h <= 0) return ''
+  const r = Math.min(4, w / 2, h)
+  const y = baseY - h
+  return `M${x} ${baseY} V${y + r} Q${x} ${y} ${x + r} ${y} H${x + w - r} Q${x + w} ${y} ${x + w} ${y + r} V${baseY} Z`
+}
+const slotX = (i: number) => lay.value.x0 + i * lay.value.slot
+const barsOf = (i: number) => {
+  const { slot, barW, gap } = lay.value
+  const pairW = barW * 2 + gap
+  const s = slotX(i) + (slot - pairW) / 2
+  return { xTotal: s, xRes: s + barW + gap, w: barW }
+}
+
+// تسميةُ محورٍ خفيفة: أوّلُ يومٍ ووسطُه وآخره — لا ثلاثون تاريخاً متراكبة
 const axisDays = computed(() => {
   const d = series.value.days
-  if (d.length < 2) return d.map((x: any, i: number) => ({ ...x, i }))
+  if (d.length <= 3) return d.map((x: any, i: number) => ({ ...x, i }))
   const mid = Math.floor(d.length / 2)
   return [{ ...d[0], i: 0 }, { ...d[mid], i: mid }, { ...d[d.length - 1], i: d.length - 1 }]
 })
 const shortDate = (s: string) => s.slice(5).replace('-', '/')
+// تسميةٌ مباشرة على القمّة وحدها — رقمٌ فوق كلّ عمودٍ ضجيج
+const peakIdx = computed(() => {
+  const d = series.value.days
+  let bi = -1, bv = 0
+  d.forEach((x: any, i: number) => { if (x.total > bv) { bv = x.total; bi = i } })
+  return bi
+})
 
-// ── قوائم مرتَّبة: الفئة والفرع ─────────────────────────────────────────────
+// ── قوائم مرتَّبة ───────────────────────────────────────────────────────────
 const maxOf = (rows: any[]) => Math.max(...(rows || []).map((r: any) => r.count), 1)
 const catRows = computed(() => (rep.value?.byCategory || []).slice(0, 8))
 const branchRows = computed(() => (rep.value?.byBranch || []).slice(0, 8))
@@ -106,7 +165,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 
 <template>
   <div class="cr">
-    <!-- المدى: التقرير بلا مدىً يقرأ كلَّ تاريخ الشركة، وهو نادراً ما يُراد -->
+    <!-- المرشّحات في صفٍّ واحدٍ فوق الرسوم -->
     <div class="cr-bar">
       <label class="cr-f">
         <span>{{ tx('من', 'From') }}</span>
@@ -116,11 +175,11 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
         <span>{{ tx('إلى', 'To') }}</span>
         <input type="date" v-model="state.complaintsReportTo">
       </label>
-      <button class="btn btn-primary btn-sm" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
+      <button class="btn btn-primary btn-sm cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
         {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('عرض', 'Show') }}
       </button>
       <span v-if="rep?.sampled" class="cr-warn">
-        {{ tx('المدى كبير — السلسلة والمتوسّط على أحدث ٥٠٠٠ شكوى', 'Wide range — series and average are based on the latest 5,000 complaints') }}
+        {{ tx('المدى كبير — السلسلة والمتوسّط على أحدث ٥٠٠٠ شكوى', 'Wide range — series and average use the latest 5,000 complaints') }}
       </span>
     </div>
 
@@ -132,48 +191,59 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
       <p v-if="!rep.total" class="cr-empty">{{ tx('لا شكاوى في هذا المدى', 'No complaints in this range') }}</p>
 
       <template v-else>
-        <!-- المؤشّرات -->
         <div class="cr-kpis">
           <div v-for="k in kpis" :key="k.k" class="cr-kpi" :class="'t-' + k.tone">
-            <div class="cr-kpi-v">{{ k.value }}</div>
             <div class="cr-kpi-l">{{ k.label }}</div>
+            <div class="cr-kpi-v">{{ k.value }}</div>
           </div>
         </div>
 
-        <!-- المنحنى اليوميّ + توزيع الحالات -->
         <div class="cr-grid">
-          <section class="cr-card cr-card-wide">
-            <h4 class="cr-h">{{ tx('الشكاوى يوماً بيوم', 'Complaints per day') }}</h4>
-            <svg class="cr-svg" :viewBox="`0 0 ${W} ${H}`" preserveAspectRatio="none" role="img">
-              <line :x1="PAD" :y1="H - 0.5" :x2="W - PAD" :y2="H - 0.5" class="cr-axis" />
+          <section class="cr-card">
+            <div class="cr-head">
+              <h4 class="cr-h">{{ tx('الشكاوى يوماً بيوم', 'Complaints per day') }}</h4>
+              <div class="cr-legend">
+                <span><i class="sw sw-t"></i>{{ tx('الواردة', 'Received') }}</span>
+                <span><i class="sw sw-r"></i>{{ tx('المحلولة', 'Resolved') }}</span>
+              </div>
+            </div>
+            <svg class="cr-svg" :viewBox="`0 0 ${W} ${H}`" role="img"
+                 :aria-label="tx('الشكاوى الواردة والمحلولة يوماً بيوم', 'Received and resolved complaints per day')">
+              <!-- شبكةٌ خافتة خلف المعطى لا فوقه -->
+              <g class="cr-grid-g">
+                <line v-for="t in ticks" :key="'g' + t.v" :x1="PAD.l" :y1="t.y" :x2="W - PAD.r" :y2="t.y" />
+              </g>
+              <g class="cr-tick">
+                <text v-for="t in ticks" :key="'t' + t.v" :x="PAD.l - 7" :y="t.y + 3.5">{{ t.v }}</text>
+              </g>
               <g v-for="(d, i) in series.days" :key="d.date">
-                <title>{{ d.date }} — {{ d.total }}</title>
-                <rect :x="xAt(i)" :y="yAt(d.total)" :width="barW" :height="Math.max(0, H - yAt(d.total))" class="cr-bar-t" rx="2" />
-                <!-- المحلولة داخل العمود نفسه: مقارنةٌ في مكانها لا رسمٌ ثانٍ -->
-                <rect v-if="d.resolved" :x="xAt(i)" :y="yAt(d.resolved)" :width="barW"
-                      :height="Math.max(0, H - yAt(d.resolved))" class="cr-bar-r" rx="2" />
+                <title>{{ d.date }} — {{ tx('واردة', 'received') }} {{ d.total }} · {{ tx('محلولة', 'resolved') }} {{ d.resolved }}</title>
+                <path :d="barPath(barsOf(i).xTotal, d.total, barsOf(i).w)" class="cr-b-t" />
+                <path :d="barPath(barsOf(i).xRes, d.resolved, barsOf(i).w)" class="cr-b-r" />
+                <text v-if="i === peakIdx && d.total" class="cr-peak-l"
+                      :x="barsOf(i).xTotal + barsOf(i).w / 2" :y="baseY - hAt(d.total) - 6">{{ d.total }}</text>
+              </g>
+              <line :x1="PAD.l" :y1="baseY" :x2="W - PAD.r" :y2="baseY" class="cr-axis" />
+              <g class="cr-xlab">
+                <text v-for="a in axisDays" :key="'x' + a.i"
+                      :x="slotX(a.i) + lay.slot / 2" :y="baseY + 18">{{ shortDate(a.date) }}</text>
               </g>
             </svg>
-            <div class="cr-axis-x">
-              <span v-for="a in axisDays" :key="a.i">{{ shortDate(a.date) }}</span>
-            </div>
-            <div class="cr-legend">
-              <span><i class="sw sw-t"></i>{{ tx('الواردة', 'Received') }}</span>
-              <span><i class="sw sw-r"></i>{{ tx('المحلولة', 'Resolved') }}</span>
-              <span class="cr-peak">{{ tx('الأعلى في يوم', 'Peak day') }}: {{ series.max }}</span>
-            </div>
           </section>
 
           <section class="cr-card">
             <h4 class="cr-h">{{ tx('توزيع الحالات', 'By status') }}</h4>
             <div class="cr-donut-wrap">
-              <svg class="cr-donut" viewBox="0 0 140 140" role="img">
-                <circle cx="70" cy="70" r="54" class="cr-ring" />
-                <circle v-for="a in donut.arcs" :key="a.key" cx="70" cy="70" r="54"
-                        :stroke="a.color" :stroke-dasharray="`${a.len} ${2 * Math.PI * 54}`"
-                        :stroke-dashoffset="a.off" class="cr-arc" />
-                <text x="70" y="66" class="cr-donut-n">{{ donut.total }}</text>
-                <text x="70" y="86" class="cr-donut-c">{{ tx('شكوى', 'total') }}</text>
+              <svg class="cr-donut" viewBox="0 0 130 130" role="img"
+                   :aria-label="tx('توزيع الشكاوى حسب الحالة', 'Complaints by status')">
+                <g transform="rotate(-90 65 65)">
+                  <circle cx="65" cy="65" r="52" class="cr-ring" />
+                  <circle v-for="a in donut.arcs" :key="a.key" cx="65" cy="65" :r="R"
+                          :stroke="a.color" :stroke-dasharray="`${a.len} ${CIRC}`"
+                          :stroke-dashoffset="a.off" class="cr-arc" />
+                </g>
+                <text x="65" y="62" class="cr-donut-n">{{ donut.total }}</text>
+                <text x="65" y="80" class="cr-donut-c">{{ tx('شكوى', 'total') }}</text>
               </svg>
               <ul class="cr-slist">
                 <li v-for="a in donut.arcs" :key="a.key">
@@ -187,7 +257,6 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
           </section>
         </div>
 
-        <!-- الفئة والفرع: ما الذي يتكرّر، وأين -->
         <div class="cr-grid">
           <section class="cr-card">
             <h4 class="cr-h">{{ tx('أكثر أنواع الشكاوى', 'Top complaint types') }}</h4>
@@ -213,73 +282,76 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 </template>
 
 <style scoped>
-.cr { padding: 4px 0 12px; }
+/* الوضع الليليّ لهذه الشاشة في `style.css` العامّ لا هنا: `:global(X) Y` في هذا
+   البناء يُترجَم إلى `X` **عارياً** — أي `body.dark-mode { … }` فيُطلى لوحُ الصفحة. */
+.cr { padding: 2px 0 14px; }
 
-/* ── شريط المدى ── */
-.cr-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 14px; }
-.cr-f { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+/* ── شريط المرشّحات ── */
+.cr-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
+.cr-f { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); }
 .cr-f input {
-  padding: 7px 10px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius-sm, 6px);
-  background: var(--bg-card, #fff); color: var(--text-primary, #1f2937); font-family: inherit; font-size: 12.5px;
+  padding: 8px 11px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius-sm, 6px);
+  background: var(--bg-card, #fff); color: var(--text-primary, #1f2937);
+  font-family: inherit; font-size: 12.5px; font-weight: 600; min-inline-size: 150px;
 }
+.cr-go { align-self: flex-end; }
 .cr-warn { font-size: 11px; font-weight: 700; color: var(--warning, #b45309); align-self: center; }
-.cr-empty { text-align: center; padding: 34px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.cr-empty { text-align: center; padding: 40px; font-weight: 600; color: var(--text-muted, #94a3b8); }
 
-/* ── المؤشّرات ── */
-.cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 14px; }
+/* ── المؤشّرات: العنوان أوّلاً ثم الرقم — تُقرأ سطراً لا لغزاً ── */
+.cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 14px; }
 .cr-kpi {
-  padding: 12px 14px; border-radius: var(--radius, 10px);
+  padding: 13px 15px; border-radius: var(--radius, 10px);
   border: 1px solid var(--border, #e5e7eb); background: var(--bg-card, #fff);
-  /* الشريط الجانبيّ منطقيّ فينقلب مع الاتجاه */
-  border-inline-start: 3px solid var(--text-muted, #94a3b8);
+  border-inline-start: 3px solid var(--border, #e5e7eb);   /* منطقيّ فينقلب مع الاتجاه */
 }
-.cr-kpi.t-good { border-inline-start-color: var(--success, #16a34a); }
-.cr-kpi.t-warn { border-inline-start-color: var(--warning, #f59e0b); }
-.cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.15; color: var(--text-primary, #1f2937); }
-.cr-kpi-l { margin-top: 2px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.cr-kpi.t-good { border-inline-start-color: #16a34a; }
+.cr-kpi.t-warn { border-inline-start-color: #d97706; }
+.cr-kpi-l { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); letter-spacing: .1px; }
+.cr-kpi-v { margin-top: 4px; font-size: 25px; font-weight: 800; line-height: 1.1; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
 
 /* ── البطاقات ── */
 .cr-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
-@media (min-width: 900px) { .cr-grid { grid-template-columns: 1.6fr 1fr; } }
-.cr-card { padding: 14px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius, 10px); background: var(--bg-card, #fff); min-width: 0; }
+@media (min-width: 940px) { .cr-grid { grid-template-columns: 1.7fr 1fr; } }
+.cr-card { padding: 15px 16px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius, 10px); background: var(--bg-card, #fff); min-width: 0; }
+.cr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
 .cr-h { margin: 0 0 12px; font-size: 13px; font-weight: 800; color: var(--text-primary, #1f2937); }
-
-/* ── المنحنى اليوميّ ── */
-.cr-svg { inline-size: 100%; block-size: 180px; display: block; overflow: visible; }
-.cr-axis { stroke: var(--border, #e5e7eb); stroke-width: 1; }
-.cr-bar-t { fill: var(--primary, #2563eb); opacity: 0.28; }
-.cr-bar-r { fill: var(--success, #16a34a); opacity: 0.85; }
-.cr-axis-x { display: flex; justify-content: space-between; margin-top: 4px; font-size: 10.5px; font-weight: 700; color: var(--text-muted, #94a3b8); }
-.cr-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; font-size: 11px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.cr-head .cr-h { margin: 0; }
+.cr-legend { display: flex; gap: 12px; font-size: 11px; font-weight: 700; color: var(--text-secondary, #64748b); }
 .cr-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.cr-peak { margin-inline-start: auto; }
-.sw { inline-size: 10px; block-size: 10px; border-radius: 3px; display: inline-block; flex: 0 0 auto; }
-.sw-t { background: var(--primary, #2563eb); opacity: 0.35; }
-.sw-r { background: var(--success, #16a34a); }
+.sw { inline-size: 9px; block-size: 9px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
+.sw-t { background: #2563eb; }
+.sw-r { background: #16a34a; }
+
+/* ── الرسم اليوميّ ── */
+.cr-svg { inline-size: 100%; block-size: auto; display: block; }
+.cr-grid-g line { stroke: var(--border-light, #f1f5f9); stroke-width: 1; }
+.cr-axis { stroke: var(--border, #e5e7eb); stroke-width: 1; }
+.cr-tick text { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
+.cr-xlab text { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: middle; }
+.cr-b-t { fill: #2563eb; }
+.cr-b-r { fill: #16a34a; }
+.cr-peak-l { font-size: 10.5px; font-weight: 800; fill: var(--text-secondary, #64748b); text-anchor: middle; }
 
 /* ── الحلقة ── */
-.cr-donut-wrap { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
-.cr-donut { inline-size: 140px; block-size: 140px; flex: 0 0 auto; transform: rotate(-90deg); }
-.cr-ring { fill: none; stroke: var(--border-light, #f3f4f6); stroke-width: 16; }
-.cr-arc { fill: none; stroke-width: 16; }
-/* النصّ يعود لوضعه: الحلقة مُدارةٌ ٩٠° لتبدأ من الأعلى، والرقم لا يُدار معها */
-.cr-donut-n, .cr-donut-c { text-anchor: middle; transform: rotate(90deg); transform-origin: 70px 70px; }
-.cr-donut-n { font-size: 22px; font-weight: 800; fill: var(--text-primary, #1f2937); }
-.cr-donut-c { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); }
+.cr-donut-wrap { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.cr-donut { inline-size: 130px; block-size: 130px; flex: 0 0 auto; }
+.cr-ring { fill: none; stroke: var(--border-light, #f1f5f9); stroke-width: 14; }
+.cr-arc { fill: none; stroke-width: 14; stroke-linecap: butt; }
+.cr-donut-n { text-anchor: middle; font-size: 21px; font-weight: 800; fill: var(--text-primary, #1f2937); }
+.cr-donut-c { text-anchor: middle; font-size: 9.5px; font-weight: 700; fill: var(--text-muted, #94a3b8); }
 .cr-slist { list-style: none; margin: 0; padding: 0; flex: 1; min-inline-size: 150px; }
-.cr-slist li { display: flex; align-items: center; gap: 7px; padding: 4px 0; font-size: 12px; font-weight: 700; }
+.cr-slist li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; font-weight: 700; }
+.cr-slist li + li { border-top: 1px solid var(--border-light, #f1f5f9); }
 .cr-sname { flex: 1; color: var(--text-secondary, #64748b); }
-.cr-sval { color: var(--text-primary, #1f2937); }
-.cr-spct { inline-size: 38px; text-align: end; font-size: 11px; color: var(--text-muted, #94a3b8); }
+.cr-sval { color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
+.cr-spct { inline-size: 40px; text-align: end; font-size: 11px; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
 
 /* ── الصفوف المرتَّبة ── */
-.cr-row { display: flex; align-items: center; gap: 9px; padding: 5px 0; font-size: 12.5px; }
-.cr-row-l { inline-size: 34%; font-weight: 700; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cr-row-t { flex: 1; block-size: 9px; border-radius: 999px; background: var(--border-light, #f3f4f6); overflow: hidden; }
-.cr-row-t i { display: block; block-size: 100%; background: var(--primary, #2563eb); border-radius: 999px; }
-.cr-row-v { inline-size: 42px; text-align: end; font-weight: 800; color: var(--text-primary, #1f2937); }
-
-/* الوضع الليليّ لهذه الشاشة في `style.css` العامّ لا هنا: `:global(X) Y` في هذا
-   البناء يُترجَم إلى `X` **عارياً** — أي `body.dark-mode { background: … }`،
-   فيُطلى لوحُ الصفحة كلِّه بلون البطاقة. القاعدة تُكتَب هناك مرّةً وتعمل. */
+.cr-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; }
+.cr-row + .cr-row { border-top: 1px solid var(--border-light, #f1f5f9); }
+.cr-row-l { inline-size: 36%; font-weight: 700; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-row-t { flex: 1; block-size: 8px; border-radius: 4px; background: var(--border-light, #f1f5f9); overflow: hidden; }
+.cr-row-t i { display: block; block-size: 100%; background: #2563eb; border-radius: 4px; }
+.cr-row-v { inline-size: 40px; text-align: end; font-weight: 800; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
 </style>

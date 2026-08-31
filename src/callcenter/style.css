@@ -7236,6 +7236,13 @@ body.dark-mode .cx-tab:not(.on) {
 }
 body.dark-mode .cr-row-t { background: #22304a; }
 body.dark-mode .cr-ring { stroke: #22304a; }
+/* الشبكة والفواصل ليلاً: خافتةٌ فوق اللوح الداكن لا بيضاء تشقّه */
+body.dark-mode .cr-grid-g line { stroke: #22304a; }
+body.dark-mode .cr-axis { stroke: #2a3550; }
+body.dark-mode .cr-row + .cr-row,
+body.dark-mode .cr-slist li + li { border-top-color: #22304a; }
+/* لونا السلسلتين ثابتان في الوضعين: مُتحقَّقٌ من مرورهما فحوصَ التباين وعمى
+   الألوان على لوحَي النهار والليل معاً، فلا حاجة لخطوةٍ ثانية تُضعف الفصل. */
 /* شريحة الخصم ليلاً — كانت في `<style scoped>` بصيغة `:global(body.dark-mode) X`
    فتُرجمت إلى `body.dark-mode { background: … }` **عارياً**: أي أن لوح الصفحة كلَّه
    صار بلون البطاقة في الوضع الليليّ. القاعدة تُكتَب هنا فتصيب الشريحة وحدها. */
