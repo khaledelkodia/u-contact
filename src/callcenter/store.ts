@@ -10,7 +10,7 @@ import {
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
-  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, phoneE164,
+  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164,
   contactSetCustomerBlocked, contactDiscounts,
   trueNow,
 } from '../api'
@@ -164,6 +164,10 @@ export const state = reactive<any>({
   // ── شاشة الشكاوى ──
   complaintsList: [],          // صفوف الشكاوى المعروضة
   complaintsLoading: false,
+  ccReport: null,              // تقرير تشغيل مركز الاتصال
+  ccReportBusy: false,
+  ccReportFrom: '',
+  ccReportTo: '',
   complaintsTab: 'list',       // list | report — تبويب شاشة الشكاوى
   complaintsReport: null,      // نتيجة التقرير (أعدادٌ مجمَّعة من الخادم)
   complaintsReportBusy: false,
@@ -3858,6 +3862,29 @@ export function companyDial(): string {
 export function canViewComplaints(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('complaints.view')
 }
+/** صلاحيةُ تقارير مركز الاتصال — أرقامُ الوكلاء والمبيعات ليست لكلّ من يأخذ طلباً. */
+export function canViewCcReports(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('callcenter.reports')
+}
+
+/** تحميلُ تقرير التشغيل — بالمدى المختار. */
+export async function loadCcReport() {
+  if (!state.live) { state.ccReport = null; return }
+  if (!canViewCcReports()) return
+  state.ccReportBusy = true
+  try {
+    const p: any = {}
+    if (state.ccReportFrom) p.from = state.ccReportFrom
+    if (state.ccReportTo) p.to = state.ccReportTo
+    state.ccReport = await contactCcOverview(p)
+  } catch {
+    state.ccReport = null
+    showToast(tx('تعذّر تحميل تقرير مركز الاتصال', 'Could not load the call-center report'), 'error')
+  } finally {
+    state.ccReportBusy = false
+  }
+}
+
 /** صلاحيةُ تقرير الشكاوى — مستقلّةٌ عن متابعتها: من يتابع شكوى ليس بالضرورة
   * من يرى أرقام الفروع مجمَّعةً. */
 export function canViewComplaintsReport(): boolean {

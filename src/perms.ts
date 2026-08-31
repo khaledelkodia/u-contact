@@ -48,6 +48,7 @@ export const PERMS = [
   { key: 'complaints.view', group: 'complaints', ar: 'عرض الشكاوى', en: 'View complaints' },
   { key: 'complaints.manage', group: 'complaints', ar: 'إدارة الشكاوى', en: 'Manage complaints' },
   { key: 'complaints.report', group: 'complaints', ar: 'تقرير الشكاوى', en: 'Complaints report' },
+  { key: 'callcenter.reports', group: 'callcenter', ar: 'تقارير مركز الاتصال', en: 'Call-center reports' },
 ]
 
 /** مفاتيح مجموعةٍ بعينها بترتيبها في `PERMS`. */

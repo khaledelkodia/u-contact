@@ -329,6 +329,10 @@ export const contactCreateComplaint = (body: ContactComplaintInput) =>
 // تفاصيل شكوى بتايم‑لاين تحديثاتها
 export const contactComplaint = (id: number) => api.get(`/contact/complaints/${id}`).then((r) => r.data)
 // إضافة متابعة: ملاحظة و/أو تغيير حالة (open | in_progress | resolved | closed)
+// تقرير تشغيل مركز الاتصال: الوكلاء وأوقات الذروة والفروع
+export const contactCcOverview = (params: any = {}) =>
+  api.get('/contact/reports/overview', { params }).then((r) => r.data)
+
 // تقرير الشكاوى: أعدادٌ مجمَّعة لا صفوف — الخادم يجمّعها فلا تُنقَل آلافُ الصفوف
 export const contactComplaintsReport = (params: any = {}) =>
   api.get('/contact/complaints/report', { params }).then((r) => r.data)

@@ -7254,3 +7254,64 @@ body.dark-mode .cr-slist li + li { border-top-color: #22304a; }
    فتُرجمت إلى `body.dark-mode { background: … }` **عارياً**: أي أن لوح الصفحة كلَّه
    صار بلون البطاقة في الوضع الليليّ. القاعدة تُكتَب هنا فتصيب الشريحة وحدها. */
 body.dark-mode .cart-disc-chip { background: var(--bg-card, #1e293b); }
+
+/* ══ أنماط التقارير المشتركة ═════════════════════════════════════════════════
+   تُقرأ الشاشتان كنظامٍ واحد: نفس البطاقة ونفس الرقاقة ونفس الصفّ. وتُكتَب هنا
+   مرّةً لا في كلّ مكوّن، فلا تنحرف نسخةٌ عن أختها مع أوّل تعديل. ═══════════ */
+.cr { padding: 2px 0 14px; }
+.cr-bar, .cr-kpi, .cr-card {
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, .7);
+  background: var(--bg-card, #fff);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+}
+.cr-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; padding: 14px 16px; }
+.cr-f { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
+.cr-f input {
+  padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 12px;
+  background: var(--bg-card, #fff); color: var(--text-primary, #1f2937);
+  font-family: inherit; font-size: 12.5px; font-weight: 600; min-inline-size: 150px;
+}
+.cr-go { align-self: flex-end; }
+.cr-warn { font-size: 11.5px; font-weight: 700; color: var(--warning, #b45309); align-self: center; }
+.cr-empty { text-align: center; padding: 44px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+
+.cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.cr-kpi { display: flex; align-items: center; gap: 13px; padding: 17px 18px; transition: transform .16s, box-shadow .16s; }
+.cr-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(79, 70, 229, .12); }
+.cr-chip {
+  inline-size: 46px; block-size: 46px; flex: 0 0 auto; border-radius: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 4px 10px rgba(16, 24, 40, .14);
+}
+.cr-chip.g-brand  { background: linear-gradient(135deg, #6366f1, #7c3aed); }
+.cr-chip.g-green  { background: linear-gradient(135deg, #34d399, #14b8a6); }
+.cr-chip.g-amber  { background: linear-gradient(135deg, #fbbf24, #f97316); }
+.cr-chip.g-rose   { background: linear-gradient(135deg, #fb7185, #db2777); }
+.cr-chip.g-violet { background: linear-gradient(135deg, #8b5cf6, #c026d3); }
+.cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
+.cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
+.cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
+/* شارةُ الفرق: اللون يتبع المعنى لا إشارة الرقم */
+.cr-dlt { margin-top: 3px; font-size: 11px; font-weight: 700; }
+.cr-dlt.up { color: #16a34a; }
+.cr-dlt.dn { color: #dc2626; }
+
+.cr-card { padding: 18px 20px; min-width: 0; margin-bottom: 14px; }
+.cr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.cr-h { margin: 0 0 14px; font-size: 14px; font-weight: 700; color: var(--text-primary, #1f2937); }
+.cr-head .cr-h { margin: 0; }
+.cr-foot { margin: 9px 2px 0; font-size: 10.5px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+
+.cr-svg { inline-size: 100%; block-size: auto; display: block; }
+.cr-axis { stroke: var(--border, #e5e7eb); stroke-width: 1; }
+.cr-xlab text { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: middle; }
+.cr-b-t { fill: #2563eb; }
+
+.cr-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 12.5px; border-radius: 12px; background: var(--bg, #f8fafc); }
+.cr-row + .cr-row { margin-top: 6px; }
+.cr-row-l { inline-size: 36%; font-weight: 600; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-row-t { flex: 1; block-size: 8px; border-radius: 4px; background: rgba(148, 163, 184, .22); overflow: hidden; }
+.cr-row-t i { display: block; block-size: 100%; background: linear-gradient(90deg, #6366f1, #7c3aed); border-radius: 4px; }
+.cr-row-v { inline-size: 40px; text-align: end; font-weight: 800; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
+.cr-row-x { inline-size: 92px; text-align: end; font-size: 11.5px; font-weight: 700; color: var(--text-muted, #94a3b8); white-space: nowrap; }
