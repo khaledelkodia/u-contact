@@ -1289,6 +1289,9 @@ export async function startNewOrder() {
 export function clearCartSilently() {
   state.cart = []
   state.orderNotes = ''
+  // الخصمُ المختار يخصّ سلّةً بعينها: بقاؤه بعد إفراغها يمنح العميلَ التالي
+  // خصماً لم يختره أحد — ولا يظهر للوكيل أنه سارٍ إلا في الإجماليّ.
+  state.pickedDiscountIds = []
 }
 
 export function loadCustomerData(customer: any) {
@@ -2204,6 +2207,7 @@ export async function clearCart() {
   }))) return
   state.cart = []
   state.orderNotes = ''
+  state.pickedDiscountIds = []
   logPendingEvent({ type: 'cart_cleared', note: `تم تفريغ السلة (${n} صنف)` })
 }
 
@@ -2298,6 +2302,72 @@ export function computeDiscount(): { amount: number; lines: any[] } {
     lines.push({ id: d.id, name: d.name, type: d.type, value: Number(d.value), appliesTo: d.appliesTo, amount })
   }
   return { amount: round2(Math.min(taken, subtotal)), lines }
+}
+
+const DOW_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+/**
+ * شرطُ القاعدة بكلماتٍ يقرؤها الوكيل — لا معرّفاتٍ رقميّة ولا صمت.
+ *
+ * «لا ينطبق» وحدها لا تكفي: الوكيل يحتاج أن يعرف **على ماذا ينطبق** ليقرّر —
+ * أيضيف صنفاً من الفئة المستهدَفة، أم يعتذر للعميل. والأسماء تُقصّ عند ثلاثة
+ * فما فوق: الشريحة سطرٌ لا فقرة.
+ */
+export function discountScopeText(d: any): string {
+  const cap = (arr: string[]) => (arr.length > 3
+    ? arr.slice(0, 3).join(' · ') + tx(` و${arr.length - 3} غيرها`, ` +${arr.length - 3} more`)
+    : arr.join(' · '))
+  const parts: string[] = []
+
+  if (d.appliesTo === 'category') {
+    const names: string[] = []
+    for (const id of (d.categoryIds || [])) {
+      const it = state.menuItems.find((m: any) => Number(m.subCategoryId) === Number(id))
+      if (it?.subCategoryName) names.push(nameOf({ name: it.subCategoryName, nameEn: it.subCategoryNameEn }))
+    }
+    for (const id of (d.mainCategoryIds || [])) {
+      const c = state.menuCategories.find((x: any) => Number(x.id) === Number(id))
+      if (c) names.push(nameOf(c))
+    }
+    if (names.length) parts.push(tx('على: ', 'On: ') + cap(names))
+  } else if (d.appliesTo === 'product') {
+    const names = (d.productIds || [])
+      .map((id: any) => state.menuItems.find((m: any) => Number(m.id) === Number(id)))
+      .filter(Boolean).map((it: any) => nameOf(it))
+    if (names.length) parts.push(tx('على: ', 'On: ') + cap(names))
+  }
+
+  if ((d.excludeProductIds || []).length) {
+    const ex = d.excludeProductIds
+      .map((id: any) => state.menuItems.find((m: any) => Number(m.id) === Number(id)))
+      .filter(Boolean).map((it: any) => nameOf(it))
+    if (ex.length) parts.push(tx('عدا: ', 'Except: ') + cap(ex))
+  }
+  if ((d.daysOfWeek || []).length) {
+    parts.push(tx('أيام: ', 'Days: ') + d.daysOfWeek.map((n: number) => tx(DOW_AR[n], DOW_EN[n])).join(' · '))
+  }
+  if (d.endsAt) parts.push(tx('حتى ', 'Until ') + String(d.endsAt).slice(0, 10))
+
+  // فئةٌ لا صنفَ لها في المنيو المحمَّل لا يُعرَف اسمُها — والشريحةُ الباهتة بلا سببٍ
+  // أسوأُ من غيابها. سببٌ عامٌّ خيرٌ من صمت.
+  if (!parts.length && d.appliesTo !== 'order') {
+    parts.push(d.appliesTo === 'category'
+      ? tx('على فئاتٍ محدّدة', 'On specific categories')
+      : tx('على أصنافٍ محدّدة', 'On specific items'))
+  }
+
+  return parts.join(' — ')
+}
+
+/**
+ * هل يجد نطاقُ القاعدة أصنافاً في السلّة الآن؟
+ *
+ * خصمُ فئةٍ لا يخصّ أصنافَ السلّة يعطي صفراً بحقّ — لكن عرضَه شريحةً تُضغَط وتخضرّ
+ * بلا أثرٍ يجعل الميزة تبدو معطوبة: الوكيل «طبّق» خصماً ولم ينزل شيء ولا سببَ ظاهر.
+ */
+export function discountAppliesNow(d: any): boolean {
+  return cartLinesForRule(d).length > 0
 }
 
 /** تبديلُ خصمٍ يدويّ. التلقائيّ لا يُطفأ من هنا — قرارُ الشركة لا الوكيل. */

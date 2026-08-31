@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -198,10 +198,18 @@ const resLabel = computed(() => {
       <div class="cart-disc-h">{{ tx('خصومات متاحة', 'Available discounts') }}</div>
       <div class="cart-disc-list">
         <button v-for="d in manualRules" :key="d.id" type="button"
-          class="cart-disc-chip" :class="{ on: pickedIds.includes(Number(d.id)) }"
+          class="cart-disc-chip"
+          :class="{ on: pickedIds.includes(Number(d.id)), na: !discountAppliesNow(d) }"
+          :disabled="!discountAppliesNow(d)"
+          :title="discountAppliesNow(d) ? '' : tx('لا ينطبق على أصناف السلّة الحالية', 'Does not apply to the items in the cart')"
           @click="toggleDiscount(d.id)">
-          {{ d.name }} · {{ d.type === 'percent' ? d.value + '%' : formatCurrency(d.value) }}
+          <span class="cd-t">{{ d.name }} · {{ d.type === 'percent' ? d.value + '%' : formatCurrency(d.value) }}</span>
+          <span v-if="discountScopeText(d)" class="cd-c">{{ discountScopeText(d) }}</span>
         </button>
+      </div>
+      <!-- سببٌ مكتوب لا تلميحةَ مرور: الوكيل على الهاتف لا يقف ليحوم بالفأرة -->
+      <div v-if="manualRules.some((d: any) => !discountAppliesNow(d))" class="cart-disc-na">
+        {{ tx('الشريحة الباهتة لا تنطبق على أصناف السلّة الحالية', 'A dimmed chip does not apply to the items in the cart') }}
       </div>
     </div>
     <div class="cart-summary cart-summary-compact">
@@ -272,8 +280,10 @@ const resLabel = computed(() => {
 .cart-discounts { padding: 8px 14px 0; }
 .cart-disc-h { font-size: 11px; font-weight: 800; color: var(--text-muted, #94a3b8); margin-bottom: 6px; }
 .cart-disc-list { display: flex; flex-wrap: wrap; gap: 6px; }
+/* سطران: الاسم والقيمة، ثم الشرط — فالحُقّ لم يعد قرصاً بسطرٍ واحد */
 .cart-disc-chip {
-  padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px;
+  padding: 5px 11px; border-radius: 13px; cursor: pointer; text-align: start;
   border: 1px solid var(--border, #e5e7eb); background: var(--white, #fff);
   color: var(--text-secondary, #64748b); font-family: inherit; font-size: 11.5px; font-weight: 700;
   transition: border-color .14s, background .14s, color .14s;
@@ -281,6 +291,13 @@ const resLabel = computed(() => {
 .cart-disc-chip:hover { border-color: var(--success, #16a34a); color: var(--success, #16a34a); }
 /* المختار بلون الخصم نفسه في الملخّص — فيُربَط الزرّ بأثره */
 .cart-disc-chip.on { border-color: var(--success, #16a34a); background: var(--success-light, #dcfce7); color: #14532d; }
+/* المعطَّلة: باهتةٌ وغيرُ قابلةٍ للضغط — لا تخضرّ فتوهم بأن شيئاً طُبِّق */
+.cart-disc-chip.na { opacity: 0.45; cursor: not-allowed; }
+.cart-disc-chip.na:hover { border-color: var(--border, #e5e7eb); color: var(--text-secondary, #64748b); }
+.cart-disc-na { margin-top: 6px; font-size: 10.5px; color: var(--text-muted, #94a3b8); }
+.cd-t { font-size: 11.5px; font-weight: 700; }
+/* الشرط أخفُّ من الاسم: يُقرأ عند الحاجة ولا يزاحمه */
+.cd-c { font-size: 10px; font-weight: 600; opacity: 0.8; }
 .cart-disc-row { color: var(--success, #16a34a); font-weight: 700; }
 .cart-disc-n { font-size: 11.5px; }
 .cart-disc-v { white-space: nowrap; }
