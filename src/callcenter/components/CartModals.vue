@@ -261,6 +261,10 @@ function itemMods(i: any): { name: string; price: number }[] {
             <span>{{ tx('المجموع', 'Subtotal') }}</span>
             <span class="rv-sum-v">{{ formatCurrency(review.subtotal) }}</span>
           </div>
+          <div v-for="l in (review.discount?.lines || [])" :key="l.id" class="rv-sum-row rv-disc">
+            <span>{{ tx('خصم', 'Discount') }} · {{ l.name }}</span>
+            <span class="rv-sum-v">− {{ formatCurrency(l.amount) }}</span>
+          </div>
           <div v-if="review.orderType === 'delivery'" class="rv-sum-row">
             <span>
               {{ tx('رسوم التوصيل', 'Delivery fee') }}
@@ -426,7 +430,9 @@ function itemMods(i: any): { name: string; price: number }[] {
   list-style: none; margin: 0; padding: 0;
   /* الارتفاع مثبَّت: تُظهر القائمة ما يسعها وتمرّر داخلها، فلا تدفع ما تحتها */
   flex: 0 1 auto;
-  min-height: 132px;
+  /* لا ارتفاعَ أدنى: صنفان لا يملآن ١٣٢px فتظهر فجوةٌ فارغة تحتهما توحي بأن
+     شيئاً نقص. تلتصق القائمة بمحتواها إن قلّ، ويحكمها السقفُ والتمرير إن كثر. */
+  min-height: 0;
   max-height: 44vh;
   /* الاختصار overflow كان بعدها فيدهس overflow-y ويعيدها hidden — فالقائمة
      لا تمرّر إطلاقاً وباقي الأصناف لا سبيل إليه. المحور الأفقيّ وحده يُقصّ. */
@@ -530,6 +536,9 @@ function itemMods(i: any): { name: string; price: number }[] {
   font-size: 10.5px; font-weight: 800;
 }
 /* الرقم الذي يُقرأ للعميل — لوحةٌ ملوّنة لا سطرٌ أثقل قليلاً */
+/* بلون الخصم نفسه في السلّة — الوكيل يرى الرقمَ ذاته في الشاشتين */
+.rv-disc { color: var(--success, #16a34a); font-weight: 700; }
+.rv-disc .rv-sum-v { color: var(--success, #16a34a); }
 .rv-grand {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding: 11px 13px;

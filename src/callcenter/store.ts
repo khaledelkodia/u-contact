@@ -2759,6 +2759,9 @@ export function reviewSummary(): any {
     payment: getPaymentLabel(state.paymentChannel, state.paymentMethod) || '—',
     items: state.cart,
     subtotal: getCartSubtotal(),
+    // الخصمُ يُعرَض في المراجعة كما يُعرَض في السلّة: شاشةُ التأكيد هي آخرُ ما
+    // يقرؤه الوكيل للعميل، ومجموعٌ ينزل من ٣٧٥ إلى ٣١٨٫٧٥ بلا سطرٍ يفسّره يُقرَأ خطأً.
+    discount: computeDiscount(),
     deliveryFee: getAppliedDeliveryFee(),
     feeIsOpen: deliveryFeeIsOpen(),
     total: getCartTotal(),
