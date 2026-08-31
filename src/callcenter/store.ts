@@ -11,7 +11,7 @@ import {
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, phoneE164,
-  contactSetCustomerBlocked,
+  contactSetCustomerBlocked, contactDiscounts,
   trueNow,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -45,6 +45,8 @@ export const state = reactive<any>({
   // (تُقرأ من الخادم؛ فشلُ القراءة يبقى على الاختياريّ فلا يُقفَل الطلب بخطأ شبكة).
   paymentRequired: false,
   editStages: ['sent', 'new', 'preparing'],   // مراحل السماح بالتعديل — من إعدادات الشركة
+  discountRules: [],           // قواعد الخصم الحيّة للشركة (تُفلتَر باليوم والفرع)
+  pickedDiscountIds: [],       // ما اختاره الوكيل يدوياً — التلقائيّ لا يُختار
   paymentModalOpen: false,     // مودال اختيار الدفع
   orderType: 'delivery',
   editingOrderId: null,
@@ -194,14 +196,16 @@ export async function loadLiveData() {
   if (!(session.mode === 'agent' && session.companyId)) return
   try {
     // طرق الدفع وأنواع الطلب من الشركة — فشلُها لا يُسقط الشاشة: نرتدّ لقوائم data.ts
-    const [branches, regions, products, payMethods, orderTypes, policy] = await Promise.all([
+    const [branches, regions, products, payMethods, orderTypes, policy, discounts] = await Promise.all([
       contactBranches(), contactRegions(), contactProducts(),
       contactPaymentMethods().catch(() => []),
       contactOrderTypes().catch(() => []),
       contactOrderPolicy().catch(() => ({ paymentRequired: false })),
+      contactDiscounts().catch(() => []),   // فشلُها لا يُسقط الشاشة: طلبٌ بلا خصم أهونُ من شاشةٍ لا تفتح
     ])
     state.companyPaymentMethods = Array.isArray(payMethods) ? payMethods : []
     state.paymentRequired = !!(policy as any)?.paymentRequired
+    state.discountRules = Array.isArray(discounts) ? discounts : []
     // قائمةٌ فارغة من الخادم = «لا تعديل بعد الإرسال» وهو قرارٌ صالح؛ والغياب
     // (خادمٌ أقدم) يُبقي الافتراضيّ فلا تُشلّ الشاشة عند من لم ينشر التحديث.
     const st = (policy as any)?.editStages
@@ -2214,6 +2218,96 @@ export function getEffectiveDeliveryFee(): number {
   return Number(state.deliveryFee || 0)
 }
 
+// ══ الخصومات ══════════════════════════════════════════════════════════════
+/**
+ * القواعد الصالحة لهذا الطلب: الفرع الذي سينزل عليه · يومُ الأسبوع · نافذة الصلاحية.
+ *
+ * «اليوم» بساعة حائط الشركة لا بساعة جهاز الوكيل — وكيلٌ في مصر يخدم شركةً في عُمان
+ * ليلاً يقع في يومٍ آخر، فيرى خصم الثلاثاء يوم الأربعاء أو العكس.
+ */
+export function discountsForOrder(): any[] {
+  const branchId = getResolvedOrderBranchId()
+  // ساعةُ حائط الشركة: `toCompanyWall` تُرجِع نصّاً بمكوّناتها، فنقرأ منه اليوم
+  // مباشرةً — `new Date(...)` على جهاز الوكيل كان سيعيدنا لمنطقته من جديد.
+  const wall = toCompanyWall()                       // YYYY-MM-DDTHH:mm بساعة الشركة
+  const [wy, wm, wd] = wall.slice(0, 10).split('-').map(Number)
+  const dow = new Date(Date.UTC(wy, wm - 1, wd)).getUTCDay()   // 0=الأحد … 6=السبت
+  const t = new Date(wall + ':00Z').getTime()       // للمقارنة بنافذة الصلاحية
+  return (state.discountRules || []).filter((d: any) => {
+    const scope = Array.isArray(d.scopeBranchIds) ? d.scopeBranchIds : []
+    if (scope.length && (!branchId || !scope.map(Number).includes(Number(branchId)))) return false
+    const days = Array.isArray(d.daysOfWeek) ? d.daysOfWeek : []
+    if (days.length && !days.map(Number).includes(dow)) return false
+    if (d.startsAt && t < new Date(d.startsAt).getTime()) return false
+    if (d.endsAt && t > new Date(d.endsAt).getTime()) return false
+    return true
+  })
+}
+
+/** أصنافُ السلّة التي يشملها نطاقُ القاعدة — أساسُ حساب النسبة. */
+function cartLinesForRule(d: any): any[] {
+  const has = (arr: any[], v: any) => Array.isArray(arr) && arr.map(Number).includes(Number(v))
+  if (d.appliesTo === 'order') return state.cart
+  const excl = d.excludeProductIds || []
+  if (d.appliesTo === 'product') {
+    return state.cart.filter((c: any) => {
+      if (has(excl, c.itemId)) return false
+      // أحجامٌ محدّدة: البند يوافق حجمَه هو؛ وقائمةٌ فارغة = كلُّ أحجام الصنف
+      const vOk = !(d.variantIds || []).length || has(d.variantIds, c.variantId)
+      return has(d.productIds, c.itemId) && vOk
+    })
+  }
+  // فئة: الفرعيّة أوّلاً ثم الرئيسيّة — والمستثنى يخرج مهما شملته الفئة
+  return state.cart.filter((c: any) => {
+    if (has(excl, c.itemId)) return false
+    const it = state.menuItems.find((m: any) => Number(m.id) === Number(c.itemId))
+    if (!it) return false
+    return has(d.categoryIds, it.subCategoryId) || has(d.mainCategoryIds, it.categoryId)
+  })
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * حسبةُ الخصم: التلقائيُّ ثم ما اختاره الوكيل، **بالترتيب** (`sortOrder`).
+ *
+ * التراكم يعني أن كلَّ قاعدةٍ تُحسَب على ما تبقّى بعد سابقتها لا على الأصل — وإلا
+ * تجاوز مجموعُ الخصومات قيمة الطلب. والمجموع مسقوفٌ بالمجموع الفرعيّ فلا يصير سالباً.
+ */
+export function computeDiscount(): { amount: number; lines: any[] } {
+  const subtotal = getCartSubtotal()
+  if (!subtotal || !state.cart.length) return { amount: 0, lines: [] }
+  const picked = state.pickedDiscountIds || []
+  const rules = discountsForOrder()
+    .filter((d: any) => d.isAuto || picked.map(Number).includes(Number(d.id)))
+    .sort((a: any, b: any) => (a.sortOrder - b.sortOrder) || (a.id - b.id))
+  let taken = 0
+  const lines: any[] = []
+  for (const d of rules) {
+    const scopeLines = cartLinesForRule(d)
+    if (!scopeLines.length) continue
+    const scopeSum = scopeLines.reduce((s: number, c: any) => s + c.price * c.quantity, 0)
+    // ما تبقّى من نطاق القاعدة بعد الخصومات السابقة — نسبةُ الباقي لا نسبةُ الأصل
+    const remainingAll = Math.max(0, subtotal - taken)
+    const base = Math.min(scopeSum, remainingAll)
+    if (base <= 0) continue
+    const raw = d.type === 'percent' ? base * (Number(d.value) || 0) / 100 : Number(d.value) || 0
+    const amount = round2(Math.max(0, Math.min(raw, base)))
+    if (amount <= 0) continue
+    taken = round2(taken + amount)
+    lines.push({ id: d.id, name: d.name, type: d.type, value: Number(d.value), appliesTo: d.appliesTo, amount })
+  }
+  return { amount: round2(Math.min(taken, subtotal)), lines }
+}
+
+/** تبديلُ خصمٍ يدويّ. التلقائيّ لا يُطفأ من هنا — قرارُ الشركة لا الوكيل. */
+export function toggleDiscount(id: number) {
+  const cur = state.pickedDiscountIds || []
+  state.pickedDiscountIds = cur.map(Number).includes(Number(id))
+    ? cur.filter((x: any) => Number(x) !== Number(id))
+    : [...cur, Number(id)]
+}
+
 export function getCartSubtotal(): number {
   return state.cart.reduce((sum: number, item: any) => sum + (item.price * item.quantity), 0)
 }
@@ -2227,7 +2321,8 @@ export function getAppliedDeliveryFee(): number {
 }
 
 export function getCartTotal(): number {
-  return getCartSubtotal() + getAppliedDeliveryFee()
+  // الخصم يُطرَح من الأصناف لا من الرسوم: رسمُ التوصيل خدمةٌ تُحصَّل كاملةً
+  return Math.max(0, getCartSubtotal() - computeDiscount().amount) + getAppliedDeliveryFee()
 }
 
 export function canSubmitOrder(): boolean {
@@ -2297,6 +2392,7 @@ export async function submitOrder() {
     if (rt.getTime() <= Date.now()) { showToast(tx('موعد الحجز لازم يكون في المستقبل', 'The reservation time must be in the future'), 'warning'); return }
   }
 
+  const dsc = computeDiscount()   // التلقائيّ + ما اختاره الوكيل، بالترتيب
   const body: ContactOrderInput = {
     customerPhone: phoneE164(phone, companyDial()),
     customerName: name,
@@ -2305,6 +2401,11 @@ export async function submitOrder() {
     orderTypeCode: state.selectedOrderType?.code ?? (isDelivery ? 5 : 6),
     // معرّف طريقة الدفع كما عرّفتها الشركة — لم يكن يُرسَل إطلاقاً
     paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
+    // **الخصم بمبلغه واسمه وتفصيله**: المبلغ وحده يقول «اتخصم ٢٠» ولا يقول لماذا،
+    // فلا يُراجَع ولا يُحاسَب عليه أحد. والتفصيل يُعيد بناء الحسبة في التقارير.
+    discountAmount: dsc.amount || 0,
+    discountName: dsc.lines.map((l: any) => l.name).join(' + ') || null,
+    discountBreakdown: dsc.lines.length ? dsc.lines : undefined,
     notes: (state.orderNotes || '').trim() || null,
     orderTag: (state.orderTag || '').trim() || null,
     // الفرع كان يستقبل اسماً وسعراً فقط: لا حجم ولا إضافات ولا ملاحظة الصنف —

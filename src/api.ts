@@ -285,6 +285,16 @@ export const contactSetCustomerBlocked = (customerId: number, blocked: boolean) 
   api.post(`/contact/customers/${customerId}/block`, { blocked }).then((r) => r.data as { isBlocked: boolean })
 export const contactDeleteAddress = (addressId: number) =>
   api.delete(`/contact/customers/addresses/${addressId}`).then((r) => r.data)
+// قواعد الخصم الحيّة للشركة — الواجهة تفلترها باليوم والفرع وقت التطبيق
+export interface ContactDiscount {
+  id: number; name: string; type: 'percent' | 'fixed'; value: number
+  appliesTo: 'order' | 'category' | 'product'
+  categoryIds: number[]; mainCategoryIds: number[]; productIds: number[]; variantIds: number[]
+  excludeProductIds: number[]; isAuto: boolean; sortOrder: number
+  scopeBranchIds: number[]; daysOfWeek: number[]
+  startsAt?: string | null; endsAt?: string | null
+}
+export const contactDiscounts = () => api.get('/contact/lookup/discounts').then((r) => r.data as ContactDiscount[])
 // مناطق التوصيل → الفرع المشتق + الرسوم
 export const contactRegions = () => api.get('/contact/lookup/regions').then((r) => r.data as ContactRegion[])
 // طرق الدفع وأنواع الطلب كما عرّفتها الشركة — كانت مكتوبةً في كود الواجهة
@@ -404,7 +414,7 @@ export interface ContactOrderInput {
   block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null
   branchId?: number | null; orderTypeCode?: number | null
   paymentMode: 'cash_on_delivery' | 'prepaid_online'; paymentMethodId?: number | null
-  discountAmount?: number; notes?: string | null
+  discountAmount?: number; discountName?: string | null; discountBreakdown?: any[]; notes?: string | null
   // رقم الطلب على المنصّة الخارجية (طلبات/جاهز/كاريدج…)
   orderTag?: string | null
   // حجز (طلب مجدول): وجود reservationTime ينزّل الطلب في «قائمة الحجوزات» بالفرع

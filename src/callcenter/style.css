@@ -419,10 +419,20 @@ body.dark-mode .stat-value {
   color: #60a5fa;
 }
 
-body.dark-mode .order-detail-field label,
 body.dark-mode .history-item-date,
 body.dark-mode .stat-label {
   color: #8b9ab6;
+}
+
+/* عمودُ السياق (العميل · الهاتف · الفرع · الموظّف · الرقم اليوميّ · السائق): كان
+   العنوانُ والقيمةُ بلونٍ واحدٍ باهت، فلا تُقرأ القيمة ولا تنفصل عن عنوانها.
+   العنوان يُفتَح قليلاً ليُقرَأ، والقيمة تُفتَح وتُثقَّل لتسبق العينَ إليها. */
+body.dark-mode .order-detail-field label {
+  color: #9fb0cc;
+}
+body.dark-mode .order-detail-field span {
+  color: #eef3fb;
+  font-weight: 700;
 }
 
 body.dark-mode .order-items-table th {
@@ -960,6 +970,12 @@ img {
 .sidebar-logout:hover {
   background: rgba(220, 38, 38, 0.3);
 }
+
+/* زرّ اللغة: كان يقلب ألوانه بمتغيّرَين أحدهما يُقلَب ليلاً والآخر لا، فصار
+   أبيضَ على أبيض. صار يأخذ أنماط أخيه الصحيحة، ويتميّز عنه بحدٍّ لا بانقلاب. */
+.sidebar-lang { border: 1px solid rgba(255, 255, 255, 0.28); }
+/* والأحمرُ دلالةُ الخروج وحده — لا يليق بتبديل لغة */
+.sidebar-lang:hover { background: rgba(255, 255, 255, 0.2); border-color: rgba(255, 255, 255, 0.5); }
 
 .sidebar-logout svg {
   width: 18px;

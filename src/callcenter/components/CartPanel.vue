@@ -1,11 +1,17 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
 import { t } from '../lang'
 import { icon } from '../icons'
+
+// الخصومات: المطبَّق فعلاً (تلقائيّ + ما اختاره الوكيل) وقائمةُ اليدويّ المتاح.
+// تُحسَب من السلّة نفسها فتتغيّر معها بلا زرّ «أعد الحساب».
+const dsc = computed<any>(() => computeDiscount())
+const manualRules = computed<any[]>(() => discountsForOrder().filter((d: any) => !d.isAuto))
+const pickedIds = computed<number[]>(() => (state.pickedDiscountIds || []).map(Number))
 
 const disabledItems = computed<any[]>(() => {
   const id = getResolvedOrderBranchId()
@@ -186,10 +192,28 @@ const resLabel = computed(() => {
       </div>
     </div>
 
+    <!-- خصوماتٌ يختارها الوكيل: التلقائيّ يُطبَّق وحده ولا يظهر هنا — قرارُ الشركة
+         لا قرارُ الوكيل، وعرضُه كخيارٍ يوحي بأنه يُطفأ. -->
+    <div v-if="manualRules.length && state.cart.length" class="cart-discounts">
+      <div class="cart-disc-h">{{ tx('خصومات متاحة', 'Available discounts') }}</div>
+      <div class="cart-disc-list">
+        <button v-for="d in manualRules" :key="d.id" type="button"
+          class="cart-disc-chip" :class="{ on: pickedIds.includes(Number(d.id)) }"
+          @click="toggleDiscount(d.id)">
+          {{ d.name }} · {{ d.type === 'percent' ? d.value + '%' : formatCurrency(d.value) }}
+        </button>
+      </div>
+    </div>
     <div class="cart-summary cart-summary-compact">
       <div class="summary-row">
         <span>{{ t('subtotal') }}</span>
         <span id="cart-subtotal">{{ formatCurrency(getCartSubtotal()) }}</span>
+      </div>
+      <!-- الخصم: سطرٌ لكلّ قاعدةٍ طُبِّقت باسمها ومبلغها — رقمٌ مجمَّع بلا أسماء
+           لا يُراجَع، والوكيل يُسأل «الخصم ده منين؟» فلا يعرف. -->
+      <div v-for="l in dsc.lines" :key="l.id" class="summary-row cart-disc-row">
+        <span class="cart-disc-n">{{ tx('خصم', 'Discount') }} · {{ l.name }}</span>
+        <span class="cart-disc-v">− {{ formatCurrency(l.amount) }}</span>
       </div>
       <div class="summary-row summary-row-delivery">
         <span class="summary-row-label">
@@ -245,6 +269,22 @@ const resLabel = computed(() => {
 </template>
 
 <style scoped>
+.cart-discounts { padding: 8px 14px 0; }
+.cart-disc-h { font-size: 11px; font-weight: 800; color: var(--text-muted, #94a3b8); margin-bottom: 6px; }
+.cart-disc-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.cart-disc-chip {
+  padding: 4px 9px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--border, #e5e7eb); background: var(--white, #fff);
+  color: var(--text-secondary, #64748b); font-family: inherit; font-size: 11.5px; font-weight: 700;
+  transition: border-color .14s, background .14s, color .14s;
+}
+.cart-disc-chip:hover { border-color: var(--success, #16a34a); color: var(--success, #16a34a); }
+/* المختار بلون الخصم نفسه في الملخّص — فيُربَط الزرّ بأثره */
+.cart-disc-chip.on { border-color: var(--success, #16a34a); background: var(--success-light, #dcfce7); color: #14532d; }
+.cart-disc-row { color: var(--success, #16a34a); font-weight: 700; }
+.cart-disc-n { font-size: 11.5px; }
+.cart-disc-v { white-space: nowrap; }
+:global(body.dark-mode) .cart-disc-chip { background: var(--bg-card, #1e293b); }
 /* وضع التعديل: لونٌ تحذيريّ هادئ — الوكيل لازم يعرف أنه لا ينشئ طلباً جديداً */
 .cart-edit-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;
