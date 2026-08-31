@@ -152,6 +152,7 @@ export const state = reactive<any>({
   notesModalOpen: false,       // ملاحظات الطلب
   historyModalOpen: false,     // سجل طلبات العميل
   historyOrders: [],           // نتائج السجل (من الخادم بالهاتف)
+  historyOpenId: null,         // الطلب المفتوحة تفاصيلُه في السجل
   historyLoading: false,
   reviewModalOpen: false,      // مراجعة الطلب قبل التأكيد
   reorderBusy: false,          // جارٍ إعادة طلب سابق
@@ -571,9 +572,19 @@ function mapCloudOrder(r: any): any {
     // بلا ربطِ رسوم) فيحدّدها الكاشير مع السائق — فما يقرؤه الوكيل بعدها هو الحقيقة
     // المحصَّلة لا التقدير. وقبل أن يبلّغ الفرع تبقى قيمة مركز الاتصال كما هي.
     deliveryFee: r.posDeliveryFee != null ? Number(r.posDeliveryFee) : (Number(r.deliveryFee) || 0),
-    total: r.posTotal != null ? Number(r.posTotal) + (Number(r.posDeliveryFee) || 0) : (Number(r.total) || 0),
-    // علامةٌ للعرض: هذه أرقام الفرع لا تقدير مركز الاتصال
-    figuresFromBranch: r.posTotal != null || r.posDeliveryFee != null,
+    // **إجماليُّ فرعٍ صفرٌ وللطلب أصنافٌ بقيمة = رقمٌ لم يُحسَب، لا رقمٌ حقيقيّ.**
+    // يقع في الحجوزات: ضربُ الحجز في الفرع يُنشئ طلباً جديداً ولا ينقل إليه إجماليَّ
+    // الحجز ولا رسومَه، فيُرفَع صفراً. وكان يُجمَع مع الرسوم فيُقرأ «إجماليّ الطلب
+    // ٣٠ جنيه» لطلبٍ بسبعمئة — رقمٌ يُقال للعميل. نتجاهله ونُبقي رقمَ مركز الاتصال
+    // حتى يصحّحه الفرع بإغلاقٍ حقيقيّ.
+    // والإجماليُّ يُبنى دائماً من «قيمة الأصناف + الرسم المعروض» فلا يفترق عمّا
+    // تحته: رقمُ الفرع إن صحّ، وإلا قيمةُ مركز الاتصال بلا رسمها (`total - fee`).
+    total: ((Number(r.posTotal) > 0)
+      ? Number(r.posTotal)
+      : Math.max(0, (Number(r.total) || 0) - (Number(r.deliveryFee) || 0)))
+      + (r.posDeliveryFee != null ? Number(r.posDeliveryFee) : (Number(r.deliveryFee) || 0)),
+    // علامةٌ للعرض: هذه أرقام الفرع لا تقدير مركز الاتصال — والصفرُ المرفوض ليس رقماً
+    figuresFromBranch: Number(r.posTotal) > 0 || r.posDeliveryFee != null,
     driverId: r.driverName ? -1 : null, driverName: r.driverName || null, driverPhone: '',
     // حجز: موعده يظهر في شاشة «الطلبات المجدولة»
     hasComplaint: !!state.complaintsByOrder[r.id], scheduledDate: r.reservationTime || null,
@@ -3221,7 +3232,16 @@ export async function viewOrderDetail(orderId: number, _source?: string) {
   if (state.orders[idx].itemsLoaded) return          // جُلبت قبلاً — لا نكرّر
   try {
     const d = await contactOrder(orderId)
-    const items = (d?.items || []).map((it: any) => ({
+    const items = mapOrderItems(d)
+    state.orders[idx] = { ...state.orders[idx], items, itemsLoaded: true, notes: d?.notes ?? state.orders[idx].notes }
+  } catch {
+    showToast(tx('تعذّر تحميل تفاصيل الطلب', 'Could not load the order details'), 'error')
+  }
+}
+
+/** بنودُ طلبٍ من الخادم → شكل الواجهة. مُحوِّلٌ واحد: السجلّ والتفاصيل يقرآن الشيء نفسه. */
+function mapOrderItems(d: any): any[] {
+  return (d?.items || []).map((it: any) => ({
       id: it.id,
       productId: it.productId ?? null,   // لازمٌ للتعديل — كان يسقط فيعود الصنف بلا هويّة
       variantId: it.variantId ?? null,
@@ -3236,8 +3256,33 @@ export async function viewOrderDetail(orderId: number, _source?: string) {
       quantity: Number(it.quantity) || 1,
       price: Number(it.unitPrice) || 0,
       total: Number(it.totalPrice) || 0,
-    }))
-    state.orders[idx] = { ...state.orders[idx], items, itemsLoaded: true, notes: d?.notes ?? state.orders[idx].notes }
+  }))
+}
+
+/** اسمُ الحالة بلغة الواجهة — الجداول كانت تعرض الرمز الخام (`ready`). */
+export function orderStatusLabel(id: any): string {
+  return nameOf(ORDER_STATUSES.find((x: any) => x.id === String(id))) || String(id ?? '')
+}
+
+/**
+ * فتحُ تفاصيل طلبٍ في سجلّ العميل — بنودُه تُجلَب عند أوّل فتحٍ فقط.
+ *
+ * السجلّ مصفوفةٌ مستقلّة عن قائمة الطلبات، فلا يصلح له `viewOrderDetail`: ذاك
+ * يبحث في `state.orders` ولا يجد طلباً قديماً ليس من طلبات اليوم.
+ */
+export async function toggleHistoryDetail(orderId: number) {
+  if (state.historyOpenId === orderId) { state.historyOpenId = null; return }
+  state.historyOpenId = orderId
+  const idx = state.historyOrders.findIndex((o: any) => o.id === orderId)
+  if (idx < 0 || !state.live) return
+  if (state.historyOrders[idx].itemsLoaded) return
+  try {
+    const d = await contactOrder(orderId)
+    state.historyOrders[idx] = {
+      ...state.historyOrders[idx],
+      items: mapOrderItems(d), itemsLoaded: true,
+      notes: d?.notes ?? state.historyOrders[idx].notes,
+    }
   } catch {
     showToast(tx('تعذّر تحميل تفاصيل الطلب', 'Could not load the order details'), 'error')
   }

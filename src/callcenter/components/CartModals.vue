@@ -5,7 +5,7 @@ import { ref, watch, computed, nextTick } from 'vue'
 import {
   state,
   closeOrderNotesModal, saveOrderNotes,
-  closeHistoryModal, reorderItems,
+  closeHistoryModal, reorderItems, toggleHistoryDetail, orderStatusLabel,
   closeReviewModal, confirmReview, reviewSummary,
   closeCartItemNote, saveCartItemNote, cartItemBeingNoted,
 } from '../store'
@@ -115,21 +115,45 @@ function itemMods(i: any): { name: string; price: number }[] {
         <p v-else-if="!state.historyOrders.length" style="text-align:center; padding:24px; color:var(--text-muted);">{{ tx('لا توجد طلبات سابقة لهذا العميل', 'No previous orders for this customer') }}</p>
         <table v-else class="orders-table">
           <thead>
-            <tr><th>{{ tx('التاريخ', 'Date') }}</th><th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th><th>{{ tx('الفرع', 'Branch') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th><th>{{ tx('الحالة', 'Status') }}</th><th></th></tr>
+            <tr><th>{{ tx('التاريخ', 'Date') }}</th><th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th><th>{{ tx('الفرع', 'Branch') }}</th><th>{{ tx('الموظف', 'Agent') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th><th>{{ tx('الحالة', 'Status') }}</th><th></th></tr>
           </thead>
           <tbody>
-            <tr v-for="o in state.historyOrders" :key="o.id">
+            <!-- الصفّ يفتح تفاصيله: البنود تُجلَب عند أوّل فتح. سطرٌ يقول «٢٢٢٠ دولار»
+                 ولا يقول ممّ تكوّن لا يُراجَع، و«إعادة الطلب» تُضغط على غير بصيرة. -->
+            <template v-for="o in state.historyOrders" :key="o.id">
+            <tr class="hist-row" :class="{ open: state.historyOpenId === o.id }" @click="toggleHistoryDetail(o.id)">
               <td>{{ formatDate(o.businessDate || o.createdAt) }}</td>
               <td style="font-weight:700;">#{{ o.invoiceNo }}</td>
               <td>{{ o.branchName }}</td>
+              <!-- مَن ضرب الطلب: السجلّ كان يقول ماذا طُلب ولا يقول مَن أخذه -->
+              <td>{{ o.employeeName || '—' }}</td>
               <td style="font-weight:700;">{{ formatCurrency(o.total) }}</td>
-              <td>{{ o.status }}</td>
+              <td>{{ orderStatusLabel(o.status) }}</td>
               <td>
-                <button class="btn btn-sm btn-primary" :disabled="state.reorderBusy" @click="reorderItems(o.id)">
+                <button class="btn btn-sm btn-primary" :disabled="state.reorderBusy" @click.stop="reorderItems(o.id)">
                   {{ state.reorderBusy ? '...' : tx('إعادة الطلب', 'Reorder') }}
                 </button>
               </td>
             </tr>
+            <tr v-if="state.historyOpenId === o.id" class="hist-detail">
+              <td colspan="7">
+                <div v-if="!o.itemsLoaded" class="hist-empty">{{ tx('جارٍ التحميل…', 'Loading…') }}</div>
+                <template v-else>
+                  <div v-for="(it, k) in (o.items || [])" :key="it.id ?? k" class="hist-item">
+                    <span class="hist-q">{{ it.quantity }}<small>×</small></span>
+                    <span class="hist-n">
+                      {{ nameOf(it) }}
+                      <em v-if="it.size" class="hist-sz">{{ it.size }}</em>
+                      <em v-if="it.note" class="hist-note">{{ tx('ملاحظة:', 'Note:') }} {{ it.note }}</em>
+                    </span>
+                    <span class="hist-p">{{ formatCurrency(it.total || (it.price * it.quantity)) }}</span>
+                  </div>
+                  <div v-if="!(o.items || []).length" class="hist-empty">{{ tx('لا توجد بنود مسجّلة لهذا الطلب', 'No items recorded for this order') }}</div>
+                  <div v-if="o.notes" class="hist-onote">{{ tx('ملاحظات الطلب:', 'Order notes:') }} {{ o.notes }}</div>
+                </template>
+              </td>
+            </tr>
+            </template>
           </tbody>
         </table>
         <p style="font-size:11px; color:var(--text-muted); margin-top:12px; line-height:1.7;">
@@ -292,6 +316,19 @@ function itemMods(i: any): { name: string; price: number }[] {
 </template>
 
 <style scoped>
+/* سجلّ العميل: الصفّ يُضغَط ليفتح بنودَه */
+.hist-row { cursor: pointer; }
+.hist-row.open { background: var(--primary-light, #eff6ff); }
+.hist-detail > td { padding: 10px 14px; background: var(--bg, #f8fafc); }
+.hist-item { display: flex; align-items: flex-start; gap: 10px; padding: 4px 0; font-size: 12.5px; }
+.hist-item + .hist-item { border-top: 1px dashed var(--border-light, #eef2f7); }
+.hist-q { font-weight: 800; min-width: 30px; }
+.hist-q small { font-weight: 600; opacity: 0.6; }
+.hist-n { flex: 1; font-weight: 600; }
+.hist-sz, .hist-note { display: block; font-style: normal; font-size: 11px; font-weight: 600; opacity: 0.75; }
+.hist-p { font-weight: 700; white-space: nowrap; }
+.hist-empty, .hist-onote { font-size: 11.5px; font-weight: 600; color: var(--text-muted, #94a3b8); padding: 4px 0; }
+.hist-onote { margin-top: 6px; border-top: 1px dashed var(--border-light, #eef2f7); padding-top: 6px; }
 /* ── شاشة مراجعة الطلب ───────────────────────────────────────────────────────
    كانت ثلاثَ بطاقاتٍ رماديّة متطابقة فوق بعضها: كلُّ شيءٍ بالوزن نفسه، فلا يقول
    الشكلُ ما المهمّ. صارت تسلسلاً: **مَن** (العميل) ثم **إلى أين** (الوجهة) ثم
