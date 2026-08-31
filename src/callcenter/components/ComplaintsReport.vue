@@ -1,7 +1,10 @@
 <script setup lang="ts">
 // تقرير الشكاوى: أعدادٌ مجمَّعة يقرؤها المشرف في نظرة — لا جدولُ صفوفٍ يُعدّ باليد.
-// الخادم يجمّع، والشاشة ترسم. الرسمُ بـSVG بلا مكتبةٍ خارجية: ثلاثةُ أشكالٍ لا تستحقّ
+// الخادم يجمّع، والشاشة ترسم. الرسمُ بـSVG بلا مكتبةٍ خارجية: شكلان لا يستحقّان
 // ٢٠٠ كيلوبايت في الحزمة.
+//
+// **الهيئة تحاكي تقارير داشبورد السوبر أدمن**: رقاقةٌ متدرّجة لكلّ مؤشّر، بطاقاتٌ
+// بزوايا ١٦px وظلٍّ ناعم، ومرشّحاتٌ داخل بطاقة — فالشاشتان تُقرآن كنظامٍ واحد.
 //
 // **لونا السلسلتين (#2563eb الوارد · #16a34a المحلول) مُتحقَّقٌ منهما**: يمرّان فحوص
 // نطاق الإضاءة والتشبّع وفصلِ عمى الألوان والتباين على لوحَي النهار والليل معاً — فلا
@@ -9,6 +12,7 @@
 import { computed, onMounted } from 'vue'
 import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel } from '../store'
 import { tx, lang } from '../lang'
+import { icon } from '../icons'
 
 const rep = computed<any>(() => state.complaintsReport)
 
@@ -29,16 +33,16 @@ const kpis = computed(() => {
   // صفرٌ في المقام يعطي NaN تظهر للمستخدم
   const rate = r.total ? Math.round((done / r.total) * 100) : 0
   return [
-    { k: 'total', label: tx('إجمالي الشكاوى', 'Total complaints'), value: String(r.total), tone: 'neutral' },
-    { k: 'open', label: tx('مفتوحة', 'Open'), value: String(countOf('open') + countOf('in_progress')), tone: 'warn' },
-    { k: 'done', label: tx('تم حلّها', 'Resolved'), value: String(done), tone: 'good' },
-    { k: 'rate', label: tx('نسبة الحلّ', 'Resolution rate'), value: rate + '%', tone: rate >= 70 ? 'good' : 'warn' },
+    { k: 'total', label: tx('إجمالي الشكاوى', 'Total complaints'), value: String(r.total), tone: 'brand', ico: 'clipboard-list' },
+    { k: 'open', label: tx('مفتوحة', 'Open'), value: String(countOf('open') + countOf('in_progress')), tone: 'amber', ico: 'alert-circle' },
+    { k: 'done', label: tx('تم حلّها', 'Resolved'), value: String(done), tone: 'green', ico: 'check-circle' },
+    { k: 'rate', label: tx('نسبة الحلّ', 'Resolution rate'), value: rate + '%', tone: rate >= 70 ? 'green' : 'rose', ico: 'sparkles' },
     {
       k: 'avg',
       label: tx('متوسّط زمن الحلّ', 'Avg. time to resolve'),
       // بلا شكوى محلولةٍ واحدة لا متوسّط — «٠ ساعة» كذبٌ يقرأه المشرف إنجازاً
       value: r.avgResolutionHours == null ? '—' : fmtHours(r.avgResolutionHours),
-      tone: 'neutral',
+      tone: 'violet', ico: 'clock',
     },
   ]
 })
@@ -165,7 +169,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 
 <template>
   <div class="cr">
-    <!-- المرشّحات في صفٍّ واحدٍ فوق الرسوم -->
+    <!-- المرشّحات داخل بطاقة — نفس شريط تقارير الداشبورد -->
     <div class="cr-bar">
       <label class="cr-f">
         <span>{{ tx('من', 'From') }}</span>
@@ -175,8 +179,8 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
         <span>{{ tx('إلى', 'To') }}</span>
         <input type="date" v-model="state.complaintsReportTo">
       </label>
-      <button class="btn btn-primary btn-sm cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
-        {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('عرض', 'Show') }}
+      <button class="btn btn-primary cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
+        {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
       </button>
       <span v-if="rep?.sampled" class="cr-warn">
         {{ tx('المدى كبير — السلسلة والمتوسّط على أحدث ٥٠٠٠ شكوى', 'Wide range — series and average use the latest 5,000 complaints') }}
@@ -184,7 +188,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
     </div>
 
     <p v-if="!rep && !state.complaintsReportBusy" class="cr-empty">
-      {{ tx('اختر مدىً واضغط «عرض»', 'Pick a range and press “Show”') }}
+      {{ tx('اختر مدىً واضغط «تطبيق»', 'Pick a range and press “Apply”') }}
     </p>
 
     <template v-else-if="rep">
@@ -192,16 +196,19 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 
       <template v-else>
         <div class="cr-kpis">
-          <div v-for="k in kpis" :key="k.k" class="cr-kpi" :class="'t-' + k.tone">
-            <div class="cr-kpi-l">{{ k.label }}</div>
-            <div class="cr-kpi-v">{{ k.value }}</div>
+          <div v-for="k in kpis" :key="k.k" class="cr-kpi">
+            <span class="cr-chip" :class="'g-' + k.tone" v-html="icon(k.ico, { size: 22 })"></span>
+            <span class="cr-kpi-b">
+              <span class="cr-kpi-l">{{ k.label }}</span>
+              <span class="cr-kpi-v">{{ k.value }}</span>
+            </span>
           </div>
         </div>
 
         <div class="cr-grid">
           <section class="cr-card">
             <div class="cr-head">
-              <h4 class="cr-h">{{ tx('الشكاوى يوماً بيوم', 'Complaints per day') }}</h4>
+              <h3 class="cr-h">{{ tx('الشكاوى يوماً بيوم', 'Complaints per day') }}</h3>
               <div class="cr-legend">
                 <span><i class="sw sw-t"></i>{{ tx('الواردة', 'Received') }}</span>
                 <span><i class="sw sw-r"></i>{{ tx('المحلولة', 'Resolved') }}</span>
@@ -232,7 +239,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
           </section>
 
           <section class="cr-card">
-            <h4 class="cr-h">{{ tx('توزيع الحالات', 'By status') }}</h4>
+            <h3 class="cr-h">{{ tx('توزيع الحالات', 'By status') }}</h3>
             <div class="cr-donut-wrap">
               <svg class="cr-donut" viewBox="0 0 130 130" role="img"
                    :aria-label="tx('توزيع الشكاوى حسب الحالة', 'Complaints by status')">
@@ -259,7 +266,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 
         <div class="cr-grid">
           <section class="cr-card">
-            <h4 class="cr-h">{{ tx('أكثر أنواع الشكاوى', 'Top complaint types') }}</h4>
+            <h3 class="cr-h">{{ tx('أكثر أنواع الشكاوى', 'Top complaint types') }}</h3>
             <div v-for="r in catRows" :key="r.key" class="cr-row">
               <span class="cr-row-l">{{ complaintCategoryLabel(r.key) }}</span>
               <span class="cr-row-t"><i :style="{ inlineSize: (r.count / maxOf(catRows)) * 100 + '%' }"></i></span>
@@ -268,7 +275,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
           </section>
 
           <section class="cr-card">
-            <h4 class="cr-h">{{ tx('الشكاوى حسب الفرع', 'By branch') }}</h4>
+            <h3 class="cr-h">{{ tx('الشكاوى حسب الفرع', 'By branch') }}</h3>
             <div v-for="r in branchRows" :key="String(r.branchId)" class="cr-row">
               <span class="cr-row-l">{{ branchName(r) }}</span>
               <span class="cr-row-t"><i :style="{ inlineSize: (r.count / maxOf(branchRows)) * 100 + '%' }"></i></span>
@@ -286,38 +293,52 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
    البناء يُترجَم إلى `X` **عارياً** — أي `body.dark-mode { … }` فيُطلى لوحُ الصفحة. */
 .cr { padding: 2px 0 14px; }
 
+/* ── سطحٌ واحد لكلّ البطاقات: زوايا ١٦px وحدٌّ خافت وظلٌّ ناعم ── */
+.cr-bar, .cr-kpi, .cr-card {
+  border-radius: 16px;
+  border: 1px solid rgba(226, 232, 240, .7);
+  background: var(--bg-card, #fff);
+  box-shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 1px 3px rgba(16, 24, 40, .1);
+}
+
 /* ── شريط المرشّحات ── */
-.cr-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin-bottom: 16px; }
-.cr-f { display: flex; flex-direction: column; gap: 5px; font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); }
+.cr-bar { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; margin-bottom: 16px; padding: 14px 16px; }
+.cr-f { display: flex; flex-direction: column; gap: 5px; font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-f input {
-  padding: 8px 11px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius-sm, 6px);
+  padding: 9px 12px; border: 1px solid #cbd5e1; border-radius: 12px;
   background: var(--bg-card, #fff); color: var(--text-primary, #1f2937);
   font-family: inherit; font-size: 12.5px; font-weight: 600; min-inline-size: 150px;
 }
 .cr-go { align-self: flex-end; }
-.cr-warn { font-size: 11px; font-weight: 700; color: var(--warning, #b45309); align-self: center; }
-.cr-empty { text-align: center; padding: 40px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.cr-warn { font-size: 11.5px; font-weight: 700; color: var(--warning, #b45309); align-self: center; }
+.cr-empty { text-align: center; padding: 44px; font-weight: 600; color: var(--text-muted, #94a3b8); }
 
-/* ── المؤشّرات: العنوان أوّلاً ثم الرقم — تُقرأ سطراً لا لغزاً ── */
-.cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(148px, 1fr)); gap: 10px; margin-bottom: 14px; }
-.cr-kpi {
-  padding: 13px 15px; border-radius: var(--radius, 10px);
-  border: 1px solid var(--border, #e5e7eb); background: var(--bg-card, #fff);
-  border-inline-start: 3px solid var(--border, #e5e7eb);   /* منطقيّ فينقلب مع الاتجاه */
+/* ── المؤشّرات: رقاقةٌ متدرّجة ثم تسمية ورقم — تشريحُ `StatCard` نفسه ── */
+.cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
+.cr-kpi { display: flex; align-items: center; gap: 13px; padding: 17px 18px; transition: transform .16s, box-shadow .16s; }
+.cr-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(79, 70, 229, .12); }
+.cr-chip {
+  inline-size: 46px; block-size: 46px; flex: 0 0 auto; border-radius: 15px;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: #fff; box-shadow: 0 4px 10px rgba(16, 24, 40, .14);
 }
-.cr-kpi.t-good { border-inline-start-color: #16a34a; }
-.cr-kpi.t-warn { border-inline-start-color: #d97706; }
-.cr-kpi-l { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); letter-spacing: .1px; }
-.cr-kpi-v { margin-top: 4px; font-size: 25px; font-weight: 800; line-height: 1.1; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
+.g-brand  { background: linear-gradient(135deg, #6366f1, #7c3aed); }
+.g-green  { background: linear-gradient(135deg, #34d399, #14b8a6); }
+.g-amber  { background: linear-gradient(135deg, #fbbf24, #f97316); }
+.g-rose   { background: linear-gradient(135deg, #fb7185, #db2777); }
+.g-violet { background: linear-gradient(135deg, #8b5cf6, #c026d3); }
+.cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
+.cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
+.cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
 
 /* ── البطاقات ── */
-.cr-grid { display: grid; grid-template-columns: 1fr; gap: 12px; margin-bottom: 12px; }
+.cr-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
 @media (min-width: 940px) { .cr-grid { grid-template-columns: 1.7fr 1fr; } }
-.cr-card { padding: 15px 16px; border: 1px solid var(--border, #e5e7eb); border-radius: var(--radius, 10px); background: var(--bg-card, #fff); min-width: 0; }
-.cr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
-.cr-h { margin: 0 0 12px; font-size: 13px; font-weight: 800; color: var(--text-primary, #1f2937); }
+.cr-card { padding: 18px 20px; min-width: 0; }
+.cr-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+.cr-h { margin: 0 0 14px; font-size: 14px; font-weight: 700; color: var(--text-primary, #1f2937); }
 .cr-head .cr-h { margin: 0; }
-.cr-legend { display: flex; gap: 12px; font-size: 11px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.cr-legend { display: flex; gap: 12px; font-size: 11.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .sw { inline-size: 9px; block-size: 9px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
 .sw-t { background: #2563eb; }
@@ -341,17 +362,17 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 .cr-donut-n { text-anchor: middle; font-size: 21px; font-weight: 800; fill: var(--text-primary, #1f2937); }
 .cr-donut-c { text-anchor: middle; font-size: 9.5px; font-weight: 700; fill: var(--text-muted, #94a3b8); }
 .cr-slist { list-style: none; margin: 0; padding: 0; flex: 1; min-inline-size: 150px; }
-.cr-slist li { display: flex; align-items: center; gap: 8px; padding: 5px 0; font-size: 12px; font-weight: 700; }
-.cr-slist li + li { border-top: 1px solid var(--border-light, #f1f5f9); }
+.cr-slist li { display: flex; align-items: center; gap: 8px; padding: 6px 0; font-size: 12.5px; font-weight: 600; }
+.cr-slist li + li { border-top: 1px solid rgba(226, 232, 240, .7); }
 .cr-sname { flex: 1; color: var(--text-secondary, #64748b); }
-.cr-sval { color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
-.cr-spct { inline-size: 40px; text-align: end; font-size: 11px; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
+.cr-sval { color: var(--text-primary, #1f2937); font-weight: 700; font-variant-numeric: tabular-nums; }
+.cr-spct { inline-size: 40px; text-align: end; font-size: 11.5px; color: var(--text-muted, #94a3b8); font-variant-numeric: tabular-nums; }
 
-/* ── الصفوف المرتَّبة ── */
-.cr-row { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-size: 12.5px; }
-.cr-row + .cr-row { border-top: 1px solid var(--border-light, #f1f5f9); }
-.cr-row-l { inline-size: 36%; font-weight: 700; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cr-row-t { flex: 1; block-size: 8px; border-radius: 4px; background: var(--border-light, #f1f5f9); overflow: hidden; }
-.cr-row-t i { display: block; block-size: 100%; background: #2563eb; border-radius: 4px; }
+/* ── الصفوف المرتَّبة: خلفيةٌ خفيفة كصفوف الداشبورد ── */
+.cr-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; font-size: 12.5px; border-radius: 12px; background: var(--bg, #f8fafc); }
+.cr-row + .cr-row { margin-top: 6px; }
+.cr-row-l { inline-size: 36%; font-weight: 600; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-row-t { flex: 1; block-size: 8px; border-radius: 4px; background: rgba(148, 163, 184, .22); overflow: hidden; }
+.cr-row-t i { display: block; block-size: 100%; background: linear-gradient(90deg, #6366f1, #7c3aed); border-radius: 4px; }
 .cr-row-v { inline-size: 40px; text-align: end; font-weight: 800; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
 </style>

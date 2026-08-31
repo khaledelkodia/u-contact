@@ -7227,13 +7227,19 @@ body.dark-mode .sched-chip { color: #d8b4fe; background: #3b0764; border-color: 
 /* ── تقرير الشكاوى: الوضع الليليّ ─────────────────────────────────────────
    هنا لا في `<style scoped>` الخاصّ بالمكوّن: `:global(X) Y` هناك يُترجَم إلى
    `X` عارياً فيطلي الصفحة كلَّها. */
+body.dark-mode .cr-bar,
 body.dark-mode .cr-card,
 body.dark-mode .cr-kpi,
 body.dark-mode .cr-f input,
 body.dark-mode .cx-tab:not(.on) {
   background: #182235;
   border-color: #2a3550;
+  /* الظلّ الفاتح لا يُرى على لوحٍ داكن — يُستبدَل بظلٍّ أعمق يفصل البطاقة عنه */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .35);
 }
+body.dark-mode .cr-kpi:hover { box-shadow: 0 8px 26px rgba(0, 0, 0, .45); }
+body.dark-mode .cr-row { background: #131c2c; }
+body.dark-mode .cr-slist li + li { border-top-color: #2a3550; }
 body.dark-mode .cr-row-t { background: #22304a; }
 body.dark-mode .cr-ring { stroke: #22304a; }
 /* الشبكة والفواصل ليلاً: خافتةٌ فوق اللوح الداكن لا بيضاء تشقّه */
