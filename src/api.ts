@@ -415,6 +415,8 @@ export interface ContactOrderInput {
   branchId?: number | null; orderTypeCode?: number | null
   paymentMode: 'cash_on_delivery' | 'prepaid_online'; paymentMethodId?: number | null
   discountAmount?: number; discountName?: string | null; discountBreakdown?: any[]; notes?: string | null
+  // سجلّ عمليات الوكيل على السلّة — يُخزَّن مع الطلب ويظهر في خطّه الزمنيّ
+  events?: any[]
   // رقم الطلب على المنصّة الخارجية (طلبات/جاهز/كاريدج…)
   orderTag?: string | null
   // حجز (طلب مجدول): وجود reservationTime ينزّل الطلب في «قائمة الحجوزات» بالفرع

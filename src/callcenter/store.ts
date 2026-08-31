@@ -491,6 +491,62 @@ function mapPosStatus(s: string, driverStatus?: string): string {
  * نبني هنا من الحقول الواصلة فقط — **بلا اختراع توقيت**: خطوةٌ بلا وقت لا تُعرَض،
  * فلا يقرأ الوكيل زمناً غير حقيقي.
  */
+/**
+ * نصُّ حدثِ الوكيل بلغة القارئ.
+ *
+ * الحدث يُخزَّن مفكَّكاً (نوع · اسم صنف · أرقام) لا جملةً جاهزة: الجملةُ تُبنى هنا
+ * فتتبع لغةَ الواجهة. و`note` المخزَّن ارتدادٌ للصفوف التي كُتبت قبل هذا التفكيك.
+ */
+/**
+ * قيودُ الوكيل → أسطرَ خطٍّ زمنيّ.
+ *
+ * تُستعمَل في موضعين: بناءِ الطلب من القائمة (حيث لا يأتي السجلّ فلا تُنتج شيئاً)،
+ * وعند **فتح الطلب** حيث يصل السجلّ كاملاً فتُدمَج أسطرُه في خطّه الزمنيّ.
+ */
+function agentEventRows(events: any, agentName?: string): any[] {
+  const rows: any[] = []
+  for (const e of (Array.isArray(events) ? events : [])) {
+    if (!e?.at) continue
+    rows.push({
+      type: String(e.type || 'agent'), status: String(e.type || 'agent'), at: e.at,
+      by: e.by || agentName || tx('مركز الاتصال', 'Call center'),
+      note: agentEventText(e),
+      // اسمُ الصنف يمرّ كما هو: عنوانُ السطر في مودال السجلّ يُبنى منه
+      itemName: e.itemName || '',
+    })
+  }
+  return rows
+}
+
+/** دمجُ قيودٍ في خطٍّ زمنيّ قائم — الأقدمُ أوّلاً، وبلا تكرارٍ لقيدٍ سبق دمجُه. */
+function mergeTimeline(base: any[], extra: any[]): any[] {
+  const seen = new Set((base || []).map((x: any) => `${x.type}|${x.at}|${x.itemName || ''}`))
+  const add = (extra || []).filter((x: any) => !seen.has(`${x.type}|${x.at}|${x.itemName || ''}`))
+  return [...(base || []), ...add].sort((a, b) =>
+    (a.at && b.at ? new Date(a.at).getTime() - new Date(b.at).getTime() : 0))
+}
+
+function agentEventText(e: any): string {
+  const n = String(e?.itemName || '')
+  const q = Number(e?.num), pv = Number(e?.prevQty), nw = Number(e?.newQty)
+  const t = String(e?.text || '')
+  switch (String(e?.type || '')) {
+    case 'item_added':
+      return Number.isFinite(q) ? tx(`إضافة ${q} × ${n}`, `Added ${q} × ${n}`) : tx(`إضافة ${n}`, `Added ${n}`)
+    case 'item_removed': return tx(`حذف صنف: ${n}`, `Removed item: ${n}`)
+    case 'item_qty_up': return tx(`زيادة كمية ${n}: ${pv} ← ${nw}`, `Increased ${n} qty: ${pv} → ${nw}`)
+    case 'item_qty_down': return tx(`تقليل كمية ${n}: ${pv} ← ${nw}`, `Decreased ${n} qty: ${pv} → ${nw}`)
+    case 'item_edited':
+      return t ? tx(`ملاحظة على ${n}: ${t}`, `Note on ${n}: ${t}`)
+        : tx(`تعديل ${n}`, `Edited ${n}`)
+    case 'cart_cleared':
+      return Number.isFinite(q) ? tx(`تفريغ السلة (${q} صنف)`, `Cart cleared (${q} items)`) : tx('تفريغ السلة', 'Cart cleared')
+    case 'discount_on': return tx(`تطبيق خصم: ${n}`, `Discount applied: ${n}`)
+    case 'discount_off': return tx(`إلغاء خصم: ${n}`, `Discount removed: ${n}`)
+    default: return String(e?.note || n || '')
+  }
+}
+
 function buildTimeline(r: any, statusLabel: string): any[] {
   const out: any[] = []
   const push = (type: string, at: any, by: string, note: string) => {
@@ -499,6 +555,11 @@ function buildTimeline(r: any, statusLabel: string): any[] {
   }
 
   push('created', r.createdAt, r.agentName || tx('مركز الاتصال', 'Call center'), tx('إنشاء الطلب من مركز الاتصال', 'Order created from the call center'))
+
+  // عملياتُ الوكيل في السلّة (إضافة · حذف · كمّية · ملاحظة …) كما سجّلتها الشاشة
+  // وحفظها الخادم مع الطلب. كانت تُجمَع محلّياً ثم تُرمى، فيبقى الخطّ الزمنيّ أربعةَ
+  // أسطرٍ تقول ماذا صار بالطلب ولا تقول ماذا فعل الوكيل به.
+  out.push(...agentEventRows(r.ccEvents, r.agentName))
 
   // نزول الفرع: `deliveredAt` هو وقتُه الحقيقيّ — الخادم يختمه لحظةَ **قبول الفرع**
   // للأوردر لا لحظةَ تسليمه للعميل (`sync.service`: status='delivered' = وصل الفرع).
@@ -2136,7 +2197,7 @@ export function addToCart(item: any, opts: any = {}) {
         extrasPrice,
         note: itemNote,
       }
-      logPendingEvent({ type: 'item_edited', itemName: item.name, note: `تعديل ${item.name}` })
+      logPendingEvent({ type: 'item_edited', itemName: item.name })
     }
     state.editingCartItemId = null
     showToast(tx(`تم تعديل ${item.name}`, `${item.name} updated`), 'success')
@@ -2157,7 +2218,7 @@ export function addToCart(item: any, opts: any = {}) {
 
   if (existingItemIndex > -1) {
     state.cart[existingItemIndex].quantity += qty
-    logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: state.cart[existingItemIndex].quantity, note: `إضافة ${qty} × ${item.name}` })
+    logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: state.cart[existingItemIndex].quantity })
   } else {
     state.cart.push({
       cartItemId: Date.now().toString(),
@@ -2175,7 +2236,7 @@ export function addToCart(item: any, opts: any = {}) {
       extrasPrice,
       note: itemNote,
     })
-    logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: qty, note: `إضافة ${qty} × ${item.name}` })
+    logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: qty })
   }
   // `silent`: إعادة الطلب تضيف عدة أصناف دفعةً واحدة — توست لكل صنف يغرق الشاشة
   if (!opts.silent) showToast(tx(`تم إضافة ${item.name} للسلة`, `${item.name} added to the cart`), 'success')
@@ -2191,7 +2252,7 @@ export function updateCartItemQty(cartItemId: string, change: number) {
     state.cart.splice(itemIndex, 1)
     logPendingEvent({ type: 'item_removed', itemName: item.name, note: `حذف صنف: ${item.name}` })
   } else {
-    logPendingEvent({ type: change > 0 ? 'item_qty_up' : 'item_qty_down', itemName: item.name, prevQty, newQty: item.quantity, note: `${change > 0 ? 'زيادة' : 'تقليل'} كمية ${item.name}: ${prevQty} → ${item.quantity}` })
+    logPendingEvent({ type: change > 0 ? 'item_qty_up' : 'item_qty_down', itemName: item.name, prevQty, newQty: item.quantity })
   }
 }
 
@@ -2224,7 +2285,7 @@ export async function clearCart() {
   state.cart = []
   state.orderNotes = ''
   state.pickedDiscountIds = []
-  logPendingEvent({ type: 'cart_cleared', note: `تم تفريغ السلة (${n} صنف)` })
+  logPendingEvent({ type: 'cart_cleared', qtyAdded: n })
 }
 
 // ==========================================
@@ -2389,9 +2450,13 @@ export function discountAppliesNow(d: any): boolean {
 /** تبديلُ خصمٍ يدويّ. التلقائيّ لا يُطفأ من هنا — قرارُ الشركة لا الوكيل. */
 export function toggleDiscount(id: number) {
   const cur = state.pickedDiscountIds || []
-  state.pickedDiscountIds = cur.map(Number).includes(Number(id))
+  const on = cur.map(Number).includes(Number(id))
+  state.pickedDiscountIds = on
     ? cur.filter((x: any) => Number(x) !== Number(id))
     : [...cur, Number(id)]
+  // الخصمُ قرارٌ ماليّ للوكيل — يُسجَّل كما تُسجَّل الأصناف
+  const d = (state.discountRules || []).find((x: any) => Number(x.id) === Number(id))
+  logPendingEvent({ type: on ? 'discount_off' : 'discount_on', itemName: String(d?.name ?? id) })
 }
 
 export function getCartSubtotal(): number {
@@ -2494,6 +2559,9 @@ export async function submitOrder() {
     discountBreakdown: dsc.lines.length ? dsc.lines : undefined,
     notes: (state.orderNotes || '').trim() || null,
     orderTag: (state.orderTag || '').trim() || null,
+    // سجلّ ما فعله الوكيل في هذه المكالمة — كان يُجمَع ثم يُرمى عند التصفير
+    events: Array.isArray(state.pendingOrderEvents) && state.pendingOrderEvents.length
+      ? state.pendingOrderEvents : undefined,
     // الفرع كان يستقبل اسماً وسعراً فقط: لا حجم ولا إضافات ولا ملاحظة الصنف —
     // فيصل «فراخ مشوية» بلا «صوص باربيكيو» و«بدون بصل»، والسعر وحده يشي بأن شيئاً
     // اختير. القاعدة تحمل الحقول أصلاً (`OnlineOrderItem`) ولم تكن تُملأ.
@@ -2584,10 +2652,7 @@ export function saveCartItemNote(text: string) {
   const t = (text || '').trim()
   if (t === (ci.note || '')) return          // بلا تغيير: لا توست ولا سطر في السجلّ
   ci.note = t
-  logPendingEvent({
-    type: 'item_edited', itemName: ci.name,
-    note: t ? `ملاحظة على ${ci.name}: ${t}` : `مسح ملاحظة ${ci.name}`,
-  })
+  logPendingEvent({ type: 'item_edited', itemName: ci.name, text: t || undefined })
   showToast(t ? tx('تم حفظ الملاحظة', 'Note saved') : tx('تم مسح الملاحظة', 'Note cleared'), 'success')
 }
 
@@ -3233,7 +3298,10 @@ export async function viewOrderDetail(orderId: number, _source?: string) {
   try {
     const d = await contactOrder(orderId)
     const items = mapOrderItems(d)
-    state.orders[idx] = { ...state.orders[idx], items, itemsLoaded: true, notes: d?.notes ?? state.orders[idx].notes }
+    // السجلّ يصل مع الطلب المفرد وحده (القائمة لا تحمله) — يُدمَج هنا
+    const statusHistory = mergeTimeline(state.orders[idx].statusHistory,
+      agentEventRows(d?.ccEvents, state.orders[idx].employeeName))
+    state.orders[idx] = { ...state.orders[idx], items, itemsLoaded: true, statusHistory, notes: d?.notes ?? state.orders[idx].notes }
   } catch {
     showToast(tx('تعذّر تحميل تفاصيل الطلب', 'Could not load the order details'), 'error')
   }
@@ -3532,6 +3600,9 @@ export async function saveOrderEdit() {
       paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
       notes: (state.orderNotes || '').trim() || null,
       orderTag: (state.orderTag || '').trim() || null,
+      // عملياتُ جلسة التعديل — الخادم يُلحقها بسجلّ الطلب لا يستبدله
+      events: Array.isArray(state.pendingOrderEvents) && state.pendingOrderEvents.length
+        ? state.pendingOrderEvents : undefined,
       items: state.cart.map((i: any) => ({
         productId: i.itemId,
         productName: i.name,
@@ -3668,6 +3739,10 @@ export function getTransactionMeta(entry: any): any {
       return { icon: 'edit', title: tx(`تعديل صنف: ${entry.itemName || ''}`, `Item edited: ${entry.itemName || ''}`), bg: 'rgba(139, 92, 246, 0.14)', color: '#6d28d9' }
     case 'cart_cleared':
       return { icon: 'broom', title: tx('تفريغ السلة', 'Cart cleared'), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
+    case 'discount_on':
+      return { icon: 'tag', title: tx(`تطبيق خصم: ${entry.itemName || ''}`, `Discount applied: ${entry.itemName || ''}`), bg: 'rgba(16, 185, 129, 0.12)', color: '#047857' }
+    case 'discount_off':
+      return { icon: 'tag', title: tx(`إلغاء خصم: ${entry.itemName || ''}`, `Discount removed: ${entry.itemName || ''}`), bg: 'rgba(245, 158, 11, 0.14)', color: '#b45309' }
     case 'driver_assigned':
       return { icon: 'bike', title: tx(`تحميل على السائق: ${entry.driverName || ''}`, `Handed to driver: ${entry.driverName || ''}`), bg: 'rgba(6, 182, 212, 0.14)', color: '#0e7490' }
     case 'driver_unassigned':
