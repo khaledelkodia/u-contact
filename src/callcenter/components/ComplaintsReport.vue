@@ -26,6 +26,38 @@ function fmtHours(h: number): string {
   return tx(`${Math.round(h / 24)} يوم`, `${Math.round(h / 24)} d`)
 }
 
+// فرقُ المدى السابق: الرقمُ وحده لا يقول أتحسّنّا أم ساءت الحال.
+// و«الأفضل» يختلف باختلاف المؤشّر: شكاوى أقلّ خيرٌ، وزمنُ حلٍّ أقصرُ خيرٌ —
+// فاللونُ يتبع المعنى لا إشارةَ الرقم.
+function delta(now: number | null, before: number | null, lowerIsBetter = true) {
+  if (now == null || before == null || !before) return null
+  const pct = Math.round(((now - before) / before) * 100)
+  if (pct === 0) return { pct, dir: 0, good: true }
+  return { pct, dir: pct > 0 ? 1 : -1, good: lowerIsBetter ? pct < 0 : pct > 0 }
+}
+const dTotal = computed(() => delta(rep.value?.total ?? null, rep.value?.prev?.total ?? null))
+const dAvg = computed(() => delta(rep.value?.avgResolutionHours ?? null, rep.value?.prev?.avgResolutionHours ?? null))
+
+const PRIO: Record<string, { ar: string; en: string; c: string }> = {
+  urgent: { ar: 'عاجلة', en: 'Urgent', c: '#dc2626' },
+  high: { ar: 'عالية', en: 'High', c: '#d97706' },
+  normal: { ar: 'عادية', en: 'Normal', c: '#2563eb' },
+  low: { ar: 'منخفضة', en: 'Low', c: '#64748b' },
+}
+const prioLabel = (k: string) => (PRIO[k] ? tx(PRIO[k].ar, PRIO[k].en) : k)
+const prioColor = (k: string) => PRIO[k]?.c || '#64748b'
+const prioRows = computed(() => {
+  const order = ['urgent', 'high', 'normal', 'low']
+  return (rep.value?.byPriority || []).slice().sort(
+    (a: any, b: any) => order.indexOf(a.key) - order.indexOf(b.key))
+})
+
+// عمرُ المفتوحة — ما يُعمَل به اليوم
+const aging = computed<any>(() => rep.value?.aging || { d0: 0, d1: 0, d3: 0 })
+const openTotal = computed(() => aging.value.d0 + aging.value.d1 + aging.value.d3)
+const oldest = computed<any[]>(() => rep.value?.oldestOpen || [])
+const ageText = (h: number) => (h < 48 ? tx(`${h} ساعة`, `${h}h`) : tx(`${Math.round(h / 24)} يوم`, `${Math.round(h / 24)}d`))
+
 const kpis = computed(() => {
   const r = rep.value
   if (!r) return []
@@ -201,9 +233,33 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
             <span class="cr-kpi-b">
               <span class="cr-kpi-l">{{ k.label }}</span>
               <span class="cr-kpi-v">{{ k.value }}</span>
+              <span v-if="k.k === 'total' && dTotal" class="cr-dlt" :class="dTotal.good ? 'up' : 'dn'">
+                {{ dTotal.dir > 0 ? '▲' : dTotal.dir < 0 ? '▼' : '=' }} {{ Math.abs(dTotal.pct) }}% {{ tx('عن السابق', 'vs prev.') }}
+              </span>
+              <span v-else-if="k.k === 'avg' && dAvg" class="cr-dlt" :class="dAvg.good ? 'up' : 'dn'">
+                {{ dAvg.dir > 0 ? '▲' : dAvg.dir < 0 ? '▼' : '=' }} {{ Math.abs(dAvg.pct) }}% {{ tx('عن السابق', 'vs prev.') }}
+              </span>
             </span>
           </div>
         </div>
+
+        <!-- ما يُعمَل به اليوم يسبق ما يُقرأ: المفتوحة بعمرها ثم أقدمُها بأسمائها -->
+        <section v-if="openTotal" class="cr-card cr-act" :class="{ hot: aging.d3 > 0 }">
+          <div class="cr-head">
+            <h3 class="cr-h">{{ tx('مفتوحة بانتظار إجراء', 'Open — awaiting action') }}</h3>
+            <div class="cr-ages">
+              <span class="cr-age a0">{{ aging.d0 }} <em>{{ tx('أقل من يوم', 'under 1d') }}</em></span>
+              <span class="cr-age a1">{{ aging.d1 }} <em>{{ tx('١–٣ أيام', '1–3d') }}</em></span>
+              <span class="cr-age a3">{{ aging.d3 }} <em>{{ tx('أكثر من ٣ أيام', 'over 3d') }}</em></span>
+            </div>
+          </div>
+          <div v-for="o in oldest" :key="o.id" class="cr-row cr-old">
+            <span class="cr-dot" :style="{ background: prioColor(o.priority) }"></span>
+            <span class="cr-row-l">{{ complaintCategoryLabel(o.category) }}</span>
+            <span class="cr-old-b">{{ (lang === 'en' ? (o.branchNameEn || o.branchName) : (o.branchName || o.branchNameEn)) || '—' }}</span>
+            <span class="cr-old-a" :class="{ hot: o.hours >= 72 }">{{ tx('مفتوحة منذ', 'open for') }} {{ ageText(o.hours) }}</span>
+          </div>
+        </section>
 
         <div class="cr-grid">
           <section class="cr-card">
@@ -261,6 +317,12 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
                 </li>
               </ul>
             </div>
+            <div v-if="prioRows.length" class="cr-prio">
+              <span class="cr-prio-h">{{ tx('الأولويّة', 'Priority') }}</span>
+              <span v-for="p in prioRows" :key="p.key" class="cr-prio-c">
+                <i class="sw" :style="{ background: prioColor(p.key) }"></i>{{ prioLabel(p.key) }} · {{ p.count }}
+              </span>
+            </div>
           </section>
         </div>
 
@@ -280,9 +342,17 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
               <span class="cr-row-l">{{ branchName(r) }}</span>
               <span class="cr-row-t"><i :style="{ inlineSize: (r.count / maxOf(branchRows)) * 100 + '%' }"></i></span>
               <span class="cr-row-v">{{ r.count }}</span>
+              <!-- سرعةُ الفرع لا عددُه وحده: ثلاثٌ تُحلّ في ساعة ليست كثلاثٍ تأخذ خمسة أيام -->
+              <span class="cr-row-x">{{ r.avgHours == null ? '—' : fmtHours(r.avgHours) }}</span>
             </div>
+            <p class="cr-foot">{{ tx('العمود الأخير: متوسّط زمن الحلّ في الفرع', 'Last column: average time to resolve at the branch') }}</p>
           </section>
         </div>
+
+        <p v-if="rep.repeatCustomers" class="cr-note">
+          <b>{{ rep.repeatCustomers }}</b>
+          {{ tx('عميلاً اشتكى أكثر من مرّة في هذا المدى — تكرارُ الشكوى من العميل نفسه إشارةُ فقدِه لا شكوى عابرة.', 'customers complained more than once in this range — a repeat complaint signals a customer about to be lost, not a one-off.') }}
+        </p>
       </template>
     </template>
   </div>
@@ -330,6 +400,35 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 .cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
 .cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
+
+/* شارةُ الفرق: اللون يتبع المعنى لا إشارة الرقم */
+.cr-dlt { margin-top: 3px; font-size: 11px; font-weight: 700; }
+.cr-dlt.up { color: #16a34a; }
+.cr-dlt.dn { color: #dc2626; }
+
+/* شريط العمل */
+.cr-act { margin-bottom: 14px; }
+.cr-act.hot { border-color: rgba(220, 38, 38, .35); }
+.cr-ages { display: flex; gap: 8px; flex-wrap: wrap; }
+.cr-age { font-size: 12px; font-weight: 800; padding: 5px 11px; border-radius: 999px; background: rgba(148, 163, 184, .16); color: var(--text-primary, #1f2937); }
+.cr-age em { font-style: normal; font-weight: 600; font-size: 11px; opacity: .75; }
+.cr-age.a1 { background: rgba(217, 119, 6, .14); color: #b45309; }
+.cr-age.a3 { background: rgba(220, 38, 38, .14); color: #b91c1c; }
+.cr-old { gap: 10px; }
+.cr-dot { inline-size: 8px; block-size: 8px; border-radius: 999px; flex: 0 0 auto; }
+.cr-old-b { flex: 1; font-size: 11.5px; font-weight: 600; color: var(--text-muted, #94a3b8); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cr-old-a { font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); white-space: nowrap; }
+.cr-old-a.hot { color: #b91c1c; }
+
+/* الأولويّة */
+.cr-prio { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(226, 232, 240, .7); }
+.cr-prio-h { font-size: 11px; font-weight: 800; color: var(--text-muted, #94a3b8); }
+.cr-prio-c { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
+
+.cr-row-x { inline-size: 74px; text-align: end; font-size: 11.5px; font-weight: 700; color: var(--text-muted, #94a3b8); white-space: nowrap; }
+.cr-foot { margin: 9px 2px 0; font-size: 10.5px; font-weight: 600; color: var(--text-muted, #94a3b8); }
+.cr-note { margin: 0 2px 8px; font-size: 12px; font-weight: 600; line-height: 1.7; color: var(--text-secondary, #64748b); }
+.cr-note b { color: var(--text-primary, #1f2937); font-weight: 800; }
 
 /* ── البطاقات ── */
 .cr-grid { display: grid; grid-template-columns: 1fr; gap: 14px; margin-bottom: 14px; }
