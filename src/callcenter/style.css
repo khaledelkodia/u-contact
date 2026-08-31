@@ -7223,3 +7223,20 @@ body.dark-mode .rv-list { box-shadow: inset 0 -14px 12px -12px rgba(0, 0, 0, 0.5
 body.dark-mode .sched-chip { color: #d8b4fe; background: #3b0764; border-color: #6b21a8; }
 
 
+
+/* ── تقرير الشكاوى: الوضع الليليّ ─────────────────────────────────────────
+   هنا لا في `<style scoped>` الخاصّ بالمكوّن: `:global(X) Y` هناك يُترجَم إلى
+   `X` عارياً فيطلي الصفحة كلَّها. */
+body.dark-mode .cr-card,
+body.dark-mode .cr-kpi,
+body.dark-mode .cr-f input,
+body.dark-mode .cx-tab:not(.on) {
+  background: #182235;
+  border-color: #2a3550;
+}
+body.dark-mode .cr-row-t { background: #22304a; }
+body.dark-mode .cr-ring { stroke: #22304a; }
+/* شريحة الخصم ليلاً — كانت في `<style scoped>` بصيغة `:global(body.dark-mode) X`
+   فتُرجمت إلى `body.dark-mode { background: … }` **عارياً**: أي أن لوح الصفحة كلَّه
+   صار بلون البطاقة في الوضع الليليّ. القاعدة تُكتَب هنا فتصيب الشريحة وحدها. */
+body.dark-mode .cart-disc-chip { background: var(--bg-card, #1e293b); }

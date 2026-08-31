@@ -301,7 +301,6 @@ const resLabel = computed(() => {
 .cart-disc-row { color: var(--success, #16a34a); font-weight: 700; }
 .cart-disc-n { font-size: 11.5px; }
 .cart-disc-v { white-space: nowrap; }
-:global(body.dark-mode) .cart-disc-chip { background: var(--bg-card, #1e293b); }
 /* وضع التعديل: لونٌ تحذيريّ هادئ — الوكيل لازم يعرف أنه لا ينشئ طلباً جديداً */
 .cart-edit-bar {
   display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;

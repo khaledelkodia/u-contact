@@ -47,6 +47,7 @@ export const PERMS = [
   { key: 'callcenter.view_totals', group: 'admin', ar: 'عرض قيمة الطلب', en: 'View order value' },
   { key: 'complaints.view', group: 'complaints', ar: 'عرض الشكاوى', en: 'View complaints' },
   { key: 'complaints.manage', group: 'complaints', ar: 'إدارة الشكاوى', en: 'Manage complaints' },
+  { key: 'complaints.report', group: 'complaints', ar: 'تقرير الشكاوى', en: 'Complaints report' },
 ]
 
 /** مفاتيح مجموعةٍ بعينها بترتيبها في `PERMS`. */

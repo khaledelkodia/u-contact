@@ -5,8 +5,9 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   state, loadComplaintsList, setComplaintsFilter, openComplaintDetail, closeComplaintDetail,
   addComplaintUpdate, COMPLAINT_STATUSES, complaintStatusLabel, complaintStatusColor,
-  complaintCategoryLabel, canManageComplaints,
+  complaintCategoryLabel, canManageComplaints, canViewComplaintsReport,
 } from '../store'
+import ComplaintsReport from '../components/ComplaintsReport.vue'
 import { formatDate } from '../utils'
 import { tx, labelOf } from '../lang'
 
@@ -19,7 +20,15 @@ const nextStatus = ref('')
 watch(() => state.openComplaintId, (id) => { note.value = ''; nextStatus.value = '' ; if (!id) return })
 watch(detail, (d) => { if (d && !nextStatus.value) nextStatus.value = d.status })
 
-function submitUpdate() { addComplaintUpdate(note.value, nextStatus.value); note.value = '' }
+// الحفظ يُقفل الشاشة: المتابعة فعلٌ ينتهي، وبقاؤها مفتوحةً يوهم بأن شيئاً لم يقع
+// فيُضغط الزرّ ثانيةً. والملاحظة لا تُمسَح إلا بعد نجاحٍ مؤكَّد — كانت تُمسَح فوراً
+// بلا انتظار، فيضيع ما كتبه الوكيل إن فشل الحفظ.
+async function submitUpdate() {
+  if (await addComplaintUpdate(note.value, nextStatus.value)) {
+    note.value = ''
+    closeComplaintDetail()
+  }
+}
 
 onMounted(() => { void loadComplaintsList() })
 </script>
@@ -32,17 +41,30 @@ onMounted(() => { void loadComplaintsList() })
           <h2 class="orders-title">{{ tx('الشكاوى', 'Complaints') }}</h2>
           <p class="dashboard-subtitle">{{ tx('شكاوى العملاء على الطلبات — ومتابعتها حتى الإغلاق', 'Customer complaints on orders — tracked through to closure') }}</p>
         </div>
-        <!-- فلتر الحالة -->
+        <!-- فلتر الحالة — للقائمة وحدها؛ التقرير له مداه الزمنيّ -->
         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-          <button class="btn btn-sm" :class="state.complaintsFilter === '' ? 'btn-primary' : 'btn-outline'"
-            @click="setComplaintsFilter('')">{{ tx('الكل', 'All') }}</button>
-          <button v-for="s in COMPLAINT_STATUSES" :key="s.id" class="btn btn-sm"
-            :class="state.complaintsFilter === s.id ? 'btn-primary' : 'btn-outline'"
-            @click="setComplaintsFilter(s.id)">{{ labelOf(s) }}</button>
+          <template v-if="state.complaintsTab === 'list'">
+            <button class="btn btn-sm" :class="state.complaintsFilter === '' ? 'btn-primary' : 'btn-outline'"
+              @click="setComplaintsFilter('')">{{ tx('الكل', 'All') }}</button>
+            <button v-for="s in COMPLAINT_STATUSES" :key="s.id" class="btn btn-sm"
+              :class="state.complaintsFilter === s.id ? 'btn-primary' : 'btn-outline'"
+              @click="setComplaintsFilter(s.id)">{{ labelOf(s) }}</button>
+          </template>
         </div>
       </div>
 
-      <div class="orders-table-wrapper">
+      <!-- تبويبان: القائمة تُتابَع فيها شكوى، والتقرير يُقرأ فيه الاتّجاه. والتقرير
+           بمفتاحٍ مستقلّ فلا يظهر لمن لا يملكه. -->
+      <div v-if="canViewComplaintsReport()" class="cx-tabs">
+        <button class="cx-tab" :class="{ on: state.complaintsTab === 'list' }"
+          @click="state.complaintsTab = 'list'">{{ tx('القائمة', 'List') }}</button>
+        <button class="cx-tab" :class="{ on: state.complaintsTab === 'report' }"
+          @click="state.complaintsTab = 'report'">{{ tx('التقرير', 'Report') }}</button>
+      </div>
+
+      <ComplaintsReport v-if="state.complaintsTab === 'report' && canViewComplaintsReport()" />
+
+      <div v-else class="orders-table-wrapper">
         <table class="orders-table">
           <thead>
             <tr>
@@ -146,3 +168,13 @@ onMounted(() => { void loadComplaintsList() })
     </div>
   </section>
 </template>
+
+<style scoped>
+.cx-tabs { display: flex; gap: 6px; margin: 0 0 12px; }
+.cx-tab {
+  padding: 7px 16px; border-radius: var(--radius-sm, 6px); cursor: pointer;
+  border: 1px solid var(--border, #e5e7eb); background: var(--bg-card, #fff);
+  color: var(--text-secondary, #64748b); font-family: inherit; font-size: 12.5px; font-weight: 700;
+}
+.cx-tab.on { background: var(--primary, #2563eb); border-color: var(--primary, #2563eb); color: #fff; }
+</style>

@@ -10,7 +10,7 @@ import {
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
-  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, phoneE164,
+  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, phoneE164,
   contactSetCustomerBlocked, contactDiscounts,
   trueNow,
 } from '../api'
@@ -164,6 +164,11 @@ export const state = reactive<any>({
   // ── شاشة الشكاوى ──
   complaintsList: [],          // صفوف الشكاوى المعروضة
   complaintsLoading: false,
+  complaintsTab: 'list',       // list | report — تبويب شاشة الشكاوى
+  complaintsReport: null,      // نتيجة التقرير (أعدادٌ مجمَّعة من الخادم)
+  complaintsReportBusy: false,
+  complaintsReportFrom: '',
+  complaintsReportTo: '',
   complaintsFilter: '',        // '' = الكل، وإلا open|in_progress|resolved|closed
   openComplaintId: null,       // الشكوى المفتوحة تفصيلاً
   openComplaint: null,         // تفاصيلها + تايم‑لاين تحديثاتها
@@ -764,14 +769,16 @@ export function closeComplaintDetail() { state.openComplaintId = null; state.ope
  * متابعة الشكوى: ملاحظة و/أو تغيير حالة. الخادم يشترط أحدهما على الأقل ويسجّل
  * التغيير في التايم‑لاين، فنعيد قراءة التفاصيل بعدها بدل تخمين الشكل الجديد.
  */
-export async function addComplaintUpdate(note: string, status: string) {
+/** يُرجع `true` عند نجاح الحفظ وحده — الشاشة تُقفل عليه ولا تُقفل على فشل. */
+export async function addComplaintUpdate(note: string, status: string): Promise<boolean> {
   const id = state.openComplaintId
-  if (!id) return
-  if (!canManageComplaints()) { showToast(tx('لا تملك صلاحية متابعة الشكاوى', 'You do not have permission to follow up on complaints'), 'warning'); return }
+  if (!id) return false
+  if (!canManageComplaints()) { showToast(tx('لا تملك صلاحية متابعة الشكاوى', 'You do not have permission to follow up on complaints'), 'warning'); return false }
   const n = (note || '').trim()
   const changed = status && status !== state.openComplaint?.status ? status : ''
-  if (!n && !changed) { showToast(tx('اكتب ملاحظة أو غيّر الحالة', 'Write a note or change the status'), 'warning'); return }
+  if (!n && !changed) { showToast(tx('اكتب ملاحظة أو غيّر الحالة', 'Write a note or change the status'), 'warning'); return false }
   state.complaintBusy = true
+  let ok = false
   try {
     const body: any = {}
     if (n) body.note = n
@@ -779,11 +786,13 @@ export async function addComplaintUpdate(note: string, status: string) {
     state.openComplaint = await contactComplaintUpdate(id, body)
     showToast(tx('تم تسجيل المتابعة', 'Follow-up recorded'), 'success')
     await loadComplaintsList()
+    ok = true
   } catch (err: any) {
     showToast(err?.response?.data?.message || tx('تعذّر تسجيل المتابعة', 'Could not record the follow-up'), 'error')
   } finally {
     state.complaintBusy = false
   }
+  return ok
 }
 
 /**
@@ -3849,6 +3858,30 @@ export function companyDial(): string {
 export function canViewComplaints(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('complaints.view')
 }
+/** صلاحيةُ تقرير الشكاوى — مستقلّةٌ عن متابعتها: من يتابع شكوى ليس بالضرورة
+  * من يرى أرقام الفروع مجمَّعةً. */
+export function canViewComplaintsReport(): boolean {
+  return !state.live || (currentCompany()?.permissions || []).includes('complaints.report')
+}
+
+/** تحميلُ التقرير — بالمدى المختار، وبلا مدىً يُرجع الخادمُ كلَّ الشكاوى. */
+export async function loadComplaintsReport() {
+  if (!state.live) { state.complaintsReport = null; return }
+  if (!canViewComplaintsReport()) return
+  state.complaintsReportBusy = true
+  try {
+    const p: any = {}
+    if (state.complaintsReportFrom) p.from = state.complaintsReportFrom
+    if (state.complaintsReportTo) p.to = state.complaintsReportTo
+    state.complaintsReport = await contactComplaintsReport(p)
+  } catch {
+    state.complaintsReport = null
+    showToast(tx('تعذّر تحميل تقرير الشكاوى', 'Could not load the complaints report'), 'error')
+  } finally {
+    state.complaintsReportBusy = false
+  }
+}
+
 export function canManageComplaints(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('complaints.manage')
 }
