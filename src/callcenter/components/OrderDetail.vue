@@ -10,6 +10,17 @@ const props = defineProps<{ orderId: number }>()
 
 const order = computed<any>(() => state.orders.find((o: any) => o.id === props.orderId) || null)
 
+// سطورُ الخصم: التفصيلُ إن وُجد — سطرٌ لكلّ قاعدةٍ باسمها. والطلباتُ التي سبقت
+// حفظَ التفصيل تحمل المبلغَ وحده، فتُعرَض سطراً واحداً باسمها إن كان لها اسم.
+const discountLines = computed<any[]>(() => {
+  const o = order.value
+  if (!o) return []
+  const bd = Array.isArray(o.discountBreakdown) ? o.discountBreakdown : []
+  if (bd.length) return bd
+  const amt = Number(o.discountAmount) || 0
+  return amt > 0 ? [{ id: 'sum', name: o.discountName || '', amount: amt }] : []
+})
+
 // نقلاً عن getStatusBadge
 function statusBadge(status: string): string {
   const s = ORDER_STATUSES.find((x: any) => x.id === status)
@@ -210,6 +221,10 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         <span>{{ tx('المجموع الفرعي', 'Subtotal') }}</span>
         <span class="dt-sum-v">{{ formatCurrency(order.subtotal) }}</span>
       </div>
+      <div v-for="(l, k) in discountLines" :key="l.id ?? k" class="dt-sum-row dt-disc">
+        <span>{{ tx('خصم', 'Discount') }}<template v-if="l.name"> · {{ l.name }}</template></span>
+        <span class="dt-sum-v">− {{ formatCurrency(l.amount) }}</span>
+      </div>
       <div class="dt-sum-row">
         <span>{{ tx('رسوم التوصيل', 'Delivery fee') }}
           <!-- رقمٌ حدّده الفرع لا تقديرُ مركز الاتصال — يُقال صراحةً وإلا ظُنّ تقديراً -->
@@ -242,6 +257,9 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 </template>
 
 <style scoped>
+/* بلون الخصم نفسه في السلّة وشاشة التأكيد — رقمٌ واحدٌ في ثلاث شاشات */
+.dt-disc { color: var(--success, #16a34a); font-weight: 700; }
+.dt-disc .dt-sum-v { color: var(--success, #16a34a); }
 .dt-src { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--success, #16a34a); margin-inline-start: 5px; }
 /* ── الترويسة ── */
 .dt-head {

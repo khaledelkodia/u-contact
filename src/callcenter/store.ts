@@ -562,6 +562,11 @@ function mapCloudOrder(r: any): any {
     branchName: nameOf({ nameAr: r.branchName, nameEn: r.branchNameEn })
       || (r.holdReason === 'no_branch' ? tx('بانتظار تعيين فرع', 'Awaiting branch assignment') : '—'),
     subtotal: Number(r.subtotal) || 0,
+    // الخصم: المبلغُ للحسبة، والتفصيلُ ليُقرأ. مبلغٌ بلا اسمٍ لا يُراجَع — من يفتح
+    // الطلب بعد أسبوعٍ يرى «اتخصم ٢٠» ولا يعرف أيَّ عرضٍ طُبِّق ولا مَن قرّره.
+    discountAmount: Number(r.discountAmount) || 0,
+    discountName: r.discountName || '',
+    discountBreakdown: Array.isArray(r.discountBreakdown) ? r.discountBreakdown : [],
     // **أرقام الفرع تتقدّم متى وصلت.** الرسوم قد تكون «مفتوحة» وقت أخذ الطلب (مكانٌ
     // بلا ربطِ رسوم) فيحدّدها الكاشير مع السائق — فما يقرؤه الوكيل بعدها هو الحقيقة
     // المحصَّلة لا التقدير. وقبل أن يبلّغ الفرع تبقى قيمة مركز الاتصال كما هي.
