@@ -549,6 +549,10 @@ function agentEventText(e: any): string {
 
 function buildTimeline(r: any, statusLabel: string): any[] {
   const out: any[] = []
+  // مَن فعلها في الفرع بالاسم. كانت كلُّ خطوةٍ نازلةٍ من نقطة البيع تُنسَب إلى «الفرع»
+  // بلا اسم، فلا يُعرَف من غيّر الحالة ولا من أسند السائق. الاسم يصعد الآن مع
+  // لقطة الكونكتور؛ وطلبٌ قديم لا يحمله ⇒ يرتدّ إلى «الفرع» كما كان.
+  const branchBy = (who?: string | null) => (who ? String(who) : tx('الفرع', 'Branch'))
   const push = (type: string, at: any, by: string, note: string) => {
     if (!at) return
     out.push({ type, status: type, at, by, note })
@@ -573,7 +577,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     const what = r.posDailyNumber != null
       ? tx('رقمه اليوميّ هناك', 'daily no. there')
       : tx('رقم فاتورته هناك', 'invoice no. there')
-    out.push({ type: 'branch', status: 'branch', at: r.deliveredAt || r.posStatusAt || null, by: tx('الفرع', 'Branch'),
+    out.push({ type: 'branch', status: 'branch', at: r.deliveredAt || r.posStatusAt || null, by: branchBy(r.posStatusBy),
       note: posNo != null
         ? tx(`نزل الفرع — ${what} #${posNo}`, `Reached the branch — ${what} #${posNo}`)
         : tx('نزل الفرع', 'Reached the branch') })
@@ -583,7 +587,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
 
   // حالة الفرع الأخيرة (المرآة التي يرفعها الكونكتور)
   if (r.posStatus && r.posStatusAt) {
-    push('status', r.posStatusAt, tx('الفرع', 'Branch'), tx(`حالة الفرع: ${statusLabel}`, `Branch status: ${statusLabel}`))
+    push('status', r.posStatusAt, branchBy(r.posStatusBy), tx(`حالة الفرع: ${statusLabel}`, `Branch status: ${statusLabel}`))
   }
 
   // السائق — يعيّنه الفرع، ومركز الاتصال يعرضه فقط
@@ -591,7 +595,7 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     const dl = r.driverStatus === 'on_way' ? tx('خرج للتوصيل', 'Out for delivery')
       : r.driverStatus === 'delivered' ? tx('سلّم الطلب', 'Delivered the order')
       : r.driverStatus === 'assigned' ? tx('تم تحميله', 'Picked up') : (r.driverStatus || '')
-    push('driver', r.driverAt, tx('الفرع', 'Branch'), tx(`السائق: ${r.driverName}${dl ? ' — ' + dl : ''}`, `Driver: ${r.driverName}${dl ? ' — ' + dl : ''}`))
+    push('driver', r.driverAt, branchBy(r.driverAssignedBy), tx(`السائق: ${r.driverName}${dl ? ' — ' + dl : ''}`, `Driver: ${r.driverName}${dl ? ' — ' + dl : ''}`))
   }
 
   // لا حدثَ «تم التسليم للعميل» من `deliveredAt`: معناه في الخادم «وصل الفرع» لا
@@ -600,7 +604,8 @@ function buildTimeline(r: any, statusLabel: string): any[] {
 
   if (r.status === 'cancelled' || r.posStatus === 'cancelled') {
     out.push({ type: 'cancelled', status: 'cancelled', at: r.posStatusAt || null,
-      by: r.posStatus === 'cancelled' ? 'الفرع' : 'مركز الاتصال', note: tx('تم إلغاء الطلب', 'Order cancelled') })
+      by: r.posStatus === 'cancelled' ? branchBy(r.posStatusBy) : tx('مركز الاتصال', 'Call center'),
+      note: tx('تم إلغاء الطلب', 'Order cancelled') })
   }
 
   // الأقدم أولاً؛ ما لا وقت له يبقى في موضعه المنطقي بلا إزاحة
