@@ -495,9 +495,10 @@ function buildTimeline(r: any, statusLabel: string): any[] {
 
   push('created', r.createdAt, r.agentName || tx('مركز الاتصال', 'Call center'), tx('إنشاء الطلب من مركز الاتصال', 'Order created from the call center'))
 
-  // نزول الفرع: لا توقيت مستقلّ له في الحمولة — نذكره بلا وقت مضلِّل حين يتأكّد
+  // نزول الفرع: `deliveredAt` هو وقتُه الحقيقيّ — الخادم يختمه لحظةَ **قبول الفرع**
+  // للأوردر لا لحظةَ تسليمه للعميل (`sync.service`: status='delivered' = وصل الفرع).
   if (r.posOrderId) {
-    out.push({ type: 'branch', status: 'branch', at: r.posStatusAt || null, by: tx('الفرع', 'Branch'),
+    out.push({ type: 'branch', status: 'branch', at: r.deliveredAt || r.posStatusAt || null, by: tx('الفرع', 'Branch'),
       note: tx(`نزل الفرع — رقم الطلب هناك #${r.posOrderId}`, `Reached the branch — order no. there #${r.posOrderId}`) })
   } else if (r.holdReason === 'no_branch') {
     out.push({ type: 'held', status: 'held', at: null, by: '—', note: tx('محتجَز: لا فرع يخدم المنطقة — يحتاج تعييناً يدوياً', 'On hold: no branch serves this area — needs manual assignment') })
@@ -516,7 +517,9 @@ function buildTimeline(r: any, statusLabel: string): any[] {
     push('driver', r.driverAt, tx('الفرع', 'Branch'), tx(`السائق: ${r.driverName}${dl ? ' — ' + dl : ''}`, `Driver: ${r.driverName}${dl ? ' — ' + dl : ''}`))
   }
 
-  push('delivered', r.deliveredAt, tx('الفرع', 'Branch'), tx('تم تسليم الطلب للعميل', 'Order delivered to the customer'))
+  // لا حدثَ «تم التسليم للعميل» من `deliveredAt`: معناه في الخادم «وصل الفرع» لا
+  // «تسلّمه العميل» — فكان يظهر «تم التسليم» على طلبٍ حالتُه «جديد» توّاً، ويكرّر
+  // «نزل الفرع» نفسه. تسليمُ العميل الحقيقيّ يرويه حدثُ السائق وحالةُ الفرع.
 
   if (r.status === 'cancelled' || r.posStatus === 'cancelled') {
     out.push({ type: 'cancelled', status: 'cancelled', at: r.posStatusAt || null,
@@ -3490,7 +3493,20 @@ export function orderTransactions(order: any): any[] {
       })
     }
   }
-  return [...history].sort((a: any, b: any) => new Date(b.at).getTime() - new Date(a.at).getTime())
+  // الترتيب: الأحدث أوّلاً. والقيود كثيراً ما تحمل **اللحظة نفسها** (تُكتب في ثانيةٍ
+  // واحدة)، وفرزُ المتساوين يُبقيهما على ترتيب إدراجهما — وهو تصاعديّ — فيظهر وسطُ
+  // القائمة مقلوباً داخل قائمةٍ تنازلية. فنكسر التعادل بترتيب البناء معكوساً.
+  // وبلا وقتٍ (`at` فارغ) يرث القيدُ وقتَ سابقه فيبقى في موضعه المنطقيّ بدل أن
+  // يُقذَف إلى الذيل (`new Date(null)` = بداية الحقبة).
+  let carried = 0
+  const stamped = history.map((e: any, i: number) => {
+    const t = e.at ? new Date(e.at).getTime() : NaN
+    if (Number.isFinite(t)) carried = t
+    return { e, i, t: Number.isFinite(t) ? t : carried }
+  })
+  return stamped
+    .sort((a: { t: number; i: number }, b: { t: number; i: number }) => (b.t - a.t) || (b.i - a.i))
+    .map((x: { e: any }) => x.e)
 }
 
 // ==========================================
