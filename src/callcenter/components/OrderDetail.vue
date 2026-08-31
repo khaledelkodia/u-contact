@@ -211,7 +211,9 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         <span class="dt-sum-v">{{ formatCurrency(order.subtotal) }}</span>
       </div>
       <div class="dt-sum-row">
-        <span>{{ tx('رسوم التوصيل', 'Delivery fee') }}</span>
+        <span>{{ tx('رسوم التوصيل', 'Delivery fee') }}
+          <!-- رقمٌ حدّده الفرع لا تقديرُ مركز الاتصال — يُقال صراحةً وإلا ظُنّ تقديراً -->
+          <em v-if="order.figuresFromBranch" class="dt-src">{{ tx('(من الفرع)', '(from the branch)') }}</em></span>
         <span class="dt-sum-v">{{ formatCurrency(order.deliveryFee) }}</span>
       </div>
       <div class="dt-grand">
@@ -240,6 +242,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 </template>
 
 <style scoped>
+.dt-src { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--success, #16a34a); margin-inline-start: 5px; }
 /* ── الترويسة ── */
 .dt-head {
   padding-bottom: 14px;

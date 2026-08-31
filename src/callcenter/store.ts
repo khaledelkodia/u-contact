@@ -557,7 +557,14 @@ function mapCloudOrder(r: any): any {
     // الاسمان معاً: الوصف يتبع لغة الواجهة لا لغةَ لحظة الجلب
     branchName: nameOf({ nameAr: r.branchName, nameEn: r.branchNameEn })
       || (r.holdReason === 'no_branch' ? tx('بانتظار تعيين فرع', 'Awaiting branch assignment') : '—'),
-    subtotal: Number(r.subtotal) || 0, deliveryFee: Number(r.deliveryFee) || 0, total: Number(r.total) || 0,
+    subtotal: Number(r.subtotal) || 0,
+    // **أرقام الفرع تتقدّم متى وصلت.** الرسوم قد تكون «مفتوحة» وقت أخذ الطلب (مكانٌ
+    // بلا ربطِ رسوم) فيحدّدها الكاشير مع السائق — فما يقرؤه الوكيل بعدها هو الحقيقة
+    // المحصَّلة لا التقدير. وقبل أن يبلّغ الفرع تبقى قيمة مركز الاتصال كما هي.
+    deliveryFee: r.posDeliveryFee != null ? Number(r.posDeliveryFee) : (Number(r.deliveryFee) || 0),
+    total: r.posTotal != null ? Number(r.posTotal) + (Number(r.posDeliveryFee) || 0) : (Number(r.total) || 0),
+    // علامةٌ للعرض: هذه أرقام الفرع لا تقدير مركز الاتصال
+    figuresFromBranch: r.posTotal != null || r.posDeliveryFee != null,
     driverId: r.driverName ? -1 : null, driverName: r.driverName || null, driverPhone: '',
     // حجز: موعده يظهر في شاشة «الطلبات المجدولة»
     hasComplaint: !!state.complaintsByOrder[r.id], scheduledDate: r.reservationTime || null,
