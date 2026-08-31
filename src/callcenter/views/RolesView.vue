@@ -244,6 +244,6 @@ const permLabelOf = (k: string) => {
   font-size: 12px; font-weight: 700;
 }
 
-:global(body.dark-mode) .rv-card { background: rgba(255, 255, 255, .04); }
-:global(body.dark-mode) .rv-name { color: #e2e8f0; }
+body.dark-mode .rv-card { background: rgba(255, 255, 255, .04); }
+body.dark-mode .rv-name { color: #e2e8f0; }
 </style>

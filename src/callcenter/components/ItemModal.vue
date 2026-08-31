@@ -207,6 +207,6 @@ const optSelected = (o: any) => state.selectedExtras.some((e: any) => e.id === o
 }
 .im-note:focus { border-color: var(--primary, #1a56db); }
 
-:global(body.dark-mode) .im-opt,
-:global(body.dark-mode) .im-note { background: var(--bg-card, #1e293b); }
+body.dark-mode .im-opt,
+body.dark-mode .im-note { background: var(--bg-card, #1e293b); }
 </style>

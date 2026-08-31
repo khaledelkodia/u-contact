@@ -8,7 +8,7 @@ import {
   complaintCategoryLabel, canManageComplaints,
 } from '../store'
 import { formatDate } from '../utils'
-import { tx } from '../lang'
+import { tx, labelOf } from '../lang'
 
 const rows = computed<any[]>(() => state.complaintsList || [])
 const detail = computed<any>(() => state.openComplaint)
@@ -38,7 +38,7 @@ onMounted(() => { void loadComplaintsList() })
             @click="setComplaintsFilter('')">{{ tx('الكل', 'All') }}</button>
           <button v-for="s in COMPLAINT_STATUSES" :key="s.id" class="btn btn-sm"
             :class="state.complaintsFilter === s.id ? 'btn-primary' : 'btn-outline'"
-            @click="setComplaintsFilter(s.id)">{{ s.label }}</button>
+            @click="setComplaintsFilter(s.id)">{{ labelOf(s) }}</button>
         </div>
       </div>
 
@@ -124,7 +124,7 @@ onMounted(() => { void loadComplaintsList() })
               <div class="form-group" style="margin-bottom:8px;">
                 <label style="font-weight:700;">{{ tx('الحالة', 'Status') }}</label>
                 <select v-model="nextStatus" style="width:100%; padding:9px; border:1px solid var(--border); border-radius:6px; font-family:inherit;">
-                  <option v-for="s in COMPLAINT_STATUSES" :key="s.id" :value="s.id">{{ s.label }}</option>
+                  <option v-for="s in COMPLAINT_STATUSES" :key="s.id" :value="s.id">{{ labelOf(s) }}</option>
                 </select>
               </div>
               <div class="form-group">

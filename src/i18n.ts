@@ -2,7 +2,10 @@ import { ref } from 'vue'
 
 // i18n بسيط: لغة تفاعلية + t(ar,en) + ضبط الاتجاه. الحالة محفوظة محلياً.
 type Lang = 'ar' | 'en'
-const saved = localStorage.getItem('uc_lang')
+// تفضيلُ اللغة كان مخزَّناً في مفتاحين (`uc_lang` هنا و`cc_lang` في مركز الاتصال).
+// وحّدناهما في هذا؛ ونقرأ القديم مرّةً إن لم يكن الجديد مضبوطاً فلا يفقد المستخدم
+// اختياره عند أوّل فتحٍ بعد التحديث.
+const saved = localStorage.getItem('uc_lang') ?? localStorage.getItem('cc_lang')
 export const lang = ref<Lang>(saved === 'en' ? 'en' : 'ar')
 
 export const isAr = () => lang.value === 'ar'

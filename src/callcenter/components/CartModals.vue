@@ -561,35 +561,35 @@ function itemMods(i: any): { name: string; price: number }[] {
 .rv-confirm { flex: 1 1 auto; max-width: 320px; gap: 8px; font-weight: 700; }
 
 /* ── الوضع الليلي ── */
-:global(body.dark-mode) .rv-cust {
+body.dark-mode .rv-cust {
   background: rgba(96, 165, 250, 0.12);
   border-color: rgba(96, 165, 250, 0.28);
 }
-:global(body.dark-mode) .rv-type {
+body.dark-mode .rv-type {
   background: rgba(255, 255, 255, 0.06);
   border-color: rgba(96, 165, 250, 0.3);
   color: #93c5fd;
 }
-:global(body.dark-mode) .rv-fact,
-:global(body.dark-mode) .rv-row,
-:global(body.dark-mode) .rv-sum-row { background: var(--bg-card, #1e293b); }
-:global(body.dark-mode) .rv-fact { box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18); }
-:global(body.dark-mode) .rv-fico,
-:global(body.dark-mode) .rv-mod,
-:global(body.dark-mode) .rv-sec-n { background: rgba(255, 255, 255, 0.07); }
-:global(body.dark-mode) .rv-fact-accent { background: rgba(96, 165, 250, 0.14); }
-:global(body.dark-mode) .rv-fact-accent .rv-fv { color: #bfdbfe; }
-:global(body.dark-mode) .rv-qty { background: rgba(96, 165, 250, 0.16); color: #93c5fd; }
-:global(body.dark-mode) .rv-size { color: #bfdbfe; }
-:global(body.dark-mode) .rv-mod b.free { color: #4ade80; }
-:global(body.dark-mode) .rv-note { color: #fbbf24; }
-:global(body.dark-mode) .rv-notes {
+body.dark-mode .rv-fact,
+body.dark-mode .rv-row,
+body.dark-mode .rv-sum-row { background: var(--bg-card, #1e293b); }
+body.dark-mode .rv-fact { box-shadow: 0 0 0 1px rgba(148, 163, 184, 0.18); }
+body.dark-mode .rv-fico,
+body.dark-mode .rv-mod,
+body.dark-mode .rv-sec-n { background: rgba(255, 255, 255, 0.07); }
+body.dark-mode .rv-fact-accent { background: rgba(96, 165, 250, 0.14); }
+body.dark-mode .rv-fact-accent .rv-fv { color: #bfdbfe; }
+body.dark-mode .rv-qty { background: rgba(96, 165, 250, 0.16); color: #93c5fd; }
+body.dark-mode .rv-size { color: #bfdbfe; }
+body.dark-mode .rv-mod b.free { color: #4ade80; }
+body.dark-mode .rv-note { color: #fbbf24; }
+body.dark-mode .rv-notes {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.4);
   color: #e2e8f0;
 }
-:global(body.dark-mode) .rv-notes strong,
-:global(body.dark-mode) .rv-notes-ico { color: #fbbf24; }
-:global(body.dark-mode) .rv-grand { background: var(--primary-darker, #2563eb); }
-:global(body.dark-mode) .rv-sum { background: var(--bg-card, #1e293b); }
+body.dark-mode .rv-notes strong,
+body.dark-mode .rv-notes-ico { color: #fbbf24; }
+body.dark-mode .rv-grand { background: var(--primary-darker, #2563eb); }
+body.dark-mode .rv-sum { background: var(--bg-card, #1e293b); }
 </style>

@@ -350,8 +350,10 @@ export const contactUpdateOrder = (id: number, payload: any) =>
   api.put(`/contact/orders/${id}`, payload).then((r) => r.data)
 
 export const contactOrderPolicy = () => api.get('/contact/lookup/order-policy').then((r) => r.data)
-export const contactSetOrderPolicy = (paymentRequired: boolean) =>
-  api.put('/contact/order-settings', { paymentRequired }).then((r) => r.data)
+// سياسة أخذ الطلب: إلزام الدفع · ومراحل السماح بالتعديل. كلٌّ يُرسَل وحده فلا
+// يمسح أحدُهما الآخر (الخادم يتجاهل الغائب).
+export const contactSetOrderPolicy = (body: { paymentRequired?: boolean; editStages?: string[] }) =>
+  api.put('/contact/order-settings', body).then((r) => r.data as { paymentRequired: boolean; editStages: string[] })
 
 export const contactDaySettings = () => api.get('/contact/day-settings').then((r) => r.data)
 export const contactSetDaySettings = (closeWithOpenOrders: 'block' | 'carry') =>

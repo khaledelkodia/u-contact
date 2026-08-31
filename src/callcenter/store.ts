@@ -4,7 +4,7 @@ import {
   ORDER_STATUSES, PAYMENT_CHANNELS, PAYMENT_METHODS, CANCELLATION_REASONS, COMPLAINT_CATEGORIES,
 } from './data'
 import { todayISO, toCompanyWall, fromCompanyWall, companyToday, formatBusinessDate } from './utils'
-import { tx, nameOf } from './lang'
+import { tx, nameOf, labelOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
@@ -44,6 +44,7 @@ export const state = reactive<any>({
   // سياسة الشركة: هل طريقة الدفع إلزاميّة قبل نزول الطلب للفرع؟ الافتراضي **لا**
   // (تُقرأ من الخادم؛ فشلُ القراءة يبقى على الاختياريّ فلا يُقفَل الطلب بخطأ شبكة).
   paymentRequired: false,
+  editStages: ['sent', 'new', 'preparing'],   // مراحل السماح بالتعديل — من إعدادات الشركة
   paymentModalOpen: false,     // مودال اختيار الدفع
   orderType: 'delivery',
   editingOrderId: null,
@@ -201,6 +202,10 @@ export async function loadLiveData() {
     ])
     state.companyPaymentMethods = Array.isArray(payMethods) ? payMethods : []
     state.paymentRequired = !!(policy as any)?.paymentRequired
+    // قائمةٌ فارغة من الخادم = «لا تعديل بعد الإرسال» وهو قرارٌ صالح؛ والغياب
+    // (خادمٌ أقدم) يُبقي الافتراضيّ فلا تُشلّ الشاشة عند من لم ينشر التحديث.
+    const st = (policy as any)?.editStages
+    if (Array.isArray(st)) state.editStages = st.filter((x: any) => x !== 'none')
     state.companyOrderTypes = Array.isArray(orderTypes) ? orderTypes : []
     // نوعٌ مختار افتراضاً: أوّل نوعٍ يوافق الشكل البنيويّ الحالي (توصيل/استلام)
     syncSelectedOrderType()
@@ -209,7 +214,8 @@ export async function loadLiveData() {
     // ونحمل معها **جاهزيّة الفرع** كما حسبها الخادم (متصل/يوم عمله/هل يستقبل الآن):
     // بدونها يَعِد الوكيل العميلَ بنصف ساعة وطلبُه واقفٌ في الكلاود لا يعلم به أحد.
     state.branches = branches.map((b: any) => ({
-      id: b.id, name: b.name, areas: [],
+      // اسم الفرع بلغة الواجهة (الخادم يرسل الاثنين) — كان العربيَّ دائماً
+      id: b.id, name: nameOf({ nameAr: b.name, nameEn: b.nameEn }), areas: [],
       online: !!b.online,
       posBusinessDate: b.posBusinessDate ?? null,
       callCenterDate: b.callCenterDate ?? null,
@@ -605,8 +611,10 @@ export const COMPLAINT_STATUSES = [
   { id: 'resolved',    label: 'تم حلّها',     labelEn: 'Resolved',    color: '#16a34a' },
   { id: 'closed',      label: 'مغلقة',       labelEn: 'Closed',      color: '#64748b' },
 ]
+/** تسمية حالة الشكوى **بلغة الواجهة** — كانت عربيّةً دائماً. */
 export function complaintStatusLabel(id: string): string {
-  return COMPLAINT_STATUSES.find((s) => s.id === id)?.label || id
+  const s = COMPLAINT_STATUSES.find((x) => x.id === id)
+  return s ? labelOf(s) : id
 }
 export function complaintStatusColor(id: string): string {
   return COMPLAINT_STATUSES.find((s) => s.id === id)?.color || '#64748b'
@@ -3219,7 +3227,9 @@ export function canEditOrder(): boolean {
  */
 export function canEditThisOrder(order: any): boolean {
   if (!order) return false
-  return ['sent', 'new', 'preparing'].includes(String(order.status))
+  // المراحل من إعدادات الشركة لا من الكود. والخادم يحكم بها أيضاً — هذا حارس
+  // الشاشة كي لا يبني الوكيل تعديلاً يُرفض بعد بنائه.
+  return (state.editStages || []).includes(String(order.status))
 }
 
 /**

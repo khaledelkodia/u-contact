@@ -330,7 +330,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
   background: var(--border, #e5e7eb); border-radius: 99px;
   border: 2px solid var(--white, #fff);
 }
-:global(body.dark-mode) .dt-list::-webkit-scrollbar-thumb { background: #334155; border-color: #1e293b; }
+body.dark-mode .dt-list::-webkit-scrollbar-thumb { background: #334155; border-color: #1e293b; }
 .dt-empty { padding: 18px; text-align: center; font-size: 12.5px; color: var(--text-muted, #94a3b8); }
 .dt-row { display: flex; align-items: flex-start; gap: 10px; padding: 11px 12px; }
 .dt-row + .dt-row { border-top: 1px solid var(--border-light, #f3f4f6); }
@@ -394,7 +394,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
   border-radius: 999px; font-size: 11px; font-weight: 800;
   color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
 }
-:global(body.dark-mode) .dt-cancel-pending { color: #fbbf24; background: #451a03; border-color: #78350f; }
+body.dark-mode .dt-cancel-pending { color: #fbbf24; background: #451a03; border-color: #78350f; }
 /* أسطر الدفع: مبلغٌ لكل طريقة على محورٍ واحد، والإكراميّة مميَّزة فلا تُحسَب ثمناً */
 .dt-paylines { padding: 0 13px 10px; display: flex; flex-direction: column; gap: 4px; }
 .dt-payline {
@@ -403,19 +403,19 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 }
 .dt-payline-v { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .dt-payline.is-tip { color: #b45309; }
-:global(body.dark-mode) .dt-payline.is-tip { color: #fbbf24; }
+body.dark-mode .dt-payline.is-tip { color: #fbbf24; }
 
 /* ── الوضع الليلي ── */
-:global(body.dark-mode) .dt-sec-n,
-:global(body.dark-mode) .dt-qty { background: rgba(255, 255, 255, 0.07); }
-:global(body.dark-mode) .dt-qty { color: #93c5fd; }
-:global(body.dark-mode) .dt-notes {
+body.dark-mode .dt-sec-n,
+body.dark-mode .dt-qty { background: rgba(255, 255, 255, 0.07); }
+body.dark-mode .dt-qty { color: #93c5fd; }
+body.dark-mode .dt-notes {
   background: rgba(245, 158, 11, 0.12);
   border-color: rgba(245, 158, 11, 0.4);
   color: #e2e8f0;
 }
-:global(body.dark-mode) .dt-notes strong,
-:global(body.dark-mode) .dt-notes-ico,
-:global(body.dark-mode) .dt-item-note { color: #fbbf24; }
-:global(body.dark-mode) .dt-grand { background: var(--primary-darker, #2563eb); }
+body.dark-mode .dt-notes strong,
+body.dark-mode .dt-notes-ico,
+body.dark-mode .dt-item-note { color: #fbbf24; }
+body.dark-mode .dt-grand { background: var(--primary-darker, #2563eb); }
 </style>

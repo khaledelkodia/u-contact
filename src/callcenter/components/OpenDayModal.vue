@@ -143,6 +143,6 @@ const matching = computed(() => branches.value.filter((b) => b.businessDate === 
 .od-warn { background: #fef3c7; color: #92400e; }
 .od-err  { background: #fee2e2; color: #b91c1c; }
 
-:global(body.dark-mode) .od-row.is-match { background: rgba(22, 163, 74, 0.12); }
-:global(body.dark-mode) .od-branch { color: #e2e8f0; }
+body.dark-mode .od-row.is-match { background: rgba(22, 163, 74, 0.12); }
+body.dark-mode .od-branch { color: #e2e8f0; }
 </style>

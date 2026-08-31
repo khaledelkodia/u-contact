@@ -195,9 +195,12 @@ const translations = {
   }
 };
 
-import { ref } from 'vue'
+import { lang as appLang, setLang as setAppLang } from '../i18n'
 export { translations }
-export const lang = ref<'ar' | 'en'>((localStorage.getItem('cc_lang') as 'ar' | 'en') || 'ar')
+// **مرجعٌ واحد للغة**: كان هنا مرجعٌ ثانٍ بمفتاح تخزينٍ آخر (`cc_lang`)، فيبدّل
+// الوكيل اللغة في مركز الاتصال ولا تتبعه شاشاتُ `src/views/*` — تقرأ مرجعاً لا
+// يمسّه أحد. صار الاثنان مرجعاً واحداً، فتتبدّل الواجهة كلُّها بضغطةٍ واحدة.
+export const lang = appLang
 export const isRTL = () => lang.value === 'ar'
 /** كروم لا يُبطل ستايل عناصر النماذج (input/select/button) حين يتغيّر `dir` على
  *  الجذر أثناء التشغيل: الحاوية تنعكس فوراً بينما يبقى الحقل بحشوه واستدارته
@@ -223,8 +226,8 @@ export function applyDir() {
   if (changed) forceRestyle()
 }
 export function setLang(l: 'ar' | 'en') {
-  lang.value = l
-  localStorage.setItem('cc_lang', l)
+  // الحفظ والاتّجاه في مكانٍ واحد (`src/i18n`) — نسختان منهما تتضاربان
+  setAppLang(l)
   applyDir()
 }
 export function toggleLang() { setLang(lang.value === 'ar' ? 'en' : 'ar') }
@@ -242,6 +245,19 @@ export function tx(ar: string, en: string) { return lang.value === 'ar' ? ar : e
  * العربيّ هو الحقل الأساسي (`name`/`label`) والإنجليزيّ حقلٌ موازٍ (`nameEn`/`labelEn`).
  * غيابُ الموازي يرتدّ إلى العربي — أفضل من فراغٍ في الشاشة.
  */
+/**
+ * الاسم باللغة **الأخرى** — يُعرَض سطراً ثانياً خافتاً حيث يفيد الاسمان معاً
+ * (شاشة إتاحة الأصناف: الكاشير يعرف الصنف بالعربيّة والوكيل قد يقرأ الإنجليزيّة).
+ * فارغٌ إن لم يوجد الثاني أو تطابقا — فلا يُكرَّر الاسم تحت نفسه.
+ */
+export const altNameOf = (o: any): string => {
+  if (!o) return ''
+  const ar = o.nameAr ?? o.name ?? o.label ?? ''
+  const en = o.nameEn ?? o.labelEn ?? ''
+  const alt = lang.value === 'ar' ? en : ar
+  return alt && alt !== nameOf(o) ? alt : ''
+}
+
 export const nameOf = (o: any): string => {
   if (!o) return ''
   // `nameAr` يأتي من الكتالوج (أحجام/مجموعات/خيارات)، و`name`/`label` من قوائم
@@ -257,4 +273,15 @@ export const locale = () => (lang.value === 'ar' ? 'ar-KW' : 'en-GB')
 export function t(key: string): string {
   const tr = translations as any
   return tr[lang.value]?.[key] ?? tr.ar?.[key] ?? key
+}
+
+/**
+ * تسميةٌ ثنائيّة بالشكل `{ label, labelEn }` — نظيرةُ `nameOf` لـ`{ name, nameEn }`.
+ *
+ * قوائمُ الشكاوى (الحالات والتصنيفات) تحمل الاسمين منذ كُتبت، وكانت الشاشة تعرض
+ * `label` دائماً — فتبقى الفلاتر والحالات عربيّةً في واجهةٍ إنجليزيّة كاملة.
+ */
+export function labelOf(x: any): string {
+  if (!x) return ''
+  return lang.value === 'ar' ? (x.label || x.labelEn || '') : (x.labelEn || x.label || '')
 }

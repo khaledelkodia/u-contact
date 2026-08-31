@@ -294,5 +294,5 @@ function addressLine(addr: any): string {
   border-radius: 10px; font-size: 12.5px; font-weight: 700;
   color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
 }
-:global(body.dark-mode) .ot-warn { color: #fbbf24; background: #451a03; border-color: #78350f; }
+body.dark-mode .ot-warn { color: #fbbf24; background: #451a03; border-color: #78350f; }
 </style>

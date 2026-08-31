@@ -124,6 +124,6 @@ const OPTS = [
   background: #fee2e2; color: #b91c1c; font-size: 12px; font-weight: 700;
 }
 
-:global(body.dark-mode) .ds-opt { background: rgba(255, 255, 255, .04); }
-:global(body.dark-mode) .ds-name { color: #e2e8f0; }
+body.dark-mode .ds-opt { background: rgba(255, 255, 255, .04); }
+body.dark-mode .ds-name { color: #e2e8f0; }
 </style>

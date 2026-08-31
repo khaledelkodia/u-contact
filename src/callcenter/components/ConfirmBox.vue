@@ -104,6 +104,6 @@ function onKey(e: KeyboardEvent) {
 .cb-warning .cb-ok { background: #d97706; color: #fff; box-shadow: 0 2px 6px rgba(217, 119, 6, 0.28); }
 .cb-warning .cb-ok:hover { background: #b45309; }
 
-:global(body.dark-mode) .cb-danger  .cb-ico { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
-:global(body.dark-mode) .cb-warning .cb-ico { background: rgba(217, 119, 6, 0.18); color: #fcd34d; }
+body.dark-mode .cb-danger  .cb-ico { background: rgba(220, 38, 38, 0.18); color: #fca5a5; }
+body.dark-mode .cb-warning .cb-ico { background: rgba(217, 119, 6, 0.18); color: #fcd34d; }
 </style>

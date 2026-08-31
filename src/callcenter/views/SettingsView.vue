@@ -6,7 +6,7 @@ import {
   canOrderSettings, showToast,
 } from '../store'
 import { contactSetOrderPolicy } from '../../api'
-import { tx, lang } from '../lang'
+import { tx, lang, nameOf, altNameOf } from '../lang'
 import { icon } from '../icons'
 
 // ── سياسة أخذ الطلب: هل طريقة الدفع إلزاميّة قبل نزوله للفرع؟ ─────────────
@@ -19,13 +19,39 @@ async function setPayRequired(v: boolean) {
   const prev = state.paymentRequired
   state.paymentRequired = v; paySaving.value = true; payErr.value = ''
   try {
-    await contactSetOrderPolicy(v)
+    await contactSetOrderPolicy({ paymentRequired: v })
     showToast(v ? tx('طريقة الدفع صارت إلزاميّة', 'Payment method is now required')
                 : tx('طريقة الدفع صارت اختياريّة', 'Payment method is now optional'), 'success')
   } catch (e: any) {
     state.paymentRequired = prev   // الخادم رفض ⇒ الشاشة تعود لما هو محفوظ فعلاً
     payErr.value = e?.response?.data?.message || tx('تعذّر الحفظ', 'Could not save')
   } finally { paySaving.value = false }
+}
+
+// ── مراحل السماح بتعديل الطلب ─────────────────────────────────────────────
+// كان الحدُّ مثبَّتاً في الكود: التعديل حتى «تحضير». صار قرارَ الشركة — فمن يريد
+// المنع بمجرّد نزول الطلب الفرع، ومن يريد السماح حتى وهو جاهز، كلٌّ يضبطه.
+const EDIT_STAGES = [
+  { id: 'sent',      ar: 'قبل نزوله للفرع', en: 'Before it reaches the branch' },
+  { id: 'new',       ar: 'جديد عند الفرع',   en: 'New at the branch' },
+  { id: 'preparing', ar: 'جاري التحضير',     en: 'Being prepared' },
+  { id: 'ready',     ar: 'جاهز',             en: 'Ready' },
+]
+const stagesSaving = ref(false)
+const stagesErr = ref('')
+async function toggleStage(id: string, on: boolean) {
+  if (stagesSaving.value) return
+  const prev = [...(state.editStages || [])]
+  const next = on ? [...new Set([...prev, id])] : prev.filter((x) => x !== id)
+  state.editStages = next; stagesSaving.value = true; stagesErr.value = ''
+  try {
+    const r = await contactSetOrderPolicy({ editStages: next })
+    if (Array.isArray(r?.editStages)) state.editStages = r.editStages.filter((x: any) => x !== 'none')
+    showToast(tx('تم حفظ مراحل التعديل', 'Edit stages saved'), 'success')
+  } catch (e: any) {
+    state.editStages = prev   // الخادم رفض ⇒ الشاشة تعود لما هو محفوظ فعلاً
+    stagesErr.value = e?.response?.data?.message || tx('تعذّر الحفظ', 'Could not save')
+  } finally { stagesSaving.value = false }
 }
 
 const groups = computed<any[]>(() => availabilityGroups())
@@ -65,6 +91,21 @@ function onToggle(row: any, ev: Event) {
           </div>
         </div>
         <p v-if="payErr" class="pay-req-err">{{ payErr }}</p>
+
+        <!-- مراحل التعديل: أسطرٌ لا حبّات — كلُّ سطرٍ قرارٌ مستقلّ يُقرأ وحده -->
+        <h4 class="stages-title">{{ tx('مراحل السماح بتعديل الطلب', 'Stages where editing is allowed') }}</h4>
+        <p class="stages-hint">
+          {{ tx('الوكيل يقدر يعدّل الطلب في المراحل المختارة فقط. وما بعد التسليم أو الإقفال لا يُعدَّل مهما اخترت.', 'Agents can edit an order only in the selected stages. After delivery or closing it cannot be edited whatever you pick.') }}
+        </p>
+        <div class="stages-list">
+          <label v-for="s in EDIT_STAGES" :key="s.id" class="stage-row" :style="stagesSaving ? 'opacity:.5; cursor:progress;' : ''">
+            <input type="checkbox" :checked="(state.editStages || []).includes(s.id)" :disabled="stagesSaving"
+                   @change="toggleStage(s.id, ($event.target as HTMLInputElement).checked)">
+            <span>{{ lang === 'ar' ? s.ar : s.en }}</span>
+          </label>
+        </div>
+        <p v-if="!(state.editStages || []).length" class="stages-none">{{ tx('لا تعديل بعد إرسال الطلب إطلاقاً.', 'No editing at all once the order is sent.') }}</p>
+        <p v-if="stagesErr" class="pay-req-err">{{ stagesErr }}</p>
       </div>
 
       <div class="settings-card">
@@ -90,7 +131,7 @@ function onToggle(row: any, ev: Event) {
             </label>
             <div class="availability-filter-input">
               <select id="settings-availability-branch" :value="state.availBranchId" @change="onAvailabilityBranchChange(($event.target as HTMLSelectElement).value)">
-                <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>
+                <option v-for="b in state.branches" :key="b.id" :value="String(b.id)">{{ b.name }}</option>   <!-- الاسم مُنتقًى باللغة في المتجر -->
               </select>
               <span class="availability-filter-chev inline-ico" v-html="icon('chevron-down', { size: 13 })"></span>
             </div>
@@ -103,7 +144,7 @@ function onToggle(row: any, ev: Event) {
             <div class="availability-filter-input">
               <select id="settings-availability-category" :value="state.availCategory" @change="onAvailabilityCategoryChange(($event.target as HTMLSelectElement).value)">
                 <option value="all">{{ tx('كل التصنيفات', 'All categories') }}</option>
-                <option v-for="cat in state.menuCategories.filter((c: any) => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ cat.name }}</option>
+                <option v-for="cat in state.menuCategories.filter((c: any) => c.id !== 'all')" :key="cat.id" :value="cat.id">{{ cat.icon }} {{ nameOf(cat) }}</option>
               </select>
               <span class="availability-filter-chev inline-ico" v-html="icon('chevron-down', { size: 13 })"></span>
             </div>
@@ -127,17 +168,18 @@ function onToggle(row: any, ev: Event) {
           <div v-for="group in groups" :key="group.cat.id" class="settings-cat-section">
             <h4 class="settings-cat-title">
               <span>{{ group.cat.icon }}</span>
-              <span>{{ group.cat.name }} ({{ group.cat.nameEn }})</span>
+              <!-- الاسم الأوّل بلغة الواجهة والثاني بين قوسين — كان العربيُّ أوّلاً دائماً -->
+              <span>{{ nameOf(group.cat) }}<template v-if="altNameOf(group.cat)"> ({{ altNameOf(group.cat) }})</template></span>
               <span class="settings-cat-count">{{ group.items.length }}</span>
             </h4>
             <div class="settings-items-grid">
               <div v-for="row in group.items" :key="row.item.id" class="settings-item-row">
                 <div class="settings-item-row-info">
                   <span class="settings-item-row-name">
-                    {{ row.item.name }}
+                    {{ nameOf(row.item) }}
                     <span v-if="row.fromPos" style="margin-inline-start:6px; font-size:10px; font-weight:700; color:var(--danger, #b91c1c);">{{ tx('موقوف من المطبخ', 'Stopped by the kitchen') }}</span>
                   </span>
-                  <span class="settings-item-row-name-en">{{ row.item.nameEn }}</span>
+                  <span class="settings-item-row-name-en">{{ altNameOf(row.item) }}</span>
                 </div>
                 <label class="availability-switch" :title="row.fromPos ? tx('موقوف من مطبخ الفرع — تشغيله يكون من الفرع', 'Stopped by the branch kitchen — it can only be resumed at the branch') : ''" :style="row.fromPos ? 'opacity:.45; cursor:not-allowed;' : ''">
                   <input type="checkbox" :checked="row.isAvailable" :disabled="row.fromPos" @change="onToggle(row, $event)">
@@ -153,6 +195,12 @@ function onToggle(row: any, ev: Event) {
 </template>
 
 <style scoped>
+.stages-title { margin: 18px 0 4px; font-size: 13.5px; font-weight: 800; color: var(--text-primary, #0f172a); }
+.stages-hint { color: var(--text-secondary, #64748b); font-size: 12.5px; margin-bottom: 10px; line-height: 1.6; }
+.stages-list { display: flex; flex-direction: column; gap: 8px; }
+.stage-row { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.stage-row input { width: 16px; height: 16px; cursor: inherit; }
+.stages-none { margin-top: 8px; font-size: 12.5px; font-weight: 700; color: #b45309; }
 .pay-req-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .pay-req-txt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .pay-req-txt strong { font-size: 13.5px; font-weight: 800; line-height: 1.35; }

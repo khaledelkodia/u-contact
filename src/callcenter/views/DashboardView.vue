@@ -324,16 +324,16 @@ const shortcuts = computed(() => [
 .dash-empty p { margin: 8px 0 0; font-size: 13px; }
 
 /* ── الوضع الليلي ── */
-:global(body.dark-mode) .kpi,
-:global(body.dark-mode) .panel { background: #1e293b; border-color: #334155; }
-:global(body.dark-mode) .kpi-n,
-:global(body.dark-mode) .st-n,
-:global(body.dark-mode) .lo-name,
-:global(body.dark-mode) .lo-total,
-:global(body.dark-mode) .kpi-foot strong { color: #e2e8f0; }
-:global(body.dark-mode) .kpi-hero { background: linear-gradient(135deg, #052e16 0%, #1e293b 62%); border-color: #166534; }
-:global(body.dark-mode) .kpi-hero .kpi-n { color: #4ade80; }
-:global(body.dark-mode) .st-bar { background: #334155; }
-:global(body.dark-mode) .lo + .lo { border-top-color: #334155; }
-:global(body.dark-mode) .lo:hover { background: rgba(255, 255, 255, 0.04); }
+body.dark-mode .kpi,
+body.dark-mode .panel { background: #1e293b; border-color: #334155; }
+body.dark-mode .kpi-n,
+body.dark-mode .st-n,
+body.dark-mode .lo-name,
+body.dark-mode .lo-total,
+body.dark-mode .kpi-foot strong { color: #e2e8f0; }
+body.dark-mode .kpi-hero { background: linear-gradient(135deg, #052e16 0%, #1e293b 62%); border-color: #166534; }
+body.dark-mode .kpi-hero .kpi-n { color: #4ade80; }
+body.dark-mode .st-bar { background: #334155; }
+body.dark-mode .lo + .lo { border-top-color: #334155; }
+body.dark-mode .lo:hover { background: rgba(255, 255, 255, 0.04); }
 </style>

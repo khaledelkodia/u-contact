@@ -657,7 +657,7 @@ function toastIcon(type: string) {
   from { opacity: 0; transform: scale(0.94); }
   to   { opacity: 1; transform: scale(1); }
 }
-:global(body.dark-mode) .uc-toast {
+body.dark-mode .uc-toast {
   color: #e2e8f0;
   background: #1e293b;
   border-color: rgba(148, 163, 184, 0.24);

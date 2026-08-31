@@ -51,9 +51,22 @@ export const PERMS = [
 
 /** مفاتيح مجموعةٍ بعينها بترتيبها في `PERMS`. */
 export const permsOfGroup = (g: string) => PERMS.filter((p) => p.group === g)
+/**
+ * مفاتيح **متقاعدة**: أُزيلت من قائمة المنح لكنها باقيةٌ على وكلاء قدامى — والخادم
+ * ما زال يحرسها. بلا تسميةٍ لها كانت تُعرَض كما هي (`callcenter.delivery_fee`) في
+ * وجه المستخدم بين أسماءٍ عربيّة مفهومة.
+ */
+const RETIRED: Record<string, { ar: string; en: string }> = {
+  'callcenter.delivery_fee': { ar: 'رسوم التوصيل (ملغاة)', en: 'Delivery fee (retired)' },
+}
+
 export const permLabel = (k: string, ar: boolean) => {
   const p = PERMS.find((x) => x.key === k)
-  return p ? (ar ? p.ar : p.en) : k
+  if (p) return ar ? p.ar : p.en
+  const r = RETIRED[k]
+  if (r) return ar ? r.ar : r.en
+  // مفتاحٌ لا نعرفه: نعرض ذيله مقروءاً بدل السلسلة النقطيّة كاملة
+  return k.split('.').pop()?.replace(/_/g, ' ') || k
 }
 // تقاطع: يحفظ ترتيب a
 export const intersect = (a: string[], b: string[]) => { const s = new Set(b); return a.filter((k) => s.has(k)) }

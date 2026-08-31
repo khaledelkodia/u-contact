@@ -260,8 +260,8 @@ const resLabel = computed(() => {
   background: transparent; color: #b45309;
   font-family: inherit; font-size: 11px; font-weight: 800; cursor: pointer; white-space: nowrap;
 }
-:global(body.dark-mode) .cart-edit-bar { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
-:global(body.dark-mode) .cart-edit-cancel { color: #fbbf24; }
+body.dark-mode .cart-edit-bar { background: rgba(245, 158, 11, 0.12); color: #fbbf24; }
+body.dark-mode .cart-edit-cancel { color: #fbbf24; }
 
 /* ── تفاصيل الطلب ────────────────────────────────────────────────────────────
    كانت ثلاث كتل ثابتة تلتهم ~١٩٠px من اللوحة ولو لم يُستعمل منها شيء. صارت شريطاً
@@ -332,8 +332,8 @@ const resLabel = computed(() => {
 .ce-input:focus { border-color: var(--primary, #1a56db); box-shadow: 0 0 0 3px rgba(26, 86, 219, .1); }
 .ce-input::placeholder { color: var(--text-muted, #94a3b8); font-weight: 500; }
 
-:global(body.dark-mode) .ce-chip,
-:global(body.dark-mode) .ce-input { background: var(--bg-card, #1e293b); }
+body.dark-mode .ce-chip,
+body.dark-mode .ce-input { background: var(--bg-card, #1e293b); }
 /* ملاحظة الطلب تحت الأصناف: بلونِ الحبّة نفسه فيُعرَف أنّهما شيءٌ واحد، وبعرضِ
    العمود كاملاً فتُقرأ الجملة كما كُتبت — أسطرُها كما أدخلها الوكيل. */
 .cart-note-row {
@@ -354,8 +354,8 @@ const resLabel = computed(() => {
   white-space: pre-wrap;      /* الأسطر كما كتبها الوكيل لا سطرٌ واحد ملتحم */
   overflow-wrap: anywhere;    /* كلمةٌ طويلة بلا مسافات لا تدفع عرض العمود */
 }
-:global(body.dark-mode) .cart-note-row { background: rgba(245, 158, 11, .12); }
-:global(body.dark-mode) .cart-note-body { color: #fcd34d; }
+body.dark-mode .cart-note-row { background: rgba(245, 158, 11, .12); }
+body.dark-mode .cart-note-body { color: #fcd34d; }
 
 /* «طلب جديد» نصٌّ لا رقم — أخفُّ وزناً وأصغرُ حجماً فلا يُقرأ رقمَ فاتورة */
 .cart-order-no.is-draft { font-size: 14px; font-weight: 700; opacity: .75; }
