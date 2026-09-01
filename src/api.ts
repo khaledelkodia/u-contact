@@ -356,6 +356,9 @@ export interface ContactComplaintInput {
 // فتح يوم مركز اتصال (يتطلّب صلاحية callcenter.open)
 export const contactOpenDay = (businessDate?: string) => api.post('/contact/business-day/open', businessDate ? { businessDate } : {}).then((r) => r.data)
 export const contactCloseDay = () => api.post('/contact/business-day/close').then((r) => r.data)
+// مخرج «القفلة المزدوجة»: يقفل اليوم ويرحّل الطلبات الواقفة لليوم التالي رغم منع
+// القفل — طلبٌ على يومٍ لا فرعَ عليه لن ينزل بنفسه أبداً. مفتاحه callcenter.carry_stuck
+export const contactCarryStuckDay = () => api.post('/contact/business-day/carry-stuck').then((r) => r.data)
 // أيام فروع النطاق — إرشادُ شاشة فتح اليوم قبل اختيار التاريخ (شرط التطابق لم يتغيّر)
 export const contactBranchDays = () => api.get('/contact/business-day/branches').then((r) => r.data)
 // «إصلاح يوم»: يفتح تاريخاً بعينه (جديداً أو قديماً) للمراجعة — لا تُضرَب عليه طلبات

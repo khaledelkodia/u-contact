@@ -3,7 +3,9 @@ import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { pathForView, viewForPath, ORDER_PERMS, DASH_PERMS } from './ccRoutes'
 import ccStyles from './style.css?inline'
-import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, applyBranchDay, applyCcDay, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
+import { state, initData, loadLiveData, loadBusinessDay, openDayModal, closeBusinessDay, carryStuckOrders, mismatchedBranches, noBranchOnDay, loadOrders, loadStoppedItems, loadCcStoppedItems, mergeOrderRows, applyBranchPresence, applyBranchDay, applyCcDay, dismissToast, startNewOrder, resetOrdersBrowsing } from './store'
+// تاريخُ يومٍ بلغة الواجهة — `fmtDay` المحلّي مثبَّتٌ على 'ar-KW' فلا يصلح لنصٍّ ثنائيّ
+import { formatBusinessDate } from './utils'
 import { t, tx, lang, locale, toggleLang, applyDir } from './lang'
 import { EMPLOYEES } from './data'
 import { icon } from './icons'
@@ -458,6 +460,30 @@ function toastIcon(type: string) {
       </div>
     </header>
 
+    <!-- تنبيه «الفرع على يوم مختلف» ──────────────────────────────────────────
+         نزولُ الطلب مشروطٌ بتطابق يومنا مع يوم الفرع تطابقاً تامّاً. كان الاختلاف
+         لا يظهر في أيّ مكان: الوكيل يأخذ الطلب ويَعِد العميل، والطلب يقف `pending`
+         إلى الأبد والفرع لا يعلم به أصلاً. الشريط يقوله **قبل** أن يأخذ الطلب. -->
+    <div v-if="isCallcenterView && state.live && state.onlineDay && mismatchedBranches().length"
+         class="day-mismatch-bar" :class="{ 'is-hard': noBranchOnDay() }" role="status">
+      <span class="dm-ico" v-html="icon('alert-triangle', { size: 16 })"></span>
+      <span class="dm-text">
+        <strong>{{ noBranchOnDay()
+          ? tx('مفيش فرع على يومك — أي طلب جديد هيقف ومش هينزل', 'No branch is on your day — every new order will stall and never reach a branch')
+          : tx('فيه فروع على يوم مختلف — طلباتها مش هتنزل', 'Some branches are on a different day — their orders will not go through') }}</strong>
+        <span class="dm-days">
+          {{ tx('يومك:', 'Your day:') }} {{ formatBusinessDate(openDayISO) }} ·
+          {{ tx('الفرع:', 'Branch:') }}
+          <!-- نسمّي الفروع لا العدد: الوكيل يحتاج أن يعرف أيّها ليقرّر -->
+          <span v-for="(b, i) in mismatchedBranches()" :key="b.id">{{ i ? '، ' : '' }}{{ b.name }} ({{ formatBusinessDate(b.businessDate) }})</span>
+        </span>
+      </span>
+      <!-- مخرج القفلة المزدوجة — بمفتاحه المستقلّ، ولا يظهر إلا والاختلافُ قائم -->
+      <button v-if="can('callcenter.carry_stuck')" class="dm-btn" :disabled="state.dayLoading" @click="carryStuckOrders()">
+        {{ state.dayLoading ? tx('جارٍ الترحيل…', 'Carrying…') : tx('رحّل الطلبات الواقفة', 'Carry stuck orders') }}
+      </button>
+    </div>
+
     <!-- المحتوى — الشاشة النشطة -->
     <main id="main-content">
       <component :is="viewComponent" />
@@ -665,4 +691,55 @@ body.dark-mode .uc-toast {
   background: #1e293b;
   border-color: rgba(148, 163, 184, 0.24);
 }
+
+/* ── شريط «الفرع على يوم مختلف» ─────────────────────────────────────────────
+   خصائص منطقية وحدها (inline-start/end) فينقلب مع الاتجاه بلا نسخةٍ ثانية. */
+.day-mismatch-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 16px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: #92400e;
+  background: #fef3c7;
+  border-bottom: 1px solid rgba(217, 119, 6, 0.35);
+  /* شريطٌ لا يُمرَّر مع المحتوى: التنبيه يخصّ الجلسة كلها لا موضعَ التمرير */
+  flex: 0 0 auto;
+}
+.day-mismatch-bar.is-hard {
+  color: #991b1b;
+  background: #fee2e2;
+  border-bottom-color: rgba(220, 38, 38, 0.35);
+}
+.day-mismatch-bar .dm-ico { display: inline-flex; flex-shrink: 0; }
+.day-mismatch-bar .dm-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; min-width: 0; }
+.day-mismatch-bar .dm-days { opacity: 0.85; }
+.day-mismatch-bar .dm-btn {
+  /* الطرف الآخر من الشريط أيّاً كان الاتجاه */
+  margin-inline-start: auto;
+  flex-shrink: 0;
+  padding: 6px 13px;
+  border-radius: 7px;
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+.day-mismatch-bar .dm-btn:hover:not(:disabled) { background: rgba(0, 0, 0, 0.07); }
+.day-mismatch-bar .dm-btn:disabled { opacity: 0.55; cursor: default; }
+body.dark-mode .day-mismatch-bar {
+  color: #fde68a;
+  background: #3f2d0b;
+  border-bottom-color: rgba(217, 119, 6, 0.45);
+}
+body.dark-mode .day-mismatch-bar.is-hard {
+  color: #fecaca;
+  background: #431717;
+  border-bottom-color: rgba(220, 38, 38, 0.45);
+}
+body.dark-mode .day-mismatch-bar .dm-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.1); }
 </style>

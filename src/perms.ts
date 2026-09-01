@@ -26,6 +26,10 @@ export const PERMS = [
   { key: 'callcenter.block_customer', group: 'orders', ar: 'حظر عميل / فكّ الحظر', en: 'Block / unblock a customer' },
   { key: 'callcenter.open', group: 'day', ar: 'فتح اليوم', en: 'Open day' },
   { key: 'callcenter.close', group: 'day', ar: 'قفل اليوم', en: 'Close day' },
+  // «رحّل الطلبات الواقفة» — مخرجُ الحالة المحبوسة: طلبٌ على يومٍ لا فرعَ عليه لا
+  // ينزل أبداً، والمنع الافتراضي يرفض قفل يومه ⇒ لا مخرجَ من الشاشة. مستقلٌّ عن
+  // «قفل اليوم»: ذاك عملٌ يوميّ، وهذا يقفل **ويحرّك طلبات** فيقرّره من يفهم أثره.
+  { key: 'callcenter.carry_stuck', group: 'day', ar: 'ترحيل الطلبات الواقفة', en: 'Carry stuck orders' },
   { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },
   { key: 'callcenter.manage', group: 'admin', ar: 'إدارة كاملة', en: 'Full manage' },
   // مفتاحان مستقلّان لزرَّين مختلفين — كانا محكومَين بـ`manage` معاً.

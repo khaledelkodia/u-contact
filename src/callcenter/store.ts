@@ -7,7 +7,7 @@ import { todayISO, toCompanyWall, fromCompanyWall, companyToday, formatBusinessD
 import { tx, nameOf, labelOf } from './lang'
 import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
-  contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactFixDay, contactOrders, contactStoppedItems,
+  contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactCarryStuckDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164,
@@ -447,6 +447,64 @@ export async function closeBusinessDay() {
   } catch (err: any) {
     // رسالة الخادم تحمل سبب المنع وعدد الطلبات الواقفة — تُعرَض كما هي
     showToast(err?.response?.data?.message || tx('تعذّر إنهاء اليوم', 'Could not end the day'), 'error')
+  } finally { state.dayLoading = false }
+}
+
+// ── تنبيه «الفرع على يوم مختلف» ─────────────────────────────────────────────
+// نزولُ الطلب مشروطٌ بتطابق تاريخ يومنا مع يوم الفرع تطابقاً تامّاً. الخادم صار
+// يرجّع المقارنة مع اليوم نفسه (`mismatchedBranches` / `noBranchOnDay`)، فنقرأها
+// هنا بدل أن يكتشف الوكيل الاختلاف من طلبٍ وقف بلا سبب ظاهر.
+// حقولٌ غائبة (خادم أقدم) ⇒ لا تنبيه، لا خطأ.
+
+/** فروعٌ يومها معروفٌ ويخالف يومنا — أيّ طلبٍ لها لن ينزل حتى يتطابق التاريخان. */
+export function mismatchedBranches(): Array<{ id: number; name: string; businessDate: string }> {
+  const m = (state.onlineDay as any)?.mismatchedBranches
+  return Array.isArray(m) ? m : []
+}
+
+/** ولا فرعَ واحدٌ على يومنا ⇒ **كلُّ** طلبٍ جديد سيقف. أشدّ من «بعضها مختلف». */
+export function noBranchOnDay(): boolean {
+  return !!(state.onlineDay as any)?.noBranchOnDay
+}
+
+/**
+ * مخرج «القفلة المزدوجة»: يقفل اليوم ويرحّل الطلبات الواقفة لليوم التالي.
+ *
+ * الحالة: طلبٌ على يومٍ لا فرعَ عليه لا ينزل أبداً (الحارس تطابقٌ تامّ)، والمنع
+ * الافتراضي يرفض قفل اليوم وفيه طلبٌ واقف ⇒ لا الطلب ينزل ولا اليوم يُقفَل.
+ *
+ * ليس بديلاً عن «إنهاء اليوم»: يظهر بمفتاحه المستقلّ وحين يكون هناك اختلافُ يومٍ
+ * فعلاً، والتأكيد يسمّي اليوم الذي عليه الفرع كي يعرف الوكيل كم خطوةً أمامه.
+ */
+export async function carryStuckOrders() {
+  if (!(session.mode === 'agent' && session.companyId)) return
+  const cur = (state.onlineDay as any)?.businessDate
+  const curLabel = cur ? formatBusinessDate(String(cur).slice(0, 10)) : ''
+  const target = mismatchedBranches()[0]?.businessDate
+  const targetLabel = target ? formatBusinessDate(String(target).slice(0, 10)) : ''
+  if (!(await askConfirm({
+    title: tx('رحّل الطلبات الواقفة؟', 'Carry stuck orders forward?'),
+    body: tx(
+      `يُقفَل يوم ${curLabel} وتنتقل الطلبات الواقفة لليوم التالي.`
+        + (targetLabel ? ` الفرع على يوم ${targetLabel} — كرّر لحدّ ما يتطابق التاريخان فتنزل الطلبات.` : ''),
+      `Day ${curLabel} will be closed and the stuck orders moved to the next day.`
+        + (targetLabel ? ` The branch is on ${targetLabel} — repeat until the two dates match, then the orders go through.` : ''),
+    ),
+    okLabel: tx('رحّل', 'Carry forward'), kind: 'warning',
+  }))) return
+  state.dayLoading = true
+  try {
+    const day = await contactCarryStuckDay()
+    state.onlineDay = day || null
+    if (day?.businessDate) state.businessDate = String(day.businessDate).slice(0, 10)
+    showToast(day?.businessDate
+      ? tx(`تم الترحيل — يوم ${formatBusinessDate(String(day.businessDate).slice(0, 10))} مفتوح دلوقتي`,
+           `Carried forward — ${formatBusinessDate(String(day.businessDate).slice(0, 10))} is now open`)
+      : tx('تم ترحيل الطلبات الواقفة', 'Stuck orders carried forward'), 'success')
+    void loadBusinessDay()   // المقارنة مع أيام الفروع تُحتسب مقابل اليوم الجديد
+    void loadLiveData()
+  } catch (err: any) {
+    showToast(err?.response?.data?.message || tx('تعذّر ترحيل الطلبات', 'Could not carry the orders'), 'error')
   } finally { state.dayLoading = false }
 }
 
