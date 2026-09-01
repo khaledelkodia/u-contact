@@ -18,9 +18,13 @@ const typeWarn = computed<string | null>(() => orderTypeBlocker())
 const platforms = computed<any[]>(() => branchExternalPlatforms())
 const isExternal = computed(() => !!state.externalPlatform)
 const platformName = (p: any) => nameOf(p)
-// أوّل ضغطةٍ على البطاقة تختار منصّةً واحدة مباشرةً حين لا يوجد غيرها — خطوةٌ
-// إضافية بلا اختيارٍ حقيقيّ ليست خطوة.
-const pickExternal = () => { if (platforms.value.length === 1) selectExternalPlatform(platforms.value[0]) }
+// نافذةُ اختيار المصدر. الضغط على البطاقة يفتحها **دائماً** — حتى لو المنصّة
+// مختارةٌ سلفاً (فيبدّلها الوكيل)، وحتى لو المنصّة واحدة (فيرى اسمها ويؤكّده).
+// كان الاختيار «ذكياً»: يختار تلقائياً حين تكون المنصّة واحدة ولا يفعل شيئاً حين
+// تتعدّد — أي أنّ الزرّ يصمت في الحالة الشائعة تماماً.
+const platformPickerOpen = ref(false)
+const openPlatformPicker = () => { platformPickerOpen.value = true }
+const choosePlatform = (pf: any) => { selectExternalPlatform(pf); platformPickerOpen.value = false }
 
 const comboRoot = ref<HTMLElement | null>(null)
 
@@ -143,26 +147,12 @@ function addressLine(addr: any): string {
       <!-- ── طلب خارجي ────────────────────────────────────────────────────
            لا تظهر إلا إن عرّفت الشركة منصّةً واحدة على الأقل: بطاقةٌ تفتح قائمةً
            فارغة أسوأ من بطاقةٍ غائبة. -->
-      <button v-if="platforms.length" class="order-type-card btn-type-external" :class="{ active: isExternal }" @click="pickExternal">
+      <button v-if="platforms.length" class="order-type-card btn-type-external" :class="{ active: isExternal }" @click="openPlatformPicker">
         <span class="order-type-icon" v-html="icon('package', { size: 30 })"></span>
         <span class="order-type-text">
           <strong>{{ tx('طلب خارجي', 'External order') }}</strong>
           <small>{{ isExternal ? platformName(state.externalPlatform) : tx('من منصّة (طلبات · جاهز · كيتا …)', 'From a platform (Talabat, Jahez, Keeta …)') }}</small>
         </span>
-      </button>
-    </div>
-
-    <!-- ── اختيار المنصّة ───────────────────────────────────────────────────
-         يظهر بمجرّد وجود منصّات، فيرى الوكيل المصدر ويضغطه في خطوةٍ واحدة بدل
-         بطاقةٍ تفتح مودالاً يفتح قائمة. ووضعُ كل منصّة مكتوبٌ تحتها: يعرف قبل
-         الضغط أسيُطلَب منه عنوانٌ أم لا. -->
-    <div v-if="platforms.length" class="ext-platforms">
-      <button v-for="p in platforms" :key="p.id" type="button" class="ext-chip"
-              :class="{ active: state.externalPlatform?.id === p.id }"
-              @click="selectExternalPlatform(state.externalPlatform?.id === p.id ? null : p)">
-        <span v-html="icon(p.mode === 'delivery' ? 'bike' : 'store', { size: 14 })"></span>
-        <span class="ext-chip-name">{{ platformName(p) }}</span>
-        <small>{{ p.mode === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</small>
       </button>
     </div>
 
@@ -325,6 +315,39 @@ function addressLine(addr: any): string {
         </button>
       </div>
     </form>
+  </div>
+
+  <!-- ══ نافذة اختيار مصدر الطلب الخارجي ══════════════════════════════════════
+       المنصّة ليست تفصيلاً بجانب النوع بل هي النوع نفسه: «طلبات» غير «كيتا» في
+       مَن يحمل الطلب وفي الحساب آخر الشهر. فتُسأل سؤالاً صريحاً لا شريطَ خياراتٍ
+       قائماً على الشاشة طوال الوقت.
+       ووضعُ كلّ منصّة مكتوبٌ تحتها: الوكيل يعرف قبل الضغط أسيُطلَب منه عنوانٌ أم لا. -->
+  <div v-if="platformPickerOpen" class="modal-overlay" @click.self="platformPickerOpen = false">
+    <div class="modal-content" style="max-width:520px;" @click.stop>
+      <div class="modal-header">
+        <h3 class="modal-title">{{ tx('مصدر الطلب', 'Order source') }}</h3>
+        <button class="modal-close" @click="platformPickerOpen = false">×</button>
+      </div>
+      <div class="modal-body">
+        <p class="ext-pick-hint">{{ tx('الطلب ده جايلك من أنهي منصّة؟', 'Which platform did this order come from?') }}</p>
+        <div class="ext-pick-grid">
+          <button v-for="pf in platforms" :key="pf.id" type="button" class="ext-pick-card"
+                  :class="{ active: state.externalPlatform?.id === pf.id }" @click="choosePlatform(pf)">
+            <span class="ext-pick-ico" v-html="icon(pf.mode === 'delivery' ? 'bike' : 'store', { size: 26 })"></span>
+            <strong>{{ platformName(pf) }}</strong>
+            <small>{{ pf.mode === 'delivery' ? tx('توصيل — سائقنا يوصّل', 'Delivery — our driver') : tx('استلام — مندوب المنصّة', 'Pickup — platform courier') }}</small>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <!-- التراجع عن «خارجي» بلا اضطرارٍ لضغط بطاقةٍ أخرى — يظهر فقط حين يكون هناك ما يُلغى -->
+        <button v-if="isExternal" class="btn btn-secondary" @click="choosePlatform(null)">
+          {{ tx('إلغاء المصدر', 'Clear source') }}
+        </button>
+        <span v-else></span>
+        <button class="btn btn-secondary" @click="platformPickerOpen = false">{{ tx('إغلاق', 'Close') }}</button>
+      </div>
+    </div>
   </div>
 </template>
 
