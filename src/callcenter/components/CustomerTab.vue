@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { state, setOrderType, orderTypeBlocker, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, toggleBlacklist, canBlockCustomer, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
+import { state, setOrderType, orderTypeBlocker, selectExternalPlatform, branchExternalPlatforms, saveCustomer, cancelCustomerForm, selectAddress, selectNewAddressState, deleteAddress, canDeleteAddress, toggleBlacklist, canBlockCustomer, onAreaChange, selectRegion, selectSection, areaSections, sectionRequired, currentArea , companyDial } from '../store'
 import { formatCurrency } from '../utils'
-import { t, tx } from '../lang'
+import { t, tx, nameOf } from '../lang'
 import { icon } from '../icons'
 
 // ── كومبو المنطقة (searchable-select) ──
@@ -11,6 +11,16 @@ const comboSearch = ref('')
 // أنواع الطلب من الشركة (فارغة = ارتدادٌ لبطاقتَي توصيل/استلام)
 // تحذيرُ نوع الطلب — نصٌّ جاهزٌ من المتجر (نفس نصّ حارس الإرسال، فلا يختلفان)
 const typeWarn = computed<string | null>(() => orderTypeBlocker())
+
+// ── الطلب الخارجي ─────────────────────────────────────────────────────────
+// المنصّات المتاحة لهذا الفرع. فارغة ⇒ البطاقة الثالثة لا تظهر إطلاقاً: شركةٌ لا
+// تعمل مع منصّات لا يتغيّر عندها شيء بوصول الميزة.
+const platforms = computed<any[]>(() => branchExternalPlatforms())
+const isExternal = computed(() => !!state.externalPlatform)
+const platformName = (p: any) => nameOf(p)
+// أوّل ضغطةٍ على البطاقة تختار منصّةً واحدة مباشرةً حين لا يوجد غيرها — خطوةٌ
+// إضافية بلا اختيارٍ حقيقيّ ليست خطوة.
+const pickExternal = () => { if (platforms.value.length === 1) selectExternalPlatform(platforms.value[0]) }
 
 const comboRoot = ref<HTMLElement | null>(null)
 
@@ -116,19 +126,43 @@ function addressLine(addr: any): string {
          أنواعُ كاشيرٍ داخل الفرع لا يأخذها أحدٌ بالهاتف. الوكيل يختار الشكل،
          والنظام ينزّله بنوعه المعروف للفرع (توصيل=٥ · استلام=٦). -->
     <div class="order-type-selector">
-      <button class="order-type-card btn-type-delivery" :class="{ active: state.orderType === 'delivery' }" @click="setOrderType('delivery')">
+      <button class="order-type-card btn-type-delivery" :class="{ active: state.orderType === 'delivery' && !isExternal }" @click="setOrderType('delivery')">
         <span class="order-type-icon" v-html="icon('bike', { size: 30 })"></span>
         <span class="order-type-text">
           <strong>{{ t('delivery_order') }}</strong>
           <small>{{ t('delivery_order_desc') }}</small>
         </span>
       </button>
-      <button class="order-type-card btn-type-pickup" :class="{ active: state.orderType === 'pickup' }" @click="setOrderType('pickup')">
+      <button class="order-type-card btn-type-pickup" :class="{ active: state.orderType === 'pickup' && !isExternal }" @click="setOrderType('pickup')">
         <span class="order-type-icon" v-html="icon('store', { size: 30 })"></span>
         <span class="order-type-text">
           <strong>{{ t('pickup_order') }}</strong>
           <small>{{ t('pickup_order_desc') }}</small>
         </span>
+      </button>
+      <!-- ── طلب خارجي ────────────────────────────────────────────────────
+           لا تظهر إلا إن عرّفت الشركة منصّةً واحدة على الأقل: بطاقةٌ تفتح قائمةً
+           فارغة أسوأ من بطاقةٍ غائبة. -->
+      <button v-if="platforms.length" class="order-type-card btn-type-external" :class="{ active: isExternal }" @click="pickExternal">
+        <span class="order-type-icon" v-html="icon('package', { size: 30 })"></span>
+        <span class="order-type-text">
+          <strong>{{ tx('طلب خارجي', 'External order') }}</strong>
+          <small>{{ isExternal ? platformName(state.externalPlatform) : tx('من منصّة (طلبات · جاهز · كيتا …)', 'From a platform (Talabat, Jahez, Keeta …)') }}</small>
+        </span>
+      </button>
+    </div>
+
+    <!-- ── اختيار المنصّة ───────────────────────────────────────────────────
+         يظهر بمجرّد وجود منصّات، فيرى الوكيل المصدر ويضغطه في خطوةٍ واحدة بدل
+         بطاقةٍ تفتح مودالاً يفتح قائمة. ووضعُ كل منصّة مكتوبٌ تحتها: يعرف قبل
+         الضغط أسيُطلَب منه عنوانٌ أم لا. -->
+    <div v-if="platforms.length" class="ext-platforms">
+      <button v-for="p in platforms" :key="p.id" type="button" class="ext-chip"
+              :class="{ active: state.externalPlatform?.id === p.id }"
+              @click="selectExternalPlatform(state.externalPlatform?.id === p.id ? null : p)">
+        <span v-html="icon(p.mode === 'delivery' ? 'bike' : 'store', { size: 14 })"></span>
+        <span class="ext-chip-name">{{ platformName(p) }}</span>
+        <small>{{ p.mode === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup') }}</small>
       </button>
     </div>
 
@@ -214,7 +248,7 @@ function addressLine(addr: any): string {
       </div>
       <div class="form-group full-width" v-show="isDelivery && state.live" style="grid-column: 1 / -1;">
         <label for="cust-address-text">{{ tx('العنوان بالتفصيل', 'Full address') }}</label>
-        <textarea id="cust-address-text" :placeholder="tx('اكتب العنوان بالتفصيل (المبنى، الشارع، علامة مميزة...)', 'Write the full address (building, street, landmark…)')" rows="3" v-model="state.form.addressText"></textarea>
+        <textarea id="cust-address-text" :placeholder="tx('اكتب العنوان بالتفصيل (المبنى، الشارع، علامة مميزة...)', 'Write the full address (building, street, landmark…)')" rows="2" v-model="state.form.addressText"></textarea>
       </div>
 
       <!-- ── العنوان التجريبي (المووك): منطقة من الفروع + حقول تفصيلية ── -->
@@ -240,29 +274,38 @@ function addressLine(addr: any): string {
           </div>
         </div>
       </div>
-      <div class="form-group" v-show="isDelivery">
-        <label for="cust-block">{{ t('block_label') }}</label>
-        <input type="text" id="cust-block" :placeholder="tx('رقم القطعة', 'Block no.')" v-model="state.form.block">
-      </div>
-      <div class="form-group" v-show="isDelivery">
-        <label for="cust-street">{{ t('street_label') }}</label>
-        <input type="text" id="cust-street" :placeholder="tx('رقم أو اسم الشارع', 'Street no. or name')" v-model="state.form.street">
-      </div>
-      <div class="form-group" v-show="isDelivery">
-        <label for="cust-building">{{ t('building_label') }}</label>
-        <input type="text" id="cust-building" :placeholder="tx('رقم المبنى', 'Building no.')" v-model="state.form.building">
-      </div>
-      <div class="form-group" v-show="isDelivery">
-        <label for="cust-floor">{{ t('floor_label') }}</label>
-        <input type="text" id="cust-floor" :placeholder="tx('الطابق', 'Floor')" v-model="state.form.floor">
-      </div>
-      <div class="form-group" v-show="isDelivery">
-        <label for="cust-apartment">{{ t('apartment_label') }}</label>
-        <input type="text" id="cust-apartment" :placeholder="tx('رقم الشقة', 'Apartment no.')" v-model="state.form.apartment">
+      <!-- ── تفاصيل العنوان: صفٌّ واحد مضغوط ──────────────────────────────────
+           كانت خمسةَ حقولٍ كلٌّ منها ثلثُ العرض، فتملأ صفّين وتترك فراغاً في
+           الثاني — ومحتواها رقمٌ من خانتين أو ثلاث لا يحتاج ثلثاً. جمعُها في
+           شبكةٍ واحدة يقصّر النموذج بصفٍّ كامل، وهو نصفُ سبب اختفاء زرّ الحفظ
+           تحت الطيّة. الشبكة `auto-fit` فتلتفّ وحدها في اللوحة الضيّقة. -->
+      <div class="form-group full-width" v-show="isDelivery" style="grid-column: 1 / -1;">
+        <div class="addr-parts">
+          <div class="ap-field">
+            <label for="cust-block">{{ t('block_label') }}</label>
+            <input type="text" id="cust-block" :placeholder="tx('رقم القطعة', 'Block no.')" v-model="state.form.block">
+          </div>
+          <div class="ap-field">
+            <label for="cust-street">{{ t('street_label') }}</label>
+            <input type="text" id="cust-street" :placeholder="tx('رقم أو اسم الشارع', 'Street no. or name')" v-model="state.form.street">
+          </div>
+          <div class="ap-field">
+            <label for="cust-building">{{ t('building_label') }}</label>
+            <input type="text" id="cust-building" :placeholder="tx('رقم المبنى', 'Building no.')" v-model="state.form.building">
+          </div>
+          <div class="ap-field">
+            <label for="cust-floor">{{ t('floor_label') }}</label>
+            <input type="text" id="cust-floor" :placeholder="tx('الطابق', 'Floor')" v-model="state.form.floor">
+          </div>
+          <div class="ap-field">
+            <label for="cust-apartment">{{ t('apartment_label') }}</label>
+            <input type="text" id="cust-apartment" :placeholder="tx('رقم الشقة', 'Apartment no.')" v-model="state.form.apartment">
+          </div>
+        </div>
       </div>
       <div class="form-group full-width">
         <label for="cust-notes">{{ t('customer_notes_label') }}</label>
-        <textarea id="cust-notes" :placeholder="t('customer_notes_placeholder')" rows="3" v-model="state.form.notes"></textarea>
+        <textarea id="cust-notes" :placeholder="t('customer_notes_placeholder')" rows="2" v-model="state.form.notes"></textarea>
       </div>
       <div class="form-group">
         <div class="checkbox-group">
@@ -295,4 +338,43 @@ function addressLine(addr: any): string {
   color: #b45309; background: #fef3c7; border: 1px solid #fde68a;
 }
 body.dark-mode .ot-warn { color: #fbbf24; background: #451a03; border-color: #78350f; }
+
+/* ── تفاصيل العنوان: خمسةُ حقولٍ قصيرة في صفٍّ واحد ───────────────────────────
+   `auto-fit` لا عدداً ثابتاً: اللوحة تضيق وتتّسع مع السلة، فالعدد الثابت كان
+   يهرس الحقول أو يمدّها. تلتفّ وحدها إلى صفّين حين لا يتّسع الخمسة. */
+.addr-parts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 10px;
+}
+.addr-parts .ap-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;   /* بدونه يرفض عنصرُ الشبكة أن يصغر عن محتواه فيطفح الصفّ */
+}
+.addr-parts label { font-size: 11.5px; font-weight: 600; color: var(--text-secondary); }
+/* حقولٌ محتواها رقمٌ من خانتين أو ثلاث — لا تحتاج ارتفاعَ حقلٍ نصّيّ كامل */
+.addr-parts input { padding: 7px 10px; font-size: 12.5px; }
+
+/* ── النموذج أقصر ───────────────────────────────────────────────────────────
+   الفجوة ٢٠ بكسل بين كل حقلين تضيف وحدها أكثر من مئة بكسل على نموذجٍ من ستّة
+   صفوف. مقصورةٌ على هذا النموذج (`scoped`) فلا تمسّ بقيّة الشاشات. */
+.customer-form { gap: 14px; }
+.customer-form textarea { min-height: 54px; }
+
+/* ── زرّا الحفظ والإلغاء لا يغيبان تحت الطيّة ──────────────────────────────
+   كان الوكيل يمرّر لأسفل ليجد «حفظ البيانات» — وقد لا ينتبه أنّ هناك ما يُمرَّر
+   إليه أصلاً، فيظنّ النموذج بلا حفظ. الالتصاق بأسفل النافذة يُبقيهما في المدى
+   البصريّ ما دام النموذج مفتوحاً، بلا تغيير أيّ سلوك.
+   خلفيةٌ صريحة وظلٌّ خفيف: بدونهما يمرّ محتوى النموذج تحت الزرّين فيُقرآن طافيَين. */
+.customer-form .form-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-top: 0;
+  padding: 12px 0 2px;
+  background: var(--white);
+  box-shadow: 0 -8px 14px -10px rgba(15, 23, 42, 0.25);
+}
 </style>

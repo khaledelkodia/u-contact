@@ -9,7 +9,7 @@ import {
   session, currentCompany, contactBranches, contactRegions, contactProducts, contactCustomers, contactCreateOrder, contactSaveCustomer,
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactCarryStuckDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
-  contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
+  contactPaymentMethods, contactOrderTypes, contactExternalPlatforms, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164, phoneDisplay,
   contactSetCustomerBlocked, contactDiscounts,
   trueNow,
@@ -69,6 +69,11 @@ export const state = reactive<any>({
   companyOrderTypes: [],
   // نوع الطلب المختار من أنواع الشركة (كائن) — `orderType` أدناه يبقى للشكل البنيوي
   selectedOrderType: null,
+  // المنصّات الخارجية (طلبات · جاهز · كيتا …) — مصادر «الطلب الخارجي» (code 9).
+  // فارغة = الشركة لا تعمل مع منصّات ⇒ بطاقة «طلب خارجي» لا تظهر للوكيل أصلاً.
+  externalPlatforms: [],
+  // المنصّة المختارة للطلب الحالي — null = طلبٌ عاديّ (توصيل/استلام مباشر)
+  externalPlatform: null,
 
   // مجموعات البيانات (من data.ts)
   customers: [],
@@ -206,10 +211,11 @@ export async function loadLiveData() {
   if (!(session.mode === 'agent' && session.companyId)) return
   try {
     // طرق الدفع وأنواع الطلب من الشركة — فشلُها لا يُسقط الشاشة: نرتدّ لقوائم data.ts
-    const [branches, regions, products, payMethods, orderTypes, policy, discounts] = await Promise.all([
+    const [branches, regions, products, payMethods, orderTypes, extPlatforms, policy, discounts] = await Promise.all([
       contactBranches(), contactRegions(), contactProducts(),
       contactPaymentMethods().catch(() => []),
       contactOrderTypes().catch(() => []),
+      contactExternalPlatforms().catch(() => []),   // فشلُها يخفي «الطلب الخارجي» وحده
       contactOrderPolicy().catch(() => ({ paymentRequired: false })),
       contactDiscounts().catch(() => []),   // فشلُها لا يُسقط الشاشة: طلبٌ بلا خصم أهونُ من شاشةٍ لا تفتح
     ])
@@ -221,6 +227,7 @@ export async function loadLiveData() {
     const st = (policy as any)?.editStages
     if (Array.isArray(st)) state.editStages = st.filter((x: any) => x !== 'none')
     state.companyOrderTypes = Array.isArray(orderTypes) ? orderTypes : []
+    state.externalPlatforms = Array.isArray(extPlatforms) ? extPlatforms : []
     // نوعٌ مختار افتراضاً: أوّل نوعٍ يوافق الشكل البنيويّ الحالي (توصيل/استلام)
     syncSelectedOrderType()
 
@@ -1399,6 +1406,7 @@ export function resetOrderDraft() {
   state.pendingOrderEvents = []   // وإلا ورث الطلبُ التالي سجلَّ الذي قبله
   state.editingOrderId = null
   state.orderType = 'delivery'
+  state.externalPlatform = null    // وإلا ورث الطلبُ التالي مصدرَ الذي قبله
   showAllCategories()             // ونبدأ من رأس المنيو لا من داخل تصنيفٍ سابق
 }
 
@@ -1873,7 +1881,9 @@ export const isDeliveryCode = (code: number) => DELIVERY_CODES.includes(Number(c
 /** نوعان لا ثالث لهما في مركز الاتصال: **توصيل (5)** و**استلام (6)**. */
 export const DELIVERY_TYPE_CODE = 5
 export const PICKUP_TYPE_CODE = 6
-const AGENT_ORDER_CODES = [DELIVERY_TYPE_CODE, PICKUP_TYPE_CODE]
+/** «طلب خارجي» — الوارد من منصّة. دورتُه من وضع المنصّة لا من الكود. */
+export const EXTERNAL_TYPE_CODE = 9
+const AGENT_ORDER_CODES = [DELIVERY_TYPE_CODE, PICKUP_TYPE_CODE, EXTERNAL_TYPE_CODE]
 export function companyOrderTypes(): any[] {
   const all = Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
   return all.filter((t: any) => AGENT_ORDER_CODES.includes(Number(t.code)))
@@ -1885,8 +1895,9 @@ export function companyOrderTypes(): any[] {
  * الفحص على الفرع لا الشركة: نوعٌ مقصورٌ على فرعٍ واحد كان يبدو متاحاً للجميع،
  * فينزل الطلب بنوعٍ لا يستقبله الفرع الذي وصله. ومصفوفةٌ فارغة = بلا قيد.
  */
-export function orderTypeForBranch(wantDelivery: boolean, branchId: any): any | null {
-  const code = wantDelivery ? DELIVERY_TYPE_CODE : PICKUP_TYPE_CODE
+export function orderTypeForBranch(wantDelivery: boolean, branchId: any, code?: number): any | null {
+  // كودٌ صريح (الطلب الخارجي) يتقدّم على الاشتقاق من الشكل: «خارجي/توصيل» نوعُه 9 لا 5
+  if (code == null) code = wantDelivery ? DELIVERY_TYPE_CODE : PICKUP_TYPE_CODE
   const b = Number(branchId)
   return companyOrderTypes().find((t: any) => {
     if (Number(t.code) !== code) return false
@@ -1899,11 +1910,12 @@ export function orderTypeForBranch(wantDelivery: boolean, branchId: any): any | 
 export function orderTypeBlocker(): string | null {
   const wantDelivery = state.orderType === 'delivery'
   const bid = getResolvedOrderBranchId()
-  if (orderTypeForBranch(wantDelivery, bid)) return null
+  const code = state.externalPlatform ? EXTERNAL_TYPE_CODE : undefined
+  if (orderTypeForBranch(wantDelivery, bid, code)) return null
   const br = (state.branches || []).find((x: any) => Number(x.id) === Number(bid))
   const brName = br ? nameOf(br) : (bid ? `#${bid}` : tx('الفرع المختار', 'the selected branch'))
-  const kindAr = wantDelivery ? 'التوصيل' : 'الاستلام'
-  const kindEn = wantDelivery ? 'delivery' : 'pickup'
+  const kindAr = state.externalPlatform ? 'الطلبات الخارجية' : (wantDelivery ? 'التوصيل' : 'الاستلام')
+  const kindEn = state.externalPlatform ? 'external' : (wantDelivery ? 'delivery' : 'pickup')
   return tx(
     `فرع «${brName}» لا يستقبل طلبات ${kindAr} — اختر فرعاً آخر أو غيّر نوع الطلب`,
     `Branch “${brName}” does not accept ${kindEn} orders — pick another branch or change the order type`)
@@ -1917,8 +1929,11 @@ export function companyPaymentMethods(): any[] {
 /** يُبقي النوع المختار موافقاً للشكل البنيويّ (توصيل/استلام) بعد كل تغيير. */
 function syncSelectedOrderType() {
   const wantDelivery = state.orderType === 'delivery'
+  // طلبٌ من منصّة ⇒ نوعُه «خارجي» (9) مهما كان شكلُه؛ والشكل (توصيل/استلام) يبقى
+  // محكوماً بوضع المنصّة فيُظهر العنوان أو يُخفيه.
+  const code = state.externalPlatform ? EXTERNAL_TYPE_CODE : undefined
   // المتاح في الفرع المستهدَف؛ وإلا لا شيء — والحارس يشرح السبب عند الإرسال
-  state.selectedOrderType = orderTypeForBranch(wantDelivery, getResolvedOrderBranchId())
+  state.selectedOrderType = orderTypeForBranch(wantDelivery, getResolvedOrderBranchId(), code)
 }
 
 /** اختيار نوعٍ من أنواع الشركة — يضبط الشكل البنيويّ معه (العنوان يظهر أو يختفي). */
@@ -1930,7 +1945,33 @@ export function selectOrderType(t: any) {
 
 export function setOrderType(type: string) {
   state.orderType = type
+  // «توصيل»/«استلام» مباشرَين ⇒ الطلب لم يعد من منصّة. بلا هذا المسح تبقى منصّةٌ
+  // معلّقة على طلبٍ حوّله الوكيل يدوياً، فينزل الفرع بمصدرٍ لا يخصّه.
+  state.externalPlatform = null
   syncSelectedOrderType()
+}
+
+/**
+ * اختيار منصّة خارجية — الخطوة التي تحوّل الطلب إلى «طلب خارجي».
+ *
+ * وضعُ المنصّة هو ما يبني الشاشة بعدها: `delivery` ⇒ الوكيل يكمل العنوان والرسوم
+ * كأيّ توصيل، و`pickup` ⇒ يمضي بلا عنوان لأن مندوب المنصّة يستلم من الفرع.
+ * تمرير `null` يُلغي الاختيار ويُعيد الطلب عادياً.
+ */
+export function selectExternalPlatform(p: any) {
+  state.externalPlatform = p || null
+  if (p) state.orderType = p.mode === 'delivery' ? 'delivery' : 'pickup'
+  syncSelectedOrderType()
+}
+
+/** منصّات الشركة المتاحة **لهذا الفرع** — مصفوفةٌ فارغة في المنصّة = بلا قيد. */
+export function branchExternalPlatforms(): any[] {
+  const all = Array.isArray(state.externalPlatforms) ? state.externalPlatforms : []
+  const b = Number(getResolvedOrderBranchId())
+  return all.filter((p: any) => {
+    const scope = Array.isArray(p.branchIds) ? p.branchIds : []
+    return !scope.length || !b || scope.map(Number).includes(b)
+  })
 }
 
 export function showTab(tab: string) {
@@ -2636,7 +2677,9 @@ export async function submitOrder() {
     customerName: name,
     paymentMode,
     // نوع الطلب من أنواع الشركة؛ وبلا أنواعٍ نرتدّ للثابت القديم (5/6)
-    orderTypeCode: state.selectedOrderType?.code ?? (isDelivery ? 5 : 6),
+    orderTypeCode: state.selectedOrderType?.code ?? (state.externalPlatform ? EXTERNAL_TYPE_CODE : (isDelivery ? 5 : 6)),
+    // المنصّة الخارجية — الخادم يتحقّق من ملكيّة الشركة لها قبل تخزينها
+    externalPlatformId: state.externalPlatform?.id ?? null,
     // معرّف طريقة الدفع كما عرّفتها الشركة — لم يكن يُرسَل إطلاقاً
     paymentMethodId: payMethod && typeof payMethod.id === 'number' ? payMethod.id : null,
     // **الخصم بمبلغه واسمه وتفصيله**: المبلغ وحده يقول «اتخصم ٢٠» ولا يقول لماذا،
@@ -2990,6 +3033,7 @@ export function reviewSummary(): any {
     customerPhone: state.form.phone || state.currentCustomer?.phone || '—',
     orderType: state.orderType,
     orderTypeName: state.selectedOrderType ? nameOf(state.selectedOrderType) : '',
+    externalPlatformName: state.externalPlatform ? nameOf(state.externalPlatform) : '',
     branchName: infoBranchName(),
     areaName: area ? nameOf(area) : null,
     sectionName: sec ? nameOf(sec) : null,

@@ -190,6 +190,12 @@ function itemMods(i: any): { name: string; price: number }[] {
             <span class="rv-type-ico" v-html="icon(review.orderType === 'delivery' ? 'bike' : 'store', { size: 13 })"></span>
             {{ review.orderTypeName || (review.orderType === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')) }}
           </span>
+          <!-- المصدر: شارةٌ ثانية بجانب النوع. «طلب خارجي» وحده لا يكفي في المراجعة —
+               الوكيل يحتاج أن يرى أنّه «طلبات» لا «كيتا» قبل أن يضغط إرسال. -->
+          <span v-if="review.externalPlatformName" class="rv-type rv-type-ext">
+            <span class="rv-type-ico" v-html="icon('package', { size: 13 })"></span>
+            {{ review.externalPlatformName }}
+          </span>
         </section>
 
         <!-- ── الوجهة والدفع: أيقونةٌ وسطران، لا شبكةُ تسمياتٍ وقيم ─────────── -->

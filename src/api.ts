@@ -323,6 +323,8 @@ export const contactPaymentMethods = () =>
   api.get('/contact/lookup/payment-methods').then((r) => r.data as ContactPaymentMethod[])
 export const contactOrderTypes = () =>
   api.get('/contact/lookup/order-types').then((r) => r.data as ContactOrderType[])
+export const contactExternalPlatforms = () =>
+  api.get('/contact/lookup/external-platforms').then((r) => r.data as ContactExternalPlatform[])
 // إنشاء طلب (ينشئ/يربط العميل تلقائياً بالهاتف)
 export const contactCreateOrder = (body: ContactOrderInput) => api.post('/contact/orders', body).then((r) => r.data)
 // قائمة الطلبات + يوم العمل الحالي
@@ -428,6 +430,11 @@ export interface ContactRegion { id: number; name: string; nameEn: string | null
 export interface ContactPaymentMethod { id: number; nameAr: string; nameEn: string; isCash: boolean; isCredit: boolean; sortOrder: number }
 /** نوع طلبٍ للشركة. `code` (1..8) هو ما يفهمه الفرع؛ 4/5 يحتاجان عنواناً. */
 export interface ContactOrderType { id: number; code: number; nameAr: string; nameEn: string }
+/**
+ * منصّة خارجية — مصدر «الطلب الخارجي» (code 9).
+ * `mode` يقرّر شكل الشاشة عند الوكيل: delivery ⇒ عنوانٌ ورسوم، pickup ⇒ استلامٌ من الفرع.
+ */
+export interface ContactExternalPlatform { id: number; nameAr: string; nameEn: string; mode: 'delivery' | 'pickup'; branchIds?: number[] }
 export interface ContactOrderModifierInput { id?: number | null; name: string; nameEn?: string | null; price?: number; groupId?: number | null }
 export interface ContactOrderItemInput {
   productId?: number | null; productName: string; productNameEn?: string | null
@@ -445,6 +452,8 @@ export interface ContactOrderInput {
   regionId?: number | null; regionName?: string | null; addressText?: string | null
   block?: string | null; street?: string | null; building?: string | null; floor?: string | null; apartment?: string | null
   branchId?: number | null; orderTypeCode?: number | null
+  // المنصّة الخارجية — تُرسَل مع orderTypeCode = 9 وحده
+  externalPlatformId?: number | null
   paymentMode: 'cash_on_delivery' | 'prepaid_online'; paymentMethodId?: number | null
   discountAmount?: number; discountName?: string | null; discountBreakdown?: any[]; notes?: string | null
   // سجلّ عمليات الوكيل على السلّة — يُخزَّن مع الطلب ويظهر في خطّه الزمنيّ
