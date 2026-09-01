@@ -3104,7 +3104,7 @@ export function deliveryOrdersFiltered(): any[] {
   let filtered = state.orders.filter((o: any) =>
     o.type === 'delivery' &&
     (!o.scheduledDate || schedLeftQueue(o)) &&
-    (state.live || (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
+    ((o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
   )
   if (state.filterStatus) filtered = filtered.filter((o: any) => o.status === state.filterStatus)
   const inv = (state.filterInvoice || '').trim().toLowerCase()
@@ -3167,7 +3167,7 @@ export function allOrdersFiltered(): any[] {
     // الطلبات: تضمّ المجدولَ الذي غادر قائمة الانتظار — كان يُستبعَد كلُّ مجدولٍ
     // مهما حان موعده، فيختفي الطلب من الشاشتين معاً بعد خروجه من «المجدولة».
     (!o.scheduledDate || schedLeftQueue(o)) &&
-    (state.live || (o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
+    ((o.businessDate || (o.createdAt || '').slice(0, 10)) === bd)
   )
   if (state.allFilterStatus) filtered = filtered.filter((o: any) => o.status === state.allFilterStatus)
   if (state.allFilterBranch) filtered = filtered.filter((o: any) => o.branchId === parseInt(state.allFilterBranch))
