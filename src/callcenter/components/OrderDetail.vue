@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder } from '../store'
+import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder, phoneShow } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency, formatDate, formatTransactionTime } from '../utils'
@@ -172,7 +172,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
         <label>{{ tx('السائق', 'Driver') }}</label>
         <div v-if="order.driverId" class="driver-detail-box">
           <div class="driver-detail-name"><span v-html="icon('bike', { size: 14 })"></span> {{ order.driverName }}</div>
-          <div class="driver-detail-phone" dir="ltr">{{ order.driverPhone || '' }}</div>
+          <div class="driver-detail-phone" dir="ltr">{{ phoneShow(order.driverPhone || '') }}</div>
           <div v-if="order.driverAssignedAt" class="driver-detail-time">{{ tx('تم التحميل:', 'Picked up:') }} {{ formatTransactionTime(order.driverAssignedAt) }}</div>
         </div>
         <span v-else style="color:var(--text-muted); font-weight:600;">{{ tx('لم يُعين سائق بعد', 'No driver assigned yet') }}</span>

@@ -10,7 +10,7 @@ import {
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactCarryStuckDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactOrderPolicy, contactUpdateOrder,
-  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164,
+  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164, phoneDisplay,
   contactSetCustomerBlocked, contactDiscounts,
   trueNow,
 } from '../api'
@@ -3915,6 +3915,15 @@ export function closeComplaintModal() { state.complaintModalOrderId = null }
 /** كود اتصال دولة الشركة الحالية — يُسبق به كل رقم يُرسَل. */
 export function companyDial(): string {
   return String(currentCompany()?.dialCode || '')
+}
+
+/**
+ * رقمُ هاتفٍ **للعرض** بكود شركة الجلسة — «(20+) 9876543210».
+ * غلافٌ على `phoneDisplay` كي لا تُمرَّر `companyDial()` في كل قالب.
+ * للعرض وحده؛ وما يُرسَل للخادم يبقى `phoneE164` كما هو.
+ */
+export function phoneShow(raw: any): string {
+  return phoneDisplay(raw, companyDial())
 }
 
 export function canViewComplaints(): boolean {

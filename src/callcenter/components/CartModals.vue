@@ -7,7 +7,7 @@ import {
   closeOrderNotesModal, saveOrderNotes,
   closeHistoryModal, reorderItems, toggleHistoryDetail, orderStatusLabel,
   closeReviewModal, confirmReview, reviewSummary,
-  closeCartItemNote, saveCartItemNote, cartItemBeingNoted,
+  closeCartItemNote, saveCartItemNote, cartItemBeingNoted, phoneShow,
 } from '../store'
 import { formatCurrency, formatDate, formatDateTimeLocal } from '../utils'
 import { tx, lang, nameOf } from '../lang'
@@ -184,7 +184,7 @@ function itemMods(i: any): { name: string; price: number }[] {
           <span class="rv-avatar">{{ initialOf(review.customerName) }}</span>
           <div class="rv-cust-main">
             <div class="rv-cust-name">{{ review.customerName }}</div>
-            <div class="rv-cust-phone" dir="ltr">{{ review.customerPhone }}</div>
+            <div class="rv-cust-phone" dir="ltr">{{ phoneShow(review.customerPhone) }}</div>
           </div>
           <span class="rv-type">
             <span class="rv-type-ico" v-html="icon(review.orderType === 'delivery' ? 'bike' : 'store', { size: 13 })"></span>

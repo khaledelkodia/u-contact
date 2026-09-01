@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals } from '../store'
+import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals, phoneShow } from '../store'
 import { t, tx, nameOf } from '../lang'
 import { formatCurrency, formatDate } from '../utils'
 import { icon } from '../icons'
@@ -21,7 +21,7 @@ function statusBadge(status: string): string {
 function driverCell(order: any): string {
   if (order.type !== 'delivery') return '<span style="color:var(--text-muted); font-size:12px;">—</span>'
   if (order.driverId && order.driverName) {
-    return `<div class="driver-cell"><span class="driver-cell-name">${icon('bike', { size: 14 })} ${order.driverName}</span><span class="driver-cell-phone" dir="ltr">${order.driverPhone || ''}</span></div>`
+    return `<div class="driver-cell"><span class="driver-cell-name">${icon('bike', { size: 14 })} ${order.driverName}</span><span class="driver-cell-phone" dir="ltr">${phoneShow(order.driverPhone || '')}</span></div>`
   }
   // نصٌّ داخل HTML مبنيّ بالسلاسل — لا تراه مسوحُ القوالب فبقي عربياً
   return `<span class="driver-cell-empty">${tx('لم يُعين بعد', 'Not assigned yet')}</span>`

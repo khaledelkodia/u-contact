@@ -5,7 +5,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import {
   state, loadComplaintsList, setComplaintsFilter, openComplaintDetail, closeComplaintDetail,
   addComplaintUpdate, COMPLAINT_STATUSES, complaintStatusLabel, complaintStatusColor,
-  complaintCategoryLabel, canManageComplaints, canViewComplaintsReport,
+  complaintCategoryLabel, canManageComplaints, canViewComplaintsReport, phoneShow,
 } from '../store'
 import ComplaintsReport from '../components/ComplaintsReport.vue'
 import { formatDate } from '../utils'
@@ -80,7 +80,7 @@ onMounted(() => { void loadComplaintsList() })
               <td style="font-weight:700;">{{ c.onlineOrderId ? '#' + c.onlineOrderId : '—' }}</td>
               <td>
                 <div style="font-weight:600;">{{ c.customer?.name || '—' }}</div>
-                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ c.customer?.phone || '' }}</div>
+                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ phoneShow(c.customer?.phone || '') }}</div>
               </td>
               <td>{{ c.branch ? (c.branch.nameAr || c.branch.name) : '—' }}</td>
               <td>{{ complaintCategoryLabel(c.category) }}</td>
@@ -116,7 +116,7 @@ onMounted(() => { void loadComplaintsList() })
             <!-- البيانات -->
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px 16px; padding:12px; border-radius:8px; background:var(--bg); border:1px solid var(--border); font-size:13px;">
               <div><span style="color:var(--text-secondary);">{{ tx('العميل:', 'Customer:') }}</span> <strong>{{ detail.customer?.name || '—' }}</strong></div>
-              <div dir="ltr" style="text-align:end;"><strong>{{ detail.customer?.phone || '' }}</strong></div>
+              <div dir="ltr" style="text-align:end;"><strong>{{ phoneShow(detail.customer?.phone || '') }}</strong></div>
               <div><span style="color:var(--text-secondary);">{{ tx('النوع:', 'Type:') }}</span> <strong>{{ complaintCategoryLabel(detail.category) }}</strong></div>
               <div><span style="color:var(--text-secondary);">{{ tx('الفرع:', 'Branch:') }}</span> <strong>{{ detail.branch ? (detail.branch.nameAr || detail.branch.name) : '—' }}</strong></div>
               <div v-if="detail.onlineOrder" style="grid-column:1 / -1;">

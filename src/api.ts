@@ -80,6 +80,27 @@ export function phoneE164(raw: any, dial?: string | null): string {
   const code = digitsOnly(dial)
   return code ? `+${code}${nat}` : nat
 }
+
+/**
+ * الرقم **للعرض**: كود الدولة بين قوسين ثم الرقم المحلّي — «(20+) 9876543210».
+ *
+ * المخزَّن E.164 ملتصقٌ («+209876543210»)، ويُعرَض داخل سطرٍ عربيّ ملفوفاً بـ
+ * `dir="ltr"`. فتقع علامة الزائد في أقصى طرف الرقم منفصلةً عن كودها — تُقرأ عند
+ * المستخدم «خطاً» أو علامةً سائبة لا كودَ دولة. القوسان يجمعان الكود بعلامته
+ * فيُقرآن وحدةً واحدة، والفراغ يفصلهما عن الرقم المحلّي فيُقرأ الرقم كما يُنطَق.
+ *
+ * ورقمٌ لا يبدأ بكود الشركة يُترك **كما هو**: قد يكون من دولةٍ أخرى، وإلباسُه
+ * كودَنا يكذب على الوكيل. وكذلك حين لا كودَ للشركة أصلاً.
+ */
+export function phoneDisplay(raw: any, dial?: string | null): string {
+  const s = String(raw ?? '').trim()
+  const code = digitsOnly(dial)
+  if (!code) return s
+  let d = digitsOnly(raw)
+  if (d.startsWith('00')) d = d.slice(2)
+  if (!d.startsWith(code) || d.length <= code.length) return s
+  return `(+${code}) ${d.slice(code.length).replace(/^0+/, '')}`
+}
 export interface Franchise { id: number; name: string; nameAr?: string }
 export const session = reactive<{
   mode: Mode | null; token: string | null; refreshToken: string | null; name: string;

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { tx } from '../lang'
-import { state, scheduledOrdersFiltered, clearScheduledFilters, viewOrderDetail } from '../store'
+import { state, scheduledOrdersFiltered, clearScheduledFilters, viewOrderDetail, phoneShow } from '../store'
 import { icon } from '../icons'
 import { formatCurrency, formatDate } from '../utils'
 import OrderDetail from '../components/OrderDetail.vue'
@@ -82,7 +82,7 @@ function typeCell(order: any): string {
               <td style="font-weight:700;">#{{ order.invoiceNo }}</td>
               <td>
                 <div style="font-weight:600;">{{ order.customerName }}</div>
-                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ order.customerPhone }}</div>
+                <div style="font-size:11px; color:var(--text-muted);" dir="ltr">{{ phoneShow(order.customerPhone) }}</div>
               </td>
               <td>{{ order.branchName }}</td>
               <td><span v-html="typeCell(order)"></span></td>

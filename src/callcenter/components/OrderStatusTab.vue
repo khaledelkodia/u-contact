@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { tx, nameOf } from '../lang'
-import { state, searchOrderStatus, viewOrderDetail, canViewOrderTotals } from '../store'
+import { state, searchOrderStatus, viewOrderDetail, canViewOrderTotals, phoneShow } from '../store'
 import { t } from '../lang'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
@@ -60,7 +60,7 @@ const showTotals = computed(() => canViewOrderTotals())
             <span v-if="o.driverName" class="os-driver"><span v-html="icon('bike', { size: 13 })"></span> {{ o.driverName }}</span>
             <span class="os-time">{{ formatTxnClock(o.createdAt) }}</span>
           </div>
-          <div class="os-meta">{{ o.customerName }} — <span dir="ltr">{{ o.customerPhone }}</span></div>
+          <div class="os-meta">{{ o.customerName }} — <span dir="ltr">{{ phoneShow(o.customerPhone) }}</span></div>
           <div class="os-meta">{{ o.branchName }} · {{ tx('طلب رقم', 'Order no.') }} {{ o.dailyNo }}</div>
         </div>
       </div>
