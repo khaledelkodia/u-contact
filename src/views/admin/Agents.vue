@@ -101,12 +101,16 @@ function exportCsv() {
 function openCreate() {
   editingId.value = null
   // النطاق يُصفَّر مع الروابط — وإلا ورث الوكيلُ الجديد تقييدَ الذي قبله
+  initialLinked.value = new Set()   // وكيلٌ جديد: لا شركةَ مربوطة بعد
   Object.assign(form, { name: '', email: '', phone: '', password: '', isActive: true, links: {}, scopes: {} }); show.value = true; err.value = ''
 }
 function openEdit(a: any) {
   editingId.value = a.id
   const links: Record<number, string[]> = {}
   for (const c of a.companies || []) links[c.id] = [...(c.permissions || [])]
+  // **لقطةٌ عند الفتح لا حالةٌ حيّة**: الترتيب يُحسَب منها، فلا يقفز صفٌّ من تحت
+  // مؤشّر الأدمن لحظةَ تأشيره عليه. تُثبَّت مرّةً وتبقى حتى يُغلَق المحرّر.
+  initialLinked.value = new Set(Object.keys(links).map(Number))
   const scopes: Record<number, number[]> = {}
   for (const c of a.companies || []) scopes[c.id] = [...(c.franchiseIds || [])]
   form.scopes = scopes
@@ -156,10 +160,26 @@ function toggleGroup(cid: number, g: any) {
 // ── تصفية قائمة الشركات ──────────────────────────────────────────────────────
 // تظهر حين تطول القائمة وحدها: خانةُ بحثٍ فوق ثلاث شركات زينةٌ لا أداة.
 const coQ = ref('')
+// شركاتُ الوكيل وقتَ فتح المحرّر — أساسُ الترتيب (انظر `openEdit`)
+const initialLinked = ref<Set<number>>(new Set())
+/**
+ * الشركات مرتَّبةً: **المربوطة أوّلاً**، ثم المفعَّل مركزُ اتصالها، ثم الباقي.
+ *
+ * قائمةٌ بترتيب الخادم تدفن الشركةَ المختارة تحت عشرين شركةً لا يعمل عليها الوكيل
+ * أصلاً — فيبحث الأدمن عمّا هو أمامه. والترتيب من **لقطة الفتح** لا من التأشير
+ * الحيّ، وإلا قفز الصفُّ من تحت المؤشّر لحظةَ الضغط عليه.
+ */
 const shownCompanies = computed<any[]>(() => {
   const q = coQ.value.trim().toLowerCase()
-  if (!q) return companies.value
-  return companies.value.filter((c: any) => (String(c.name || '') + ' ' + String(c.nameAr || '')).toLowerCase().includes(q))
+  const list = q
+    ? companies.value.filter((c: any) => (String(c.name || '') + ' ' + String(c.nameAr || '')).toLowerCase().includes(q))
+    : companies.value
+  const rank = (c: any) => (initialLinked.value.has(Number(c.id)) ? 0
+    : Number(c.branchesCallCenter || 0) ? 1 : 2)
+  // ترتيبٌ ثابت: المتساوون يبقون على ترتيب الخادم بلا إعادة خلط
+  return list.map((c: any, i: number) => ({ c, i }))
+    .sort((a, b) => (rank(a.c) - rank(b.c)) || (a.i - b.i))
+    .map((x) => x.c)
 })
 const linkedCount = computed(() => Object.keys(form.links).length)
 
