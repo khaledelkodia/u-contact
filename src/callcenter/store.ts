@@ -711,6 +711,10 @@ function mapCloudOrder(r: any): any {
     // طلب إلغاءٍ عند الفرع لم يردّ عليه بعد
     cancelRequested: !!r.cancelRequested,
     type, status,
+    // طريقةُ الدفع التي اختارها الوكيل: كانت لا تُنقَل إطلاقاً، فتقول شاشةُ
+    // التفاصيل «لم تُحدَّد بعد» على طلبٍ حدّدها الوكيل فيه فعلاً.
+    paymentMethodId: r.paymentMethodId ?? null,
+    paymentMode: r.paymentMode ?? null,
     // نوعُ الطلب كما اختِير لا شكلُ تسليمه، ومعه اسمُ المنصّة إن كان خارجيّاً
     orderTypeCode: r.orderTypeCode ?? null,
     externalPlatformName: r.externalPlatformName ?? null,
@@ -1962,6 +1966,23 @@ export function orderTypeBlocker(): string | null {
     `Branch “${brName}” does not accept ${kindEn} orders — pick another branch or change the order type`)
 }
 /** طرق دفع الشركة (فارغة = ارتدادٌ لقائمة `data.ts`). */
+/**
+ * طريقةُ الدفع المعروضة على طلبٍ قائم — أو `null` إن لم تُحدَّد بعد.
+ *
+ * الاسمُ من طرق الشركة بالمعرّف. وقبل الإقفال هذه نيّةُ الوكيل؛ وما حصّله الفرع
+ * فعلاً يُعرَض من `posPayments` في سطرٍ آخر — فلا يُخلَط الوعدُ بالمقبوض.
+ */
+export function orderPaymentLabel(o: any): string | null {
+  const id = o?.paymentMethodId
+  if (id != null) {
+    const m = companyPaymentMethods().find((x: any) => Number(x.id) === Number(id))
+    if (m) return nameOf({ nameAr: m.nameAr, nameEn: m.name })
+  }
+  // بلا طريقةٍ مسمّاة: وضعُ الدفع وحده يقول «مدفوعٌ مسبقاً» أو لا يقول شيئاً
+  if (o?.paymentMode === 'prepaid_online') return tx('مدفوع إلكترونياً', 'Paid online')
+  return null
+}
+
 export function companyPaymentMethods(): any[] {
   const list = Array.isArray(state.companyPaymentMethods) ? state.companyPaymentMethods : []
   return list.length ? list : PAYMENT_METHODS

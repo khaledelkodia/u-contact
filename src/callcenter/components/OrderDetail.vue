@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder, phoneShow } from '../store'
+import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder, phoneShow, orderPaymentLabel } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency, formatDate, formatTransactionTime } from '../utils'
@@ -76,6 +76,9 @@ function payMethodName(p: any): string {
 function paymentText(o: any): string {
   if (o.paymentLabel) return o.paymentLabel
   if (o.paymentMethod || o.paymentChannel) return getPaymentLabel(o.paymentChannel, o.paymentMethod)
+  // ما اختاره الوكيل قبل الإرسال — كان يُهمَل فتُعتذر الشاشة عن معلومةٍ عندها
+  const chosen = orderPaymentLabel(o)
+  if (chosen) return chosen
   return tx('لم تُحدَّد بعد — يحدّدها الفرع عند القفل', 'Not set yet — the branch sets it on closing')
 }
 
