@@ -4,7 +4,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import {
   state, loadComplaintsList, setComplaintsFilter, openComplaintDetail, closeComplaintDetail,
-  addComplaintUpdate, COMPLAINT_STATUSES, complaintStatusLabel, complaintStatusColor,
+  addComplaintUpdate, COMPLAINT_STATUSES, COMPLAINT_STATUS_CHOICES, complaintStatusLabel, complaintStatusColor,
   complaintCategoryLabel, canManageComplaints, canViewComplaintsReport, phoneShow,
 } from '../store'
 import ComplaintsReport from '../components/ComplaintsReport.vue'
@@ -146,12 +146,18 @@ onMounted(() => { void loadComplaintsList() })
               <div class="form-group" style="margin-bottom:8px;">
                 <label style="font-weight:700;">{{ tx('الحالة', 'Status') }}</label>
                 <select v-model="nextStatus" style="width:100%; padding:9px; border:1px solid var(--border); border-radius:6px; font-family:inherit;">
-                  <option v-for="s in COMPLAINT_STATUSES" :key="s.id" :value="s.id">{{ labelOf(s) }}</option>
+                  <option v-for="s in COMPLAINT_STATUS_CHOICES" :key="s.id" :value="s.id">{{ labelOf(s) }}</option>
                 </select>
               </div>
               <div class="form-group">
-                <label style="font-weight:700;">{{ tx('ملاحظة / إجراء', 'Note / action') }}</label>
-                <textarea v-model="note" :placeholder="tx('اكتب ما تمّ...', 'Write what was done…')" rows="3"
+                <!-- «تم حلّها» تُلزم وصفَ الحلّ: يُقال قبل الضغط لا بعده -->
+                <label style="font-weight:700;">{{ tx('ملاحظة / إجراء', 'Note / action') }}
+                  <span v-if="nextStatus === 'resolved'" style="color:var(--danger); font-weight:800;">*</span>
+                </label>
+                <textarea v-model="note" rows="3"
+                  :placeholder="nextStatus === 'resolved'
+                    ? tx('اكتب ما تمّ لحلّ الشكوى — مطلوب', 'Describe what was done — required')
+                    : tx('اكتب ما تمّ...', 'Write what was done…')"
                   style="width:100%; padding:10px; border:1px solid var(--border); border-radius:6px; resize:vertical; font-family:inherit;"></textarea>
               </div>
             </template>

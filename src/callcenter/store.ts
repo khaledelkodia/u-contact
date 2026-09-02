@@ -800,8 +800,14 @@ export const COMPLAINT_STATUSES = [
   { id: 'open',        label: 'مفتوحة',      labelEn: 'Open',        color: '#dc2626' },
   { id: 'in_progress', label: 'قيد المعالجة', labelEn: 'In progress', color: '#d97706' },
   { id: 'resolved',    label: 'تم حلّها',     labelEn: 'Resolved',    color: '#16a34a' },
-  { id: 'closed',      label: 'مغلقة',       labelEn: 'Closed',      color: '#64748b' },
+  // **«مغلقة» لم تعد تُختار**: «تم حلّها» تعني الإغلاق، وحالتان لمعنىً واحد تجعلان
+  // الشكوى تُقرأ محلولةً في شاشةٍ ومغلقةً في تقرير. وتبقى هنا **للقراءة**: شكاوى
+  // أُغلقت قبل هذا التغيير موجودة، وحذفُها من القائمة يُظهرها بلا اسم.
+  { id: 'closed',      label: 'مغلقة',       labelEn: 'Closed',      color: '#64748b', retired: true },
 ]
+
+/** الحالات التي يجوز اختيارُها الآن — «مغلقة» تُقرأ ولا تُختار. */
+export const COMPLAINT_STATUS_CHOICES = COMPLAINT_STATUSES.filter((s: any) => !s.retired)
 /** تسمية حالة الشكوى **بلغة الواجهة** — كانت عربيّةً دائماً. */
 export function complaintStatusLabel(id: string): string {
   const s = COMPLAINT_STATUSES.find((x) => x.id === id)
@@ -856,6 +862,12 @@ export async function addComplaintUpdate(note: string, status: string): Promise<
   const n = (note || '').trim()
   const changed = status && status !== state.openComplaint?.status ? status : ''
   if (!n && !changed) { showToast(tx('اكتب ملاحظة أو غيّر الحالة', 'Write a note or change the status'), 'warning'); return false }
+  // **«تم حلّها» تُلزم وصفَ الحلّ**: شكوى تُقفَل بلا سطرٍ يقول ماذا فُعل لا تُراجَع
+  // ولا يتعلّم منها أحد، ولا يعرف مَن يكلّم العميل بماذا يجيبه.
+  if (changed === 'resolved' && !n) {
+    showToast(tx('اكتب ما تمّ لحلّ الشكوى قبل إقفالها', 'Describe what was done to resolve the complaint before closing it'), 'warning')
+    return false
+  }
   state.complaintBusy = true
   let ok = false
   try {
