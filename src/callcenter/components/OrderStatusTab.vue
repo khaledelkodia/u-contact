@@ -81,8 +81,16 @@ const showTotals = computed(() => canViewOrderTotals())
   transition: border-color .15s, box-shadow .15s;
 }
 .os-card:hover { border-color: var(--primary, #1a56db); box-shadow: 0 2px 8px rgba(15, 23, 42, .08); }
-.os-card.open { border-color: var(--primary, #1a56db); box-shadow: inset -3px 0 0 0 var(--primary, #1a56db); }
-:global([dir="ltr"]) .os-card.open { box-shadow: inset 3px 0 0 0 var(--primary, #1a56db); }
+/* شريط البطاقة المفتوحة على حافّتها الأولى — بـ`--dir` (١ للعربيّ · ‎-١ للإنجليزيّ)
+   لا بمُنتقٍ للاتّجاه. كان: `:global([dir="ltr"]) .os-card.open`، ومترجمُ الأنماط
+   المحصورة يُسقط الجزء الذي بعد `:global()` فيخرج في البناء **`[dir=ltr]` وحده**:
+   شريطٌ أزرق ٣ بكسل على **كل** عنصر يحمل `dir="ltr"` في التطبيق كلّه — وكلُّ رقم
+   هاتفٍ يحمله ليُقرأ صحيحاً. فظهر «خطٌّ أزرق» جوار كل رقم في كل شاشة.
+   `box-shadow` بلا نظيرٍ منطقيّ، فالحساب هو البديل الذي لا يحتاج مُنتقياً أصلاً. */
+.os-card.open {
+  border-color: var(--primary, #1a56db);
+  box-shadow: inset calc(var(--dir, 1) * -3px) 0 0 0 var(--primary, #1a56db);
+}
 .os-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .os-status-row { justify-content: flex-start; gap: 10px; margin: 7px 0 5px; flex-wrap: wrap; }
 .os-inv { font-size: 13.5px; }
