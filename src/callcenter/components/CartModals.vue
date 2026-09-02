@@ -115,7 +115,7 @@ function itemMods(i: any): { name: string; price: number }[] {
         <p v-else-if="!state.historyOrders.length" style="text-align:center; padding:24px; color:var(--text-muted);">{{ tx('لا توجد طلبات سابقة لهذا العميل', 'No previous orders for this customer') }}</p>
         <table v-else class="orders-table">
           <thead>
-            <tr><th>{{ tx('التاريخ', 'Date') }}</th><th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th><th>{{ tx('الفرع', 'Branch') }}</th><th>{{ tx('الموظف', 'Agent') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th><th>{{ tx('الحالة', 'Status') }}</th><th></th></tr>
+            <tr><th>{{ tx('التاريخ', 'Date') }}</th><th>{{ tx('رقم الفاتورة', 'Invoice no.') }}</th><th>{{ tx('الفرع', 'Branch') }}</th><th>{{ tx('الموظف', 'Agent') }}</th><th>{{ tx('السائق', 'Driver') }}</th><th>{{ tx('الإجمالي', 'Total') }}</th><th>{{ tx('الحالة', 'Status') }}</th><th></th></tr>
           </thead>
           <tbody>
             <!-- الصفّ يفتح تفاصيله: البنود تُجلَب عند أوّل فتح. سطرٌ يقول «٢٢٢٠ دولار»
@@ -127,6 +127,9 @@ function itemMods(i: any): { name: string; price: number }[] {
               <td>{{ o.branchName }}</td>
               <!-- مَن ضرب الطلب: السجلّ كان يقول ماذا طُلب ولا يقول مَن أخذه -->
               <td>{{ o.employeeName || '—' }}</td>
+              <!-- السائق: طلبُ استلامٍ لا سائقَ له، وطلبُ توصيلٍ لم يُعيَّن بعد —
+                   كلاهما شَرطة، والفرقُ بينهما تقولُه الحالة لا هذا العمود. -->
+              <td class="hist-drv">{{ o.driverName || '—' }}</td>
               <td style="font-weight:700;">{{ formatCurrency(o.total) }}</td>
               <td>{{ orderStatusLabel(o.status) }}</td>
               <td>
@@ -136,7 +139,7 @@ function itemMods(i: any): { name: string; price: number }[] {
               </td>
             </tr>
             <tr v-if="state.historyOpenId === o.id" class="hist-detail">
-              <td colspan="7">
+              <td colspan="8">
                 <div v-if="!o.itemsLoaded" class="hist-empty">{{ tx('جارٍ التحميل…', 'Loading…') }}</div>
                 <template v-else>
                   <div v-for="(it, k) in (o.items || [])" :key="it.id ?? k" class="hist-item">
@@ -322,6 +325,7 @@ function itemMods(i: any): { name: string; price: number }[] {
 </template>
 
 <style scoped>
+.hist-drv { font-weight: 600; color: var(--text-secondary, #64748b); }
 /* سجلّ العميل: الصفّ يُضغَط ليفتح بنودَه */
 .hist-row { cursor: pointer; }
 .hist-row.open { background: var(--primary-light, #eff6ff); }
