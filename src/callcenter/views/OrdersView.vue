@@ -131,7 +131,7 @@ function typeCell(order: any): string {
               <td style="color:var(--primary); font-weight:700;">#{{ order.invoiceNo }}</td>
               <td>
                 <div class="order-customer-cell">
-                  <div class="order-customer-phone">{{ order.customerPhone }}</div>
+                  <div class="order-customer-phone">{{ phoneShow(order.customerPhone) }}</div>
                   <div class="order-customer-name">{{ order.customerName }}</div>
                 </div>
               </td>

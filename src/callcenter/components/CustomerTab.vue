@@ -167,7 +167,7 @@ function addressLine(addr: any): string {
         <input type="text" id="cust-name" :placeholder="tx('اسم العميل', 'Customer name')" v-model="state.form.name">
       </div>
       <div class="form-group">
-        <label for="cust-phone">{{ tx('رقم الهاتف', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">+{{ dial }}</span></label>
+        <label for="cust-phone">{{ tx('رقم الهاتف', 'Mobile no.') }} <span v-if="dial" style="color:var(--primary); font-weight:700;" dir="ltr">(+{{ dial }})</span></label>
         <input type="text" id="cust-phone" :placeholder="tx('رقم الهاتف', 'Mobile no.')" maxlength="15" v-model="state.form.phone">
       </div>
       <div class="form-group">

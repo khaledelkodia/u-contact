@@ -149,7 +149,7 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
       </div>
       <div class="order-detail-field">
         <label>{{ tx('رقم الهاتف', 'Phone') }}</label>
-        <span class="ltr-num">{{ order.customerPhone }}</span>
+        <span class="ltr-num">{{ phoneShow(order.customerPhone) }}</span>
       </div>
       <div class="order-detail-field">
         <label>{{ tx('الفرع', 'Branch') }}</label>

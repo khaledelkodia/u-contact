@@ -100,7 +100,7 @@ function typeCell(order: any): string {
               <span v-else style="color:var(--text-muted);">—</span>
             </td>
             <td v-if="showTotals" style="font-weight:800;">{{ formatCurrency(order.total) }}</td>
-            <td class="ltr-num">{{ order.customerPhone }}</td>
+            <td class="ltr-num">{{ phoneShow(order.customerPhone) }}</td>
             <td><span v-html="statusBadge(order.status)"></span> <span v-if="order.hasComplaint" :title="tx('يوجد شكوى', 'Has a complaint')" style="color:var(--danger); display:inline-flex; vertical-align:middle;" v-html="icon('alert-triangle', { size: 14 })"></span></td>
             <td><span v-html="driverCell(order)"></span></td>
             <td>

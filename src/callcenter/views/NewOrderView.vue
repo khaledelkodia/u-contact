@@ -5,7 +5,7 @@ import {
   toggleBranchOverride, closeBranchOverrideMenu, selectBranchOverride, resetBranchOverride,
   getAutoBranchId, infoBranchName, infoAddress, customerTodayCount, resolvedBranchStatus,
   customerFlag, customerFlagLabel,
-  viewOrderDetail,
+  viewOrderDetail, phoneShow,
 } from '../store'
 import { t, tx } from '../lang'
 import { icon } from '../icons'
@@ -84,7 +84,7 @@ onBeforeUnmount(() => document.removeEventListener('click', handleOutside))
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('phone_label') }}</span>
-            <span class="info-value" id="info-phone">{{ state.currentCustomer?.phone || '-' }}</span>
+            <span class="info-value" id="info-phone" dir="ltr">{{ state.currentCustomer?.phone ? phoneShow(state.currentCustomer.phone) : '-' }}</span>
           </div>
           <div class="info-item">
             <span class="info-label">{{ t('address_label') }}</span>
