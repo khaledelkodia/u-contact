@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { state, allOrdersFiltered, clearAllOrderFilters, viewOrderDetail, canViewOrderTotals, phoneShow } from '../store'
+import { state, allOrdersFiltered, clearAllOrderFilters, viewOrderDetail, canViewOrderTotals, phoneShow, orderTypeView } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency } from '../utils'
@@ -46,10 +46,11 @@ function driverCell(order: any): string {
   return `<span class="driver-cell-empty">${tx('لم يُعين بعد', 'Not assigned yet')}</span>`
 }
 // نقلاً عن typeCell (توصيل/استلام)
+// النوعُ كما سمّته الشركة لا شكلَ التسليم — «طلب خارجي» كان يُعرَض «توصيل».
+// المُحلّ في المتجر: ثلاثُ شاشاتٍ كانت تحمل نسخةً متطابقة منه.
 function typeCell(order: any): string {
-  const typeIconName = order.type === 'delivery' ? 'bike' : 'store'
-  const typeName = order.type === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')
-  return `<span style="display:inline-flex; align-items:center; gap:6px;">${icon(typeIconName, { size: 16 })} ${typeName}</span>`
+  const t = orderTypeView(order)
+  return `<span style="display:inline-flex; align-items:center; gap:6px;">${icon(t.icon, { size: 16 })} ${t.label}</span>`
 }
 </script>
 

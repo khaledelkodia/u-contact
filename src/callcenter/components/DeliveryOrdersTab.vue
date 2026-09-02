@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals, phoneShow } from '../store'
+import { state, deliveryOrdersFiltered, clearTabOrderFilters, viewOrderDetail, canViewOrderTotals, phoneShow, orderTypeView } from '../store'
 import { t, tx, nameOf } from '../lang'
 import { formatCurrency, formatDate } from '../utils'
 import { icon } from '../icons'
@@ -32,8 +32,10 @@ function schedChip(order: any): string {
   if (!order.scheduledDate) return ''
   return `<span class="sched-chip" title="${tx('موعد الحجز:', 'Scheduled for:')} ${formatDate(order.scheduledDate)}">${icon('clock', { size: 11 })} ${tx('مجدول', 'Scheduled')}</span>`
 }
+// النوعُ كما سمّته الشركة لا شكلَ التسليم — «طلب خارجي» كان يُعرَض «توصيل»
 function typeCell(order: any): string {
-  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(order.type === 'pickup' ? 'store' : 'bike', { size: 16 })}</span> ${order.type === 'pickup' ? tx('استلام', 'Pickup') : tx('توصيل', 'Delivery')}</span>${schedChip(order)}`
+  const t = orderTypeView(order)
+  return `<span style="display:inline-flex; align-items:center; gap:6px;"><span style="color:var(--primary); display:inline-flex;">${icon(t.icon, { size: 16 })}</span> ${t.label}</span>${schedChip(order)}`
 }
 </script>
 

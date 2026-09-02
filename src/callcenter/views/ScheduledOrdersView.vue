@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { tx } from '../lang'
-import { state, scheduledOrdersFiltered, clearScheduledFilters, viewOrderDetail, phoneShow } from '../store'
+import { state, scheduledOrdersFiltered, clearScheduledFilters, viewOrderDetail, phoneShow, orderTypeView } from '../store'
 import { icon } from '../icons'
 import { formatCurrency, formatDate } from '../utils'
 import OrderDetail from '../components/OrderDetail.vue'
@@ -20,10 +20,11 @@ watch(pageCount, (n) => { if (page.value > n) page.value = n })
 const orders = computed(() => allRows.value.slice((page.value - 1) * pageSize.value, page.value * pageSize.value))
 
 // نقلاً عن typeCell (توصيل/استلام) — كان النصّ عربياً ثابتاً فلا يتبع لغة الواجهة
+// النوعُ كما سمّته الشركة لا شكلَ التسليم — «طلب خارجي» كان يُعرَض «توصيل».
+// المُحلّ في المتجر: ثلاثُ شاشاتٍ كانت تحمل نسخةً متطابقة منه.
 function typeCell(order: any): string {
-  const typeIconName = order.type === 'delivery' ? 'bike' : 'store'
-  const typeName = order.type === 'delivery' ? tx('توصيل', 'Delivery') : tx('استلام', 'Pickup')
-  return `<span style="display:inline-flex; align-items:center; gap:6px;">${icon(typeIconName, { size: 16 })} ${typeName}</span>`
+  const t = orderTypeView(order)
+  return `<span style="display:inline-flex; align-items:center; gap:6px;">${icon(t.icon, { size: 16 })} ${t.label}</span>`
 }
 </script>
 

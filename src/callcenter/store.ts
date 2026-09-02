@@ -687,6 +687,9 @@ function buildTimeline(r: any, statusLabel: string): any[] {
 }
 
 function mapCloudOrder(r: any): any {
+  // `type` ثنائيّةٌ خشنة (**شكلُ التسليم**) يقوم عليها المنطق: أثمّة عنوانٌ وسائق؟
+  // لكنّها ليست **نوعَ الطلب**: «طلب خارجي» (٩) شكلُه توصيلٌ ونوعُه غيرُ ذلك،
+  // فعرضُها في عمود «النوع» يُظهر كلَّ الطلبات «توصيل». الكودُ يُحفَظ ليُعرَض به.
   const type = r.orderTypeCode === 6 ? 'pickup' : 'delivery'
   // وصل الفرع؟ = اتنزّل POS (posOrderId) أو عنده مرآة حالة POS
   const reachedPos = !!r.posOrderId || !!r.posStatus
@@ -708,6 +711,9 @@ function mapCloudOrder(r: any): any {
     // طلب إلغاءٍ عند الفرع لم يردّ عليه بعد
     cancelRequested: !!r.cancelRequested,
     type, status,
+    // نوعُ الطلب كما اختِير لا شكلُ تسليمه، ومعه اسمُ المنصّة إن كان خارجيّاً
+    orderTypeCode: r.orderTypeCode ?? null,
+    externalPlatformName: r.externalPlatformName ?? null,
     customerName: r.customerName, customerPhone: r.customerPhone,
     branchId: r.branchId,
     // الاسمان معاً: الوصف يتبع لغة الواجهة لا لغةَ لحظة الجلب
@@ -1407,6 +1413,11 @@ export function resetOrderDraft() {
   state.editingOrderId = null
   state.orderType = 'delivery'
   state.externalPlatform = null    // وإلا ورث الطلبُ التالي مصدرَ الذي قبله
+  // **والنوع المختار يُعاد حسابُه**: مسحُ المنصّة وحدها لا يكفي — `selectedOrderType`
+  // يبقى مشيراً إلى «طلب خارجي»، وهو **يتقدّم** على الاشتقاق عند الإرسال
+  // (`selectedOrderType?.code ?? …`). فينزل الطلبُ التالي بالكود ٩ وإن بدت الشاشة
+  // «توصيل».
+  syncSelectedOrderType()
   showAllCategories()             // ونبدأ من رأس المنيو لا من داخل تصنيفٍ سابق
 }
 
@@ -1428,6 +1439,13 @@ export function resetDraftForNewCustomer() {
   clearCartSilently()          // السلّة + ملاحظات الطلب
   resetPaymentSelection()      // المصدر وطريقة الدفع
   state.orderTag = ''          // رقم المنصّة الخارجية — صفةُ طلبٍ لا صفةُ عميل
+  // **والمنصّة نفسُها**: كان يُمسَح رقمُها ويبقى مصدرُها. فمكالمةٌ جديدة ترث «طلباً
+  // خارجياً» من مكالمةٍ قبلها، وينزل الفرعَ بنوعٍ لم يختره أحد. وأسوأ: لو ضغط
+  // الوكيل «توصيل» أعادته أوّلُ مزامنةٍ تالية (تغييرُ فرعٍ أو منطقة) إلى «خارجي»،
+  // لأن المزامنة تشتقّ الكود من المنصّة الباقية.
+  state.externalPlatform = null
+  state.orderType = 'delivery'
+  syncSelectedOrderType()
   state.isReservation = false
   state.reservationTime = ''
   state.prepLeadMinutes = ''
@@ -1884,6 +1902,29 @@ export const PICKUP_TYPE_CODE = 6
 /** «طلب خارجي» — الوارد من منصّة. دورتُه من وضع المنصّة لا من الكود. */
 export const EXTERNAL_TYPE_CODE = 9
 const AGENT_ORDER_CODES = [DELIVERY_TYPE_CODE, PICKUP_TYPE_CODE, EXTERNAL_TYPE_CODE]
+/**
+ * اسمُ نوع الطلب وأيقونتُه للعرض.
+ *
+ * الاسمُ من أنواع الشركة بكود الطلب — فما سمّته الشركة «طلب خارجي» يُقرأ كذلك
+ * لا «توصيل». والارتدادُ لشكل التسليم يخدم طلباً قديماً بلا كود، أو نوعاً حُذف
+ * من إعدادات الشركة بعد أن نزل به طلب.
+ */
+export function orderTypeView(order: any): { icon: string; label: string } {
+  const code = Number(order?.orderTypeCode)
+  const t = Number.isFinite(code)
+    ? (state.companyOrderTypes || []).find((x: any) => Number(x.code) === code)
+    : null
+  // `name` من الخادم هو **الإنجليزيّ** و`nameAr` العربيّ — و`nameOf` تقرأ `nameEn`.
+  // بلا هذا التحويل يقع الاسمُ الإنجليزيّ في خانة الارتداد العربيّ، فترى واجهةٌ
+  // إنجليزيّة اسماً عربيّاً.
+  const base = t ? nameOf({ nameAr: t.nameAr, nameEn: t.name }) : (order?.type === 'pickup' ? tx('استلام', 'Pickup') : tx('توصيل', 'Delivery'))
+  // الخارجيّ يحمل اسم منصّته: «طلب خارجي» وحدها لا تقول من أين جاء
+  const plat = code === EXTERNAL_TYPE_CODE ? String(order?.externalPlatformName || '').trim() : ''
+  const label = plat ? base + ' · ' + plat : base
+  const ico = code === EXTERNAL_TYPE_CODE ? 'package' : order?.type === 'pickup' ? 'store' : 'bike'
+  return { icon: ico, label }
+}
+
 export function companyOrderTypes(): any[] {
   const all = Array.isArray(state.companyOrderTypes) ? state.companyOrderTypes : []
   return all.filter((t: any) => AGENT_ORDER_CODES.includes(Number(t.code)))
@@ -1941,6 +1982,8 @@ export function selectOrderType(t: any) {
   if (!t) return
   state.selectedOrderType = t
   state.orderType = isDeliveryCode(t.code) ? 'delivery' : 'pickup'
+  // نوعٌ صريحٌ غيرُ «الخارجي» يُنهي كونَ الطلب من منصّة — وإلا أعادته أوّلُ مزامنة
+  if (Number(t.code) !== EXTERNAL_TYPE_CODE) state.externalPlatform = null
 }
 
 export function setOrderType(type: string) {
