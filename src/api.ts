@@ -332,6 +332,10 @@ export const contactOrders = (params: any = {}) => api.get('/contact/orders', { 
 // تفاصيل طلب ببنوده — القائمة لا تحمل البنود، وإعادة الطلب تحتاجها
 export const contactOrder = (id: number) => api.get(`/contact/orders/${id}`).then((r) => r.data)
 // إلغاء طلب — الخادم يرفضه بعد نزوله الفرع («الإلغاء يكون من الفرع»)
+// تعيينُ فرعٍ لطلبٍ وقف بلا فرع — المسار موجودٌ في الخادم ولم تكن الشاشة تناديه
+export const contactAssignBranch = (id: number, branchId: number) =>
+  api.post(`/contact/orders/${id}/assign-branch`, { branchId }).then((r) => r.data)
+
 export const contactCancelOrder = (id: number, reason?: string) => api.post(`/contact/orders/${id}/cancel`, { reason }).then((r) => r.data)
 export const contactBusinessDay = () => api.get('/contact/business-day/current').then((r) => r.data)
 // رابط بثّ SSE لتغيّرات الطلبات (EventSource — auth عبر query لأنه لا يدعم الترويسات)

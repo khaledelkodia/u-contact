@@ -10,7 +10,7 @@ import {
   contactBranchDays, contactBusinessDay, contactOpenDay, contactCloseDay, contactCarryStuckDay, contactFixDay, contactOrders, contactStoppedItems,
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactExternalPlatforms, contactOrderPolicy, contactUpdateOrder,
-  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, phoneE164, phoneDisplay,
+  contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, contactAssignBranch, phoneE164, phoneDisplay,
   contactSetCustomerBlocked, contactDiscounts,
   trueNow,
 } from '../api'
@@ -2715,8 +2715,14 @@ export async function submitOrder() {
   }
   // بلا فرع الطلب يُنشأ «محتجزاً» في الكلاود ولا ينزل أي فرع، ولا يعرف الوكيل ولا
   // العميل. نمنعه هنا بدل أن يضيع بصمت.
-  if (isDelivery && !getResolvedOrderBranchId()) {
-    showToast(tx('مفيش فرع بيخدم المنطقة دي — اختر منطقة تانية أو حدّد الفرع يدوياً', 'No branch serves this area — pick another area or set the branch manually'), 'error'); return
+  //
+  // **والاستلام مثلُه**: كان الحارس على التوصيل وحده، فطلبُ استلامٍ بلا فرعٍ مختار
+  // يمرّ ويقف «بانتظار تعيين فرع» بلا أن يعلم أحد. والتوصيل يشتقّ فرعَه من الحيّ،
+  // أمّا الاستلام فلا عنوان له يُشتقّ منه — فاختيارُ الوكيل هو المصدر الوحيد.
+  if (!getResolvedOrderBranchId()) {
+    showToast(isDelivery
+      ? tx('مفيش فرع بيخدم المنطقة دي — اختر منطقة تانية أو حدّد الفرع يدوياً', 'No branch serves this area — pick another area or set the branch manually')
+      : tx('اختر فرع الاستلام أوّلاً — طلب الاستلام مالوش عنوان يتحدّد منه الفرع', 'Choose the pickup branch first — a pickup order has no address to derive the branch from'), 'error'); return
   }
   // طريقة الدفع اختياريّة افتراضياً — تُلزَم فقط إن ضبطت الشركة ذلك في الإعدادات
   if (state.paymentRequired && !state.paymentMethod) { showToast(tx('يرجى تحديد طريقة الدفع (اضغط زر الدفع أسفل السلة)', 'Choose a payment method (press the payment button under the cart)'), 'warning'); return }
@@ -3734,6 +3740,27 @@ export function canCancelOrder(): boolean {
  * الحالة `sent` = لم يصل الفرع بعد. نُخفي الزرّ بدل أن يضغطه الوكيل فيُرفَض.
  */
 /** صلاحية تعديل طلبٍ قائم — مفتاحٌ مستقلّ عن الإلغاء وعن تعيين الفرع. */
+/**
+ * تعيينُ فرعٍ لطلبٍ وقف بلا فرع.
+ *
+ * المسار موجودٌ في الخادم منذ البداية ولم تكن الشاشة تناديه — فطلبٌ وقف
+ * «بانتظار تعيين فرع» لا مخرجَ له إلا الإلغاء وإعادةُ إدخاله.
+ */
+export async function assignOrderBranch(orderId: number, branchId: any) {
+  const bid = parseInt(String(branchId)) || 0
+  if (!bid) { showToast(tx('اختر فرعاً', 'Choose a branch'), 'warning'); return false }
+  if (!canEditOrder()) { showToast(tx('لا تملك صلاحية تعديل الطلبات', 'You do not have permission to edit orders'), 'warning'); return false }
+  try {
+    await contactAssignBranch(orderId, bid)
+    showToast(tx('تم تعيين الفرع — الطلب في طريقه إليه', 'Branch assigned — the order is on its way'), 'success')
+    await loadOrders()
+    return true
+  } catch (err: any) {
+    showToast(err?.response?.data?.message || tx('تعذّر تعيين الفرع', 'Could not assign the branch'), 'error')
+    return false
+  }
+}
+
 export function canEditOrder(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('callcenter.edit_order')
 }

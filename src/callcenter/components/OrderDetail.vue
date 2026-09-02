@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder, phoneShow, orderPaymentLabel } from '../store'
+import { computed, ref } from 'vue'
+import { state, getPaymentLabel, openCancelModal, openTxnModal, openComplaintModal, canManageComplaints, canCancelOrder, canCancelThisOrder, canEditOrder, canEditThisOrder, startEditOrder, phoneShow, orderPaymentLabel, assignOrderBranch } from '../store'
 import { icon } from '../icons'
 import { ORDER_STATUSES } from '../data'
 import { formatCurrency, formatDate, formatTransactionTime } from '../utils'
@@ -9,6 +9,18 @@ import { tx, nameOf } from '../lang'
 const props = defineProps<{ orderId: number }>()
 
 const order = computed<any>(() => state.orders.find((o: any) => o.id === props.orderId) || null)
+
+// تعيينُ فرعٍ لطلبٍ وقف بلا فرع — المسار كان موجوداً في الخادم بلا زرٍّ يناديه،
+// فطلبٌ محتجزٌ لا مخرجَ له إلا الإلغاء وإعادةُ الإدخال.
+const pickBranch = ref<any>('')
+const assigning = ref(false)
+async function doAssign() {
+  if (!order.value || assigning.value) return
+  assigning.value = true
+  try {
+    if (await assignOrderBranch(order.value.id, pickBranch.value)) pickBranch.value = ''
+  } finally { assigning.value = false }
+}
 
 // سطورُ الخصم: التفصيلُ إن وُجد — سطرٌ لكلّ قاعدةٍ باسمها. والطلباتُ التي سبقت
 // حفظَ التفصيل تحمل المبلغَ وحده، فتُعرَض سطراً واحداً باسمها إن كان لها اسم.
@@ -157,6 +169,16 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
       <div class="order-detail-field">
         <label>{{ tx('الفرع', 'Branch') }}</label>
         <span>{{ order.branchName }}</span>
+        <!-- بلا فرع: الطلب واقفٌ ولا ينزل أحداً. المنتقي هنا مخرجُه الوحيد -->
+        <div v-if="!order.branchId && canEditOrder()" class="dt-assign">
+          <select v-model="pickBranch" class="dt-assign-s">
+            <option value="">{{ tx('اختر الفرع', 'Choose a branch') }}</option>
+            <option v-for="b in state.branches" :key="b.id" :value="b.id">{{ b.name }}</option>
+          </select>
+          <button class="btn btn-sm btn-primary" :disabled="!pickBranch || assigning" @click="doAssign()">
+            {{ assigning ? tx('جارٍ…', 'Assigning…') : tx('تعيين', 'Assign') }}
+          </button>
+        </div>
       </div>
       <div class="order-detail-field">
         <label>{{ tx('الموظف المسؤول', 'Handled by') }}</label>
@@ -260,6 +282,12 @@ const itemCount = computed(() => (Array.isArray(order.value?.items) ? order.valu
 </template>
 
 <style scoped>
+.dt-assign { display: flex; gap: 6px; margin-top: 6px; align-items: center; }
+.dt-assign-s {
+  flex: 1; min-inline-size: 0; padding: 6px 9px; border-radius: 8px;
+  border: 1px solid var(--border, #e5e7eb); background: var(--bg-card, #fff);
+  color: var(--text-primary, #1f2937); font-family: inherit; font-size: 12px; font-weight: 600;
+}
 /* بلون الخصم نفسه في السلّة وشاشة التأكيد — رقمٌ واحدٌ في ثلاث شاشات */
 .dt-disc { color: var(--success, #16a34a); font-weight: 700; }
 .dt-disc .dt-sum-v { color: var(--success, #16a34a); }
