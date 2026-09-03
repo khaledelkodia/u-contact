@@ -40,6 +40,18 @@ const initialOf = (n: string) => (n || '').trim().charAt(0) || '—'
  * جاء، ولا يكتشف إضافةً اختيرت بالغلط إلا بعد نزول الطلب.
  * و`extras` (أسماء فقط) ارتدادٌ لسطرٍ أُضيف قبل أن تُخزَّن الإضافات ببنيتها.
  */
+// العروضُ المطبَّقة على الطلب المعروض — سطرٌ لكلّ عرضٍ بأصنافه لا سطرٌ لكلّ صنف:
+// «٢ وجبة + ٢ عصير» عرضٌ واحد وإن كانت هديّتُه عصيرَين مختلفَين.
+const reviewGifts = computed<any[]>(() => {
+  const by = new Map<string, { key: string; promotionName: string; parts: string[] }>()
+  for (const i of (review.value?.items || [])) {
+    if (!i.isGift) continue
+    const key = String(i.promotionId ?? '-')
+    if (!by.has(key)) by.set(key, { key, promotionName: i.promotionName || tx('عرض', 'Offer'), parts: [] })
+    by.get(key)!.parts.push(nameOf(i) + ' ×' + i.quantity)
+  }
+  return [...by.values()].map((g) => ({ ...g, text: g.parts.join(' + ') }))
+})
 function itemMods(i: any): { name: string; price: number }[] {
   if (Array.isArray(i?.modifiers) && i.modifiers.length) {
     return i.modifiers.map((m: any) => ({ name: nameOf(m), price: Number(m.price) || 0 }))
@@ -263,9 +275,12 @@ function itemMods(i: any): { name: string; price: number }[] {
             <span class="rv-qty">{{ i.quantity }}<small>×</small></span>
             <div class="rv-row-main">
               <div class="rv-name">
+                <span v-if="i.isGift" class="rv-gift">{{ tx('هديّة', 'Free') }}</span>
                 {{ nameOf(i) }}
                 <span v-if="i.size" class="rv-size">{{ nameOf({ nameAr: i.sizeAr ?? i.size, nameEn: i.sizeEn }) }}</span>
               </div>
+              <!-- اسمُ العرض تحت الصنف: «مجّاناً» وحدها لا تقول لماذا -->
+              <div v-if="i.isGift" class="rv-gift-of">{{ i.promotionName || tx('من عرض', 'From an offer') }}</div>
               <div v-if="itemMods(i).length" class="rv-mods">
                 <span v-for="(m, k) in itemMods(i)" :key="k" class="rv-mod">
                   {{ m.name }}
@@ -277,8 +292,8 @@ function itemMods(i: any): { name: string; price: number }[] {
               </div>
             </div>
             <div class="rv-price">
-              <span class="rv-line-total">{{ formatCurrency(i.price * i.quantity) }}</span>
-              <span v-if="i.quantity > 1" class="rv-unit">{{ formatCurrency(i.price) }} {{ tx('للواحدة', 'each') }}</span>
+              <span class="rv-line-total" :class="{ free: i.isGift }">{{ i.isGift ? tx('مجّاناً', 'Free') : formatCurrency(i.price * i.quantity) }}</span>
+              <span v-if="!i.isGift && i.quantity > 1" class="rv-unit">{{ formatCurrency(i.price) }} {{ tx('للواحدة', 'each') }}</span>
             </div>
           </li>
         </ul>
@@ -297,6 +312,11 @@ function itemMods(i: any): { name: string; price: number }[] {
           <div v-for="l in (review.discount?.lines || [])" :key="l.id" class="rv-sum-row rv-disc">
             <span>{{ tx('خصم', 'Discount') }} · {{ l.name }}</span>
             <span class="rv-sum-v">− {{ formatCurrency(l.amount) }}</span>
+          </div>
+          <!-- العرضُ سطرٌ باسمه كالخصم: لا يُنقص رقماً، لكنّه يقول ما أُعطي مجّاناً -->
+          <div v-for="g in reviewGifts" :key="'rg' + g.key" class="rv-sum-row rv-promo">
+            <span>{{ tx('عرض', 'Offer') }} · {{ g.promotionName }}</span>
+            <span class="rv-sum-v">{{ g.text }} — {{ tx('مجّاناً', 'free') }}</span>
           </div>
           <div v-if="review.orderType === 'delivery'" class="rv-sum-row">
             <span>
@@ -648,4 +668,14 @@ body.dark-mode .rv-notes strong,
 body.dark-mode .rv-notes-ico { color: #fbbf24; }
 body.dark-mode .rv-grand { background: var(--primary-darker, #2563eb); }
 body.dark-mode .rv-sum { background: var(--bg-card, #1e293b); }
+
+/* الهديّة في شاشة المراجعة — تُقرأ للعميل، فلا تُترك رقماً صفريّاً بلا سبب */
+.rv-gift {
+  display: inline-block; padding: 1px 7px; margin-inline-end: 5px; border-radius: 999px;
+  background: rgba(16, 185, 129, .16); color: #0f766e; font-size: 10px; font-weight: 900;
+}
+.rv-gift-of { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-block-start: 2px; }
+.rv-line-total.free { color: #0f766e; }
+.rv-promo { color: #0f766e; }
+.rv-promo .rv-sum-v { color: #0f766e; font-weight: 800; }
 </style>
