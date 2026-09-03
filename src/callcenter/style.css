@@ -7332,7 +7332,7 @@ body.dark-mode .cart-disc-chip { background: var(--bg-card, #1e293b); }
 .cr-chip.g-green  { background: linear-gradient(135deg, #34d399, #14b8a6); }
 .cr-chip.g-amber  { background: linear-gradient(135deg, #fbbf24, #f97316); }
 .cr-chip.g-rose   { background: linear-gradient(135deg, #fb7185, #db2777); }
-.cr-chip.g-violet { background: linear-gradient(135deg, #56b6d8, #305584); }
+.cr-chip.g-sky    { background: linear-gradient(135deg, #56b6d8, #305584); }
 .cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
 .cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
@@ -7382,3 +7382,28 @@ body.dark-mode .cart-disc-chip { background: var(--bg-card, #1e293b); }
 
 body.dark-mode .cr-per button:not(.on),
 body.dark-mode .cr-tab:not(.on) { background: #182235; border-color: #2a3550; }
+
+/* ── منتقي المدّة: الوضع الليليّ ──────────────────────────────────────────── */
+body.dark-mode .dr-btn,
+body.dark-mode .dr-pop { background: #182235; border-color: #2a3550; }
+body.dark-mode .dr-pop { box-shadow: 0 18px 44px rgba(0, 0, 0, .5); }
+body.dark-mode .dr-presets { border-inline-start-color: #2a3550; }
+body.dark-mode .dr-foot { border-block-start-color: #2a3550; }
+body.dark-mode .dr-arrow,
+body.dark-mode .dr-cancel { border-color: #2a3550; }
+@media (max-width: 720px) {
+  body.dark-mode .dr-presets { border-block-start-color: #2a3550; }
+}
+
+/* خانةُ بحثٍ داخل بطاقة تقرير — الفلترُ في تبويبه لا في رأس الصفحة */
+.cr-q {
+  /* القاعدةُ العامّة `input { width: 100% }` تجعل الخانة تملأ البطاقة فينزل
+     العنوانُ إلى سطرٍ وحده — عرضٌ صريحٌ يعيدها إلى حجم حقل بحث */
+  padding: 7px 12px; border-radius: 10px; inline-size: 220px; max-inline-size: 100%;
+  border: 1px solid rgba(226, 232, 240, .9); background: var(--bg, #f8fafc);
+  color: var(--text-primary, #1f2937); font-family: inherit; font-size: 12.5px; font-weight: 600;
+}
+.cr-q::placeholder { color: var(--text-muted, #94a3b8); font-weight: 500; }
+.cr-q:focus { outline: none; border-color: #648cbd; background: var(--bg-card, #fff); }
+body.dark-mode .cr-q { background: #131c2c; border-color: #2a3550; }
+body.dark-mode .cr-q:focus { background: #182235; }

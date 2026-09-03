@@ -4091,8 +4091,12 @@ export function canViewComplaints(): boolean {
  * وخطؤه صامت (شهرٌ خطأ يُقرأ تقريراً صحيحاً). الأزرارُ تحسبها ولا تُخطئ.
  */
 export const PERIOD_KEYS = [
-  'today', 'yesterday', 'd7', 'd30', 'month', 'prevMonth',
+  'today', 'yesterday', 'd7', 'd30', 'prevMonth', 'year',
 ] as const
+
+/** «كل الوقت» مدىً **فارغ** لا مدىً واسع: الخادم بلا تاريخين يقرأ كلَّ شيء،
+ *  ومدىً من سنة ٢٠٠٠ يبدو نطاقاً مختاراً وهو ليس كذلك. */
+export const PERIOD_ALL = 'all'
 
 export function periodRange(key: string): { from: string; to: string } {
   // بساعة حائط الشركة لا بساعة الجهاز: وكيلٌ في بلدٍ آخر يقرأ «اليوم» ليلاً
@@ -4116,6 +4120,8 @@ export function periodRange(key: string): { from: string; to: string } {
       const pm = m === 1 ? 12 : m - 1
       return { from: `${py}-${pad(pm)}-01`, to: `${py}-${pad(pm)}-${pad(lastDay(py, pm))}` }
     }
+    case 'year': return { from: `${y}-01-01`, to: at(0) }
+    case 'all': return { from: '', to: '' }
     default: return { from: at(-6), to: at(0) }
   }
 }
@@ -4128,6 +4134,8 @@ export function periodLabel(key: string): string {
     case 'd30': return tx('آخر ٣٠ يوماً', 'Last 30 days')
     case 'month': return tx('هذا الشهر', 'This month')
     case 'prevMonth': return tx('الشهر الماضي', 'Last month')
+    case 'year': return tx('هذه السنة', 'This year')
+    case 'all': return tx('كل الوقت', 'All time')
     default: return key
   }
 }

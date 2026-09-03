@@ -10,23 +10,20 @@
 // نطاق الإضاءة والتشبّع وفصلِ عمى الألوان والتباين على لوحَي النهار والليل معاً — فلا
 // يُستبدلان بالتقدير. ولا يُعتمَد اللون وحده: لكلّ سلسلةٍ مفتاحٌ مكتوب.
 import { computed, onMounted, ref } from 'vue'
-import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel, PERIOD_KEYS, periodRange, periodLabel } from '../store'
+import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel, periodRange } from '../store'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
+import DateRangePicker from './DateRangePicker.vue'
 
 const rep = computed<any>(() => state.complaintsReport)
 
-// مُدَدٌ جاهزة — اختيارُ يومين من تقويمين عملٌ يدويٌّ يتكرّر وخطؤه صامت
-const period = ref<string>('')
-const showCustom = ref(false)
-function applyPeriod(k: string) {
-  const r = periodRange(k)
-  state.complaintsReportFrom = r.from
-  state.complaintsReportTo = r.to
-  period.value = k
+// منتقٍ واحدٌ يجمع المُدَدَ الجاهزة والاختيارَ اليدويّ
+function applyRange(v: { from: string; to: string }) {
+  state.complaintsReportFrom = v.from
+  state.complaintsReportTo = v.to
   void loadComplaintsReport()
 }
-const clearPreset = () => { period.value = '' }
+function applyPeriod(k: string) { applyRange(periodRange(k)) }
 
 // ── مؤشّرات الرأس ───────────────────────────────────────────────────────────
 const countOf = (k: string) =>
@@ -86,7 +83,7 @@ const kpis = computed(() => {
       label: tx('متوسّط زمن الحلّ', 'Avg. time to resolve'),
       // بلا شكوى محلولةٍ واحدة لا متوسّط — «٠ ساعة» كذبٌ يقرأه المشرف إنجازاً
       value: r.avgResolutionHours == null ? '—' : fmtHours(r.avgResolutionHours),
-      tone: 'violet', ico: 'clock',
+      tone: 'sky', ico: 'clock',
     },
   ]
 })
@@ -215,24 +212,9 @@ onMounted(() => { if (!rep.value) applyPeriod('d30') })   // الشكاوى أب
   <div class="cr">
     <!-- المرشّحات داخل بطاقة — نفس شريط تقارير الداشبورد -->
     <div class="cr-bar">
-      <div class="cr-per">
-        <button v-for="k in PERIOD_KEYS" :key="k" :class="{ on: period === k }"
-          :disabled="state.complaintsReportBusy" @click="applyPeriod(k)">{{ periodLabel(k) }}</button>
-        <button :class="{ on: showCustom }" @click="showCustom = !showCustom">{{ tx('مخصّص', 'Custom') }}</button>
-      </div>
-      <template v-if="showCustom">
-        <label class="cr-f">
-          <span>{{ tx('من', 'From') }}</span>
-          <input type="date" v-model="state.complaintsReportFrom" @change="clearPreset()">
-        </label>
-        <label class="cr-f">
-          <span>{{ tx('إلى', 'To') }}</span>
-          <input type="date" v-model="state.complaintsReportTo" @change="clearPreset()">
-        </label>
-        <button class="btn btn-primary cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
-          {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
-        </button>
-      </template>
+      <DateRangePicker :from="state.complaintsReportFrom" :to="state.complaintsReportTo"
+        :busy="state.complaintsReportBusy" @apply="applyRange" />
+      <span v-if="state.complaintsReportBusy" class="cr-warn">{{ tx('جارٍ التحميل…', 'Loading…') }}</span>
       <span v-if="rep?.sampled" class="cr-warn">
         {{ tx('المدى كبير — السلسلة والمتوسّط على أحدث ٥٠٠٠ شكوى', 'Wide range — series and average use the latest 5,000 complaints') }}
       </span>
@@ -415,7 +397,7 @@ onMounted(() => { if (!rep.value) applyPeriod('d30') })   // الشكاوى أب
 .g-green  { background: linear-gradient(135deg, #34d399, #14b8a6); }
 .g-amber  { background: linear-gradient(135deg, #fbbf24, #f97316); }
 .g-rose   { background: linear-gradient(135deg, #fb7185, #db2777); }
-.g-violet { background: linear-gradient(135deg, #56b6d8, #305584); }
+.g-sky { background: linear-gradient(135deg, #56b6d8, #305584); }
 .cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
 .cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }

@@ -5,34 +5,37 @@
 // الأنماط `cr-*` عامّةٌ في `style.css` — تشترك فيها شاشتا التقارير فتُقرآن كنظامٍ واحد،
 // ولا تُنسَخ مرّتين فتنحرفا.
 import { computed, onMounted, ref } from 'vue'
-import { state, loadCcReport, canViewCcReports, PERIOD_KEYS, periodRange, periodLabel } from '../store'
+import { state, loadCcReport, canViewCcReports, periodRange } from '../store'
 import { formatCurrency } from '../utils'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
+import DateRangePicker from '../components/DateRangePicker.vue'
 
 const rep = computed<any>(() => state.ccReport)
 
 // ── التبويبات: التقريرُ طويل، والانتقالُ بضغطةٍ لا بنزولٍ إلى آخر الصفحة ──────
-const tab = ref<'agents' | 'load' | 'cancels' | 'branches'>('agents')
+const tab = ref<'agents' | 'load' | 'cancels' | 'branches' | 'customers'>('agents')
 const TABS = computed(() => [
   { k: 'agents' as const, label: tx('الوكلاء', 'Agents') },
   { k: 'load' as const, label: tx('الضغط والذروة', 'Load & peaks') },
   { k: 'cancels' as const, label: tx('الإلغاءات', 'Cancellations') },
   { k: 'branches' as const, label: tx('الفروع', 'Branches') },
+  { k: 'customers' as const, label: tx('العملاء', 'Customers') },
 ])
 
-// ── المدّة: زرٌّ واحدٌ بدل تقويمين ──────────────────────────────────────────
-const period = ref<string>('')
-function applyPeriod(k: string) {
-  const r = periodRange(k)
-  state.ccReportFrom = r.from
-  state.ccReportTo = r.to
-  period.value = k
+// ── المدّة: منتقٍ واحدٌ يجمع المُدَدَ الجاهزة والاختيارَ اليدويّ ─────────────
+function applyRange(v: { from: string; to: string }) {
+  state.ccReportFrom = v.from
+  state.ccReportTo = v.to
   void loadCcReport()
 }
-// تعديلُ التاريخ بيده يُلغي تمييزَ الزرّ — وإلا بدا مدىً مختارٌ وهو ليس المعروض
-const clearPreset = () => { period.value = '' }
-const showCustom = ref(false)
+function applyPeriod(k: string) { applyRange(periodRange(k)) }
+
+// ── فلترُ الوكيل: في تبويبه لا في رأس الصفحة ────────────────────────────
+// الفلترةُ هنا على الصفوف المعروضة لا بنداءٍ للخادم: الجدولُ كلُّه في اليد،
+// فالفلترةُ فوريّةٌ ولا تُكلّف طلباً.
+const agentQ = ref('')
+const customerQ = ref('')
 
 // «الأفضل» يتبع المعنى لا إشارةَ الرقم: طلباتٌ أكثر خيرٌ، وإلغاءٌ أقلّ خيرٌ.
 function delta(now: number | null, before: number | null, higherIsBetter = true) {
@@ -51,7 +54,7 @@ const kpis = computed(() => {
     { k: 'orders', label: tx('عدد الطلبات', 'Orders'), value: String(r.total), tone: 'brand', ico: 'clipboard-list' },
     { k: 'sales', label: tx('إجمالي المبيعات', 'Total sales'), value: formatCurrency(r.sales), tone: 'green', ico: 'banknote' },
     // متوسّطُ قيمة الطلب على غير الملغيّ — الملغيّ ليس بيعاً
-    { k: 'aov', label: tx('متوسّط قيمة الطلب', 'Avg. order value'), value: formatCurrency(r.aov), tone: 'violet', ico: 'shopping-cart' },
+    { k: 'aov', label: tx('متوسّط قيمة الطلب', 'Avg. order value'), value: formatCurrency(r.aov), tone: 'sky', ico: 'shopping-cart' },
     { k: 'cancel', label: tx('نسبة الإلغاء', 'Cancellation rate'), value: r.cancelRate + '%', tone: r.cancelRate > 10 ? 'rose' : 'amber', ico: 'ban' },
     { k: 'edited', label: tx('طلبات عُدِّلت', 'Edited orders'), value: String(r.edited), tone: 'amber', ico: 'edit' },
   ]
@@ -85,6 +88,22 @@ const hourLabel = (h: number) => `${String(h).padStart(2, '0')}:00`
 const agents = computed<any[]>(() => (rep.value?.byAgent || []).filter((a: any) => a.orders > 0))
 const maxAgentOrders = computed(() => Math.max(...agents.value.map((a) => a.orders), 1))
 const agentName = (a: any) => a.name || tx('غير منسوب', 'Unattributed')
+// العميلُ يُبحَث بالاسم **أو الهاتف**: الوكيلُ يعرف المتصلَ برقمه لا باسمه غالباً.
+const customers = computed<any[]>(() => rep.value?.topCustomers || [])
+const shownCustomers = computed<any[]>(() => {
+  const q = customerQ.value.trim().toLowerCase()
+  if (!q) return customers.value
+  return customers.value.filter((c: any) =>
+    String(c.name || '').toLowerCase().includes(q) || String(c.phone || '').includes(q))
+})
+const maxCustomer = computed(() => Math.max(1, ...customers.value.map((c: any) => c.orders || 0)))
+const dayOf = (v: any) => (v ? String(v).slice(0, 10) : '—')
+
+const shownAgents = computed<any[]>(() => {
+  const q = agentQ.value.trim().toLowerCase()
+  if (!q) return agents.value
+  return agents.value.filter((a: any) => agentName(a).toLowerCase().includes(q))
+})
 
 // زمنُ أخذ الطلب: من أوّل حركةٍ للوكيل حتى الإرسال. يُقاس على الطلبات التي سجّلت
 // حركاتِها فقط — وهي التي أُنشئت بعد تفعيل سجلّ العمليات.
@@ -167,26 +186,9 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
 
       <div v-else class="cr">
         <div class="cr-bar">
-          <!-- مُدَدٌ جاهزة: اختيارُ يومين من تقويمين لقراءة «آخر أسبوع» عملٌ يدويٌّ
-               يتكرّر، وخطؤه صامتٌ — شهرٌ خطأ يُقرأ تقريراً صحيحاً. -->
-          <div class="cr-per">
-            <button v-for="k in PERIOD_KEYS" :key="k" :class="{ on: period === k }"
-              :disabled="state.ccReportBusy" @click="applyPeriod(k)">{{ periodLabel(k) }}</button>
-            <button :class="{ on: showCustom }" @click="showCustom = !showCustom">{{ tx('مخصّص', 'Custom') }}</button>
-          </div>
-          <template v-if="showCustom">
-            <label class="cr-f">
-              <span>{{ tx('من', 'From') }}</span>
-              <input type="date" v-model="state.ccReportFrom" @change="clearPreset()">
-            </label>
-            <label class="cr-f">
-              <span>{{ tx('إلى', 'To') }}</span>
-              <input type="date" v-model="state.ccReportTo" @change="clearPreset()">
-            </label>
-            <button class="btn btn-primary cr-go" :disabled="state.ccReportBusy" @click="loadCcReport()">
-              {{ state.ccReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
-            </button>
-          </template>
+          <DateRangePicker :from="state.ccReportFrom" :to="state.ccReportTo"
+            :busy="state.ccReportBusy" @apply="applyRange" />
+          <span v-if="state.ccReportBusy" class="cr-warn">{{ tx('جارٍ التحميل…', 'Loading…') }}</span>
           <span v-if="rep?.sampled" class="cr-warn">
             {{ tx('المدى كبير — السلاسل على أحدث ٥٠٠٠ طلب', 'Wide range — series use the latest 5,000 orders') }}
           </span>
@@ -223,7 +225,11 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
 
             <template v-if="tab === 'agents'">
             <section class="cr-card">
-              <h3 class="cr-h">{{ tx('أداء الوكلاء', 'Agent performance') }}</h3>
+              <div class="cr-head">
+                <h3 class="cr-h">{{ tx('أداء الوكلاء', 'Agent performance') }}</h3>
+                <input class="cr-q" v-model="agentQ"
+                  :placeholder="tx('ابحث باسم الوكيل…', 'Search by agent name…')">
+              </div>
               <div class="cr-th">
                 <span class="ag-n">{{ tx('الوكيل', 'Agent') }}</span>
                 <span class="ag-bar"></span>
@@ -239,7 +245,7 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
                 <span class="ag-n2">{{ tx('عملاء جدد', 'New customers') }}</span>
                 <span class="ag-mix">{{ tx('الأنواع', 'Types') }}</span>
               </div>
-              <div v-for="a in agents" :key="String(a.agentId)" class="cr-row ag-row">
+              <div v-for="a in shownAgents" :key="String(a.agentId)" class="cr-row ag-row">
                 <span class="ag-n">{{ agentName(a) }}</span>
                 <span class="ag-bar"><i :style="{ inlineSize: (a.orders / maxAgentOrders) * 100 + '%' }"></i></span>
                 <span class="ag-c">{{ a.orders }}</span>
@@ -330,7 +336,7 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
             </section>
             </template>
 
-            <template v-else>
+            <template v-else-if="tab === 'branches'">
             <section class="cr-card">
               <h3 class="cr-h">{{ tx('الطلبات حسب الفرع', 'Orders by branch') }}</h3>
               <div v-for="b in branches" :key="String(b.branchId)" class="cr-row">
@@ -339,6 +345,37 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
                 <span class="cr-row-v">{{ b.orders }}</span>
                 <span class="cr-row-x">{{ formatCurrency(b.sales) }}</span>
               </div>
+            </section>
+            </template>
+            <template v-else>
+            <!-- **العملاء**: مَن يطلب كثيراً ومَن ينفق كثيراً ليسا واحداً — والرقمان
+                 معاً يقولان أيَّ عميلٍ يستحقّ اهتماماً حين يشتكي أو يتأخّر طلبُه. -->
+            <section class="cr-card">
+              <div class="cr-head">
+                <h3 class="cr-h">{{ tx('أعلى العملاء', 'Top customers') }}</h3>
+                <input class="cr-q" v-model="customerQ"
+                  :placeholder="tx('ابحث باسمٍ أو رقم…', 'Search by name or phone…')">
+              </div>
+              <p v-if="!customers.length" class="cr-empty">{{ tx('لا عملاء في هذه المدّة', 'No customers in this period') }}</p>
+              <p v-else-if="!shownCustomers.length" class="cr-empty">{{ tx('لا عميل بهذا الاسم أو الرقم', 'No customer matches') }}</p>
+              <template v-else>
+                <div class="cr-th cu-row">
+                  <span class="cu-n">{{ tx('العميل', 'Customer') }}</span>
+                  <span class="cu-p">{{ tx('الهاتف', 'Phone') }}</span>
+                  <span class="ag-bar"></span>
+                  <span class="cu-c">{{ tx('طلبات', 'Orders') }}</span>
+                  <span class="cu-s">{{ tx('الإنفاق', 'Spend') }}</span>
+                  <span class="cu-d">{{ tx('آخر طلب', 'Last order') }}</span>
+                </div>
+                <div v-for="c in shownCustomers" :key="String(c.customerId)" class="cr-row cu-row">
+                  <span class="cu-n">{{ c.name || tx('بلا اسم', 'Unnamed') }}</span>
+                  <span class="cu-p">{{ c.phone || '—' }}</span>
+                  <span class="ag-bar"><i :style="{ inlineSize: (c.orders / maxCustomer) * 100 + '%' }"></i></span>
+                  <span class="cu-c">{{ c.orders }}</span>
+                  <span class="cu-s">{{ formatCurrency(c.spend) }}</span>
+                  <span class="cu-d">{{ dayOf(c.lastAt) }}</span>
+                </div>
+              </template>
             </section>
             </template>
           </template>
@@ -383,6 +420,14 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
 /* شريطٌ مركَّب: النسبةُ تُرى والأرقامُ في التلميحة — الصفّ لا يتّسع لثلاثة أرقامٍ أخرى */
 .ag-mix { inline-size: 86px; flex: 0 0 auto; display: flex; block-size: 8px; border-radius: 4px; overflow: hidden; background: rgba(148, 163, 184, .22); }
 .ag-mix i { display: block; block-size: 100%; }
+
+/* جدول العملاء: الهاتفُ عمودٌ قائمٌ بذاته لأنه ما يُبحَث به فعلاً */
+.cu-row { gap: 10px; }
+.cu-n { inline-size: 24%; font-weight: 700; color: var(--text-primary, #1f2937); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cu-p { inline-size: 112px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); direction: ltr; text-align: start; }
+.cu-c { inline-size: 56px; text-align: end; font-weight: 800; font-variant-numeric: tabular-nums; }
+.cu-s { inline-size: 96px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
+.cu-d { inline-size: 88px; text-align: end; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted, #94a3b8); }
 
 .cr-peak-note { font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
 .cr-htick { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
