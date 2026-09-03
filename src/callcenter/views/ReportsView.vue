@@ -4,7 +4,7 @@
 //
 // الأنماط `cr-*` عامّةٌ في `style.css` — تشترك فيها شاشتا التقارير فتُقرآن كنظامٍ واحد،
 // ولا تُنسَخ مرّتين فتنحرفا.
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, onBeforeUnmount, ref, nextTick, watch } from 'vue'
 import { state, loadCcReport, canViewCcReports, periodRange } from '../store'
 import { formatCurrency } from '../utils'
 import { tx, lang } from '../lang'
@@ -35,6 +35,21 @@ function applyPeriod(k: string) { applyRange(periodRange(k)) }
 // الفلترةُ هنا على الصفوف المعروضة لا بنداءٍ للخادم: الجدولُ كلُّه في اليد،
 // فالفلترةُ فوريّةٌ ولا تُكلّف طلباً.
 const agentQ = ref('')
+
+// هل يفيض جدولُ الوكلاء عن بطاقته؟ يُقاس ولا يُفترَض — الإشارةُ على شاشةٍ واسعة كذب.
+const agBox = ref<HTMLElement | null>(null)
+const agOverflows = ref(false)
+const measureAg = () => {
+  const el = agBox.value
+  agOverflows.value = !!el && el.scrollWidth - el.clientWidth > 4
+}
+onMounted(() => {
+  void nextTick(measureAg)
+  window.addEventListener('resize', measureAg)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', measureAg))
+// التبويبُ يُركِّب الجدولَ من جديد، والمدّةُ تغيّر عددَ صفوفه — يُعاد القياسُ بعدهما
+watch([tab, rep], () => void nextTick(measureAg))
 const customerQ = ref('')
 
 // «الأفضل» يتبع المعنى لا إشارةَ الرقم: طلباتٌ أكثر خيرٌ، وإلغاءٌ أقلّ خيرٌ.
@@ -230,6 +245,8 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
                 <input class="cr-q" v-model="agentQ"
                   :placeholder="tx('ابحث باسم الوكيل…', 'Search by agent name…')">
               </div>
+              <div class="ag-scroll" ref="agBox">
+              <div class="ag-tbl">
               <div class="cr-th">
                 <span class="ag-n">{{ tx('الوكيل', 'Agent') }}</span>
                 <span class="ag-bar"></span>
@@ -268,6 +285,9 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
                      :style="{ inlineSize: x.pct + '%', background: x.color }"></i>
                 </span>
               </div>
+              </div>
+              </div>
+              <p v-if="agOverflows" class="ag-more">{{ tx('الجدول أوسع من الشاشة — مرّره أفقيّاً لرؤية زمن الأخذ والعملاء الجدد وتوزيع الأنواع.', 'The table is wider than the screen — scroll it sideways for handling time, new customers and the type mix.') }}</p>
               <p class="cr-foot">
                 {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى. و«بلا فرع» طلبٌ لم يصل أيَّ فرع فوقف — أخطرُ من الإلغاء لأن أحداً لا يعلم به. و«زمن الأخذ» من أوّل حركةٍ في السلّة حتى الإرسال، ويُحسَب على الطلبات المسجَّلة حركاتُها فقط. و«عملاء جدد» = طلبُه هذا أوّلُ طلبٍ له على الإطلاق.', 'Complaints are counted against the agent who took the order, not whoever logged it. “Held” means the order reached no branch at all — worse than a cancellation, because nobody knows about it. “Handling” is from the first cart action to sending, over orders whose actions were recorded. “New customers” means this was the customer’s very first order.') }}
               </p>
@@ -413,7 +433,21 @@ onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقول�
 .hm-head .hm-c { background: transparent; }
 .hm-lab { color: var(--text-muted, #94a3b8); font-size: 9.5px; }
 
-/* الجدول يمرّر أفقيّاً بدل أن تنكمش أعمدتُه إلى ما لا يُقرأ */
+/* الجدول يمرّر داخل بطاقته لا بالصفحة كلِّها، وأعمدتُه لا تنكمش */
+.ag-scroll {
+  overflow-x: auto; padding-block-end: 4px;
+  /* حافّةٌ متلاشية تُرسَم من المحتوى نفسه: تظهر حين يبقى ما لم يُعرَض وتختفي عند
+     نهاية التمرير — بلا قياسٍ ولا مستمعٍ، فلا تكذب أبداً. */
+  background:
+    linear-gradient(to left, var(--bg-card, #fff) 30%, rgba(255, 255, 255, 0)) left center / 28px 100% no-repeat local,
+    linear-gradient(to right, var(--bg-card, #fff) 30%, rgba(255, 255, 255, 0)) right center / 28px 100% no-repeat local,
+    linear-gradient(to left, rgba(100, 140, 189, .28), rgba(100, 140, 189, 0)) left center / 18px 100% no-repeat scroll,
+    linear-gradient(to right, rgba(100, 140, 189, .28), rgba(100, 140, 189, 0)) right center / 18px 100% no-repeat scroll;
+}
+.ag-more { margin: 8px 2px 0; font-size: 11px; font-weight: 700; color: #b45309; }
+.ag-tbl { min-inline-size: 1040px; }
+.ag-c, .ag-s, .ag-a, .ag-x, .ag-t, .ag-n2 { flex: 0 0 auto; }
+.ag-n { flex: 0 0 auto; }
 .ag-t { inline-size: 92px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
 .ag-n2 { inline-size: 74px; text-align: end; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted, #94a3b8); }
 .ag-n2 b { color: var(--text-primary, #1f2937); font-weight: 800; }
