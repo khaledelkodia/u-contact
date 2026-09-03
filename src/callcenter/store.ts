@@ -4468,6 +4468,11 @@ export function promotionsAwaitingChoice(): any[] {
 export function promotionsChosen(): any[] {
   return earnedPromotions().filter((e: any) => e.rewards.length > 1 && giftChosenQty(e.promo.id) >= e.giftQty)
 }
+/** ما اختاره الوكيل لهذا العرض: الصنفُ وكميّتُه — لعرض المختار وحده. */
+export function giftPicksOf(promoId: any): any[] {
+  return giftLinesOf(promoId).map((c: any) => ({ id: c.itemId, name: c.name, qty: c.quantity }))
+}
+
 /** الهدايا الموضوعة في السلّة الآن — لعرضها ورفعها. */
 export function appliedGifts(): any[] {
   return state.cart

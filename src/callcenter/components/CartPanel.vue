@@ -2,7 +2,7 @@
 import { computed, nextTick, ref } from 'vue'
 import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
   earnedPromotions, promotionsAwaitingChoice, promotionsChosen, giftChosenQty, giftQtyOfProduct,
-  addPromotionGiftUnit, removePromotionGiftUnit, removePromotionGift, appliedGifts, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+  addPromotionGiftUnit, removePromotionGiftUnit, removePromotionGift, appliedGifts, giftPicksOf, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -19,6 +19,17 @@ const autoGifts = computed(() => {
 })
 // المُوزَّعة: الناقصةُ والمكتملةُ معاً — تبقى معروضةً ليغيّر الوكيلُ التوزيع
 const spreadGifts = computed(() => [...promotionsAwaitingChoice(), ...promotionsChosen()])
+
+// **فوق أربعة أصنافٍ تُقلَب اللوحة إلى قائمةٍ منسدلة**: هديّةٌ من فئةٍ فيها ثلاثةَ
+// عشرَ صنفاً تُرسَم ثلاثةَ عشرَ شريحةً تحتلّ اللوحة كلَّها وتُغرق الخصوماتَ والإجماليّ
+// تحتها. والوكيلُ لا يقرؤها — يبحث فيها. والقائمةُ المنسدلة حجمُها ثابتٌ مهما كثر.
+const CHIP_MAX = 4
+const giftSel = ref<Record<string, any>>({})
+const selOf = (a: any) => giftSel.value[String(a.promo.id)] ?? a.rewards[0]?.id
+function addSelected(a: any) {
+  const id = selOf(a)
+  if (id != null) addPromotionGiftUnit(a.promo.id, id)
+}
 
 const manualRules = computed<any[]>(() => discountsForOrder().filter((d: any) => !d.isAuto))
 const pickedIds = computed<number[]>(() => (state.pickedDiscountIds || []).map(Number))
@@ -234,7 +245,8 @@ const resLabel = computed(() => {
           <button v-if="giftChosenQty(a.promo.id)" type="button" class="cp-x"
             @click="removePromotionGift(a.promo.id)" :title="tx('رفع الهديّة', 'Remove the gift')">×</button>
         </div>
-        <div class="cp-opts">
+        <!-- أصنافٌ قليلة: شرائحُ تُقرأ بلمحةٍ وتُضغَط مباشرةً -->
+        <div v-if="a.rewards.length <= CHIP_MAX" class="cp-opts">
           <span v-for="r in a.rewards" :key="r.id" class="cp-pick"
             :class="{ has: giftQtyOfProduct(a.promo.id, r.id) > 0 }">
             <button type="button" class="cp-b" :disabled="!giftQtyOfProduct(a.promo.id, r.id)"
@@ -245,6 +257,25 @@ const resLabel = computed(() => {
               @click="addPromotionGiftUnit(a.promo.id, r.id)">+</button>
           </span>
         </div>
+        <!-- أصنافٌ كثيرة: قائمةٌ منسدلة + «أضف» — حجمُها ثابتٌ مهما كثرت الأصناف،
+             والمختارُ وحده يُعرَض تحتها فلا تزحم اللوحةَ خياراتٌ لم تُختَر. -->
+        <template v-else>
+          <div class="cp-sel">
+            <select class="cp-sel-i" :value="selOf(a)"
+              @change="giftSel[String(a.promo.id)] = ($event.target as HTMLSelectElement).value">
+              <option v-for="r in a.rewards" :key="r.id" :value="r.id">{{ r.name }}</option>
+            </select>
+            <button type="button" class="cp-add" :disabled="giftChosenQty(a.promo.id) >= a.giftQty"
+              @click="addSelected(a)">{{ tx('أضف', 'Add') }}</button>
+          </div>
+          <div v-if="giftPicksOf(a.promo.id).length" class="cp-opts cp-chosen">
+            <span v-for="c in giftPicksOf(a.promo.id)" :key="c.id" class="cp-pick has">
+              <button type="button" class="cp-b" @click="removePromotionGiftUnit(a.promo.id, c.id)">−</button>
+              <span class="cp-pn">{{ c.name }}</span>
+              <span class="cp-pq">{{ c.qty }}</span>
+            </span>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -508,4 +539,19 @@ body.dark-mode .cp-pick.has { background: rgba(16, 185, 129, .18); }
 }
 .ci-gift-of { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); }
 .qty-static { min-inline-size: 34px; text-align: center; font-weight: 800; color: var(--text-secondary, #64748b); font-variant-numeric: tabular-nums; }
+
+/* هديّةٌ من فئةٍ كبيرة: منسدلةٌ ثابتةُ الحجم بدل صفٍّ من الشرائح يغرق اللوحة */
+.cp-sel { display: flex; gap: 6px; align-items: center; }
+.cp-sel-i {
+  flex: 1; min-inline-size: 0; padding: 5px 8px; border-radius: 8px;
+  border: 1px solid rgba(16, 185, 129, .4); background: var(--bg-card, #fff);
+  color: var(--text-primary, #1f2937); font-family: inherit; font-size: 12px; font-weight: 700;
+}
+.cp-add {
+  flex: 0 0 auto; padding: 5px 14px; border-radius: 8px; border: 0; cursor: pointer;
+  background: #0f766e; color: #fff; font-family: inherit; font-size: 12px; font-weight: 800;
+}
+.cp-add:disabled { opacity: .4; cursor: default; }
+.cp-chosen { margin-block-start: 6px; }
+body.dark-mode .cp-sel-i { background: #131c2c; }
 </style>
