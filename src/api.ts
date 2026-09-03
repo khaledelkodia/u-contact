@@ -316,6 +316,18 @@ export interface ContactDiscount {
   startsAt?: string | null; endsAt?: string | null
 }
 export const contactDiscounts = () => api.get('/contact/lookup/discounts').then((r) => r.data as ContactDiscount[])
+export interface ContactPromotion {
+  id: number; name: string; nameAr: string | null
+  triggerScope: 'product' | 'category'
+  triggerProductIds: number[]; triggerVariantIds: number[]; triggerCategoryIds: number[]; triggerQty: number
+  rewardScope: 'product' | 'category' | 'maincategory'
+  rewardProductIds: number[]; rewardVariantIds: number[]
+  rewardCategoryIds: number[]; rewardMainCategoryIds: number[]; rewardQty: number
+  maxApplications: number | null
+  scopeBranchIds: number[]; daysOfWeek: number[]
+  startsAt: string | null; endsAt: string | null
+}
+export const contactPromotions = () => api.get('/contact/lookup/promotions').then((r) => r.data as ContactPromotion[])
 // مناطق التوصيل → الفرع المشتق + الرسوم
 export const contactRegions = () => api.get('/contact/lookup/regions').then((r) => r.data as ContactRegion[])
 // طرق الدفع وأنواع الطلب كما عرّفتها الشركة — كانت مكتوبةً في كود الواجهة

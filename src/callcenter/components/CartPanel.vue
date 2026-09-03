@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
+  earnedPromotions, promotionsAwaitingChoice, applyPromotionGift, removePromotionGift, appliedGifts, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -10,6 +11,11 @@ import { icon } from '../icons'
 // الخصومات: المطبَّق فعلاً (تلقائيّ + ما اختاره الوكيل) وقائمةُ اليدويّ المتاح.
 // تُحسَب من السلّة نفسها فتتغيّر معها بلا زرّ «أعد الحساب».
 const dsc = computed<any>(() => computeDiscount())
+// العروضُ: المستحقُّ المطبَّق، والمستحقُّ الذي ينتظر اختيارَ صنف الهديّة
+const gifts = computed(() => appliedGifts())
+const awaiting = computed(() => promotionsAwaitingChoice())
+const earnedCount = computed(() => earnedPromotions().length)
+
 const manualRules = computed<any[]>(() => discountsForOrder().filter((d: any) => !d.isAuto))
 const pickedIds = computed<number[]>(() => (state.pickedDiscountIds || []).map(Number))
 
@@ -189,6 +195,26 @@ const resLabel = computed(() => {
           :min="earliestReservationTime()">
         <label class="ce-lbl">{{ tx('يبدأ التحضير قبل الموعد بـ (دقيقة)', 'Start preparing before the time by (minutes)') }}</label>
         <input type="number" min="0" :placeholder="tx('افتراضي الفرع', 'Branch default')" v-model="state.prepLeadMinutes" class="ce-input">
+      </div>
+    </div>
+
+    <!-- العروض: الهديّةُ ذاتُ الصنف الواحد تُوضَع وحدها، وما كانت هديّتُه فئةً
+         يُعرَض ليختار الوكيل — أيُّ عصيرٍ يأخذ العميلُ قرارُه هو. -->
+    <div v-if="(gifts.length || awaiting.length) && state.cart.length" class="cart-promos">
+      <div class="cart-disc-h">{{ tx('عروض على الطلب', 'Offers on this order') }}</div>
+      <div v-for="g in gifts" :key="'g' + g.promotionId" class="cp-row on">
+        <span class="cp-n">{{ g.promotionName || tx('عرض', 'Offer') }}</span>
+        <span class="cp-g">{{ g.name }} × {{ g.qty }} — {{ tx('هديّة', 'free') }}</span>
+        <button type="button" class="cp-x" @click="removePromotionGift(g.promotionId)"
+          :title="tx('رفع الهديّة', 'Remove the gift')">×</button>
+      </div>
+      <div v-for="a in awaiting" :key="'a' + a.promo.id" class="cp-row pick">
+        <span class="cp-n">{{ a.promo.nameAr || a.promo.name }}</span>
+        <span class="cp-ask">{{ tx('اختر الهديّة', 'Pick the gift') }} × {{ a.giftQty }}</span>
+        <span class="cp-opts">
+          <button v-for="r in a.rewards" :key="r.id" type="button" class="cp-opt"
+            @click="applyPromotionGift(a.promo.id, r.id, a.giftQty)">{{ r.name }}</button>
+        </span>
       </div>
     </div>
 
@@ -415,4 +441,16 @@ body.dark-mode .cart-note-body { color: #fcd34d; }
 
 /* «طلب جديد» نصٌّ لا رقم — أخفُّ وزناً وأصغرُ حجماً فلا يُقرأ رقمَ فاتورة */
 .cart-order-no.is-draft { font-size: 14px; font-weight: 700; opacity: .75; }
+
+/* العروض: صفٌّ لكلّ عرض — الهديّةُ الموضوعة، أو أزرارُ اختيارها */
+.cart-promos { margin-block: 8px; padding: 8px 10px; border-radius: 12px; border: 1px solid rgba(16, 185, 129, .28); background: rgba(16, 185, 129, .07); }
+.cp-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-block: 4px; font-size: 12px; }
+.cp-n { font-weight: 800; color: #0f766e; }
+.cp-g { font-weight: 700; color: var(--text-secondary, #64748b); }
+.cp-ask { font-weight: 700; color: #b45309; }
+.cp-opts { display: flex; gap: 6px; flex-wrap: wrap; }
+.cp-opt { padding: 4px 10px; border-radius: 999px; border: 1px solid rgba(16, 185, 129, .45); background: var(--bg-card, #fff); color: #0f766e; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer; }
+.cp-opt:hover { background: rgba(16, 185, 129, .12); }
+.cp-x { margin-inline-start: auto; inline-size: 22px; block-size: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted, #94a3b8); font-size: 16px; line-height: 1; cursor: pointer; }
+.cp-x:hover { background: rgba(239, 68, 68, .12); color: #b91c1c; }
 </style>

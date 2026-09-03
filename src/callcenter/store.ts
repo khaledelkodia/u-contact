@@ -11,7 +11,7 @@ import {
   contactComplaints, contactCreateComplaint, contactCcStoppedItems, contactSetCcStopped, contactOrder,
   contactPaymentMethods, contactOrderTypes, contactExternalPlatforms, contactOrderPolicy, contactUpdateOrder,
   contactCancelOrder, contactDeleteAddress, contactComplaint, contactComplaintUpdate, contactComplaintsReport, contactCcOverview, contactAssignBranch, phoneE164, phoneDisplay,
-  contactSetCustomerBlocked, contactDiscounts,
+  contactSetCustomerBlocked, contactDiscounts, contactPromotions,
   trueNow,
 } from '../api'
 import type { ContactOrderInput } from '../api'
@@ -46,6 +46,7 @@ export const state = reactive<any>({
   paymentRequired: false,
   editStages: ['sent', 'new', 'preparing'],   // مراحل السماح بالتعديل — من إعدادات الشركة
   discountRules: [],           // قواعد الخصم الحيّة للشركة (تُفلتَر باليوم والفرع)
+  promotions: [],              // عروض «اشترِ واحصل» الحيّة للشركة
   pickedDiscountIds: [],       // ما اختاره الوكيل يدوياً — التلقائيّ لا يُختار
   paymentModalOpen: false,     // مودال اختيار الدفع
   orderType: 'delivery',
@@ -211,17 +212,19 @@ export async function loadLiveData() {
   if (!(session.mode === 'agent' && session.companyId)) return
   try {
     // طرق الدفع وأنواع الطلب من الشركة — فشلُها لا يُسقط الشاشة: نرتدّ لقوائم data.ts
-    const [branches, regions, products, payMethods, orderTypes, extPlatforms, policy, discounts] = await Promise.all([
+    const [branches, regions, products, payMethods, orderTypes, extPlatforms, policy, discounts, promos] = await Promise.all([
       contactBranches(), contactRegions(), contactProducts(),
       contactPaymentMethods().catch(() => []),
       contactOrderTypes().catch(() => []),
       contactExternalPlatforms().catch(() => []),   // فشلُها يخفي «الطلب الخارجي» وحده
       contactOrderPolicy().catch(() => ({ paymentRequired: false })),
       contactDiscounts().catch(() => []),   // فشلُها لا يُسقط الشاشة: طلبٌ بلا خصم أهونُ من شاشةٍ لا تفتح
+      contactPromotions().catch(() => []),  // وكذلك العروض
     ])
     state.companyPaymentMethods = Array.isArray(payMethods) ? payMethods : []
     state.paymentRequired = !!(policy as any)?.paymentRequired
     state.discountRules = Array.isArray(discounts) ? discounts : []
+    state.promotions = Array.isArray(promos) ? promos : []
     // قائمةٌ فارغة من الخادم = «لا تعديل بعد الإرسال» وهو قرارٌ صالح؛ والغياب
     // (خادمٌ أقدم) يُبقي الافتراضيّ فلا تُشلّ الشاشة عند من لم ينشر التحديث.
     const st = (policy as any)?.editStages
@@ -2442,6 +2445,8 @@ export function addToCart(item: any, opts: any = {}) {
     })
     logPendingEvent({ type: 'item_added', itemName: item.name, qtyAdded: qty, newQty: qty })
   }
+  // الهدايا تتبع السلّة: الاستحقاق يتغيّر بكلّ إضافة
+  syncPromotionGifts()
   // `silent`: إعادة الطلب تضيف عدة أصناف دفعةً واحدة — توست لكل صنف يغرق الشاشة
   if (!opts.silent) showToast(tx(`تم إضافة ${item.name} للسلة`, `${item.name} added to the cart`), 'success')
 }
@@ -2458,6 +2463,7 @@ export function updateCartItemQty(cartItemId: string, change: number) {
   } else {
     logPendingEvent({ type: change > 0 ? 'item_qty_up' : 'item_qty_down', itemName: item.name, prevQty, newQty: item.quantity })
   }
+  syncPromotionGifts()
 }
 
 /**
@@ -2476,6 +2482,7 @@ export function removeCartItem(cartItemId: string) {
   const item = state.cart[i]
   state.cart.splice(i, 1)
   logPendingEvent({ type: 'item_removed', itemName: item.name, note: `حذف صنف: ${item.name}` })
+  syncPromotionGifts()
 }
 
 export async function clearCart() {
@@ -2532,10 +2539,12 @@ export function discountsForOrder(): any[] {
 /** أصنافُ السلّة التي يشملها نطاقُ القاعدة — أساسُ حساب النسبة. */
 function cartLinesForRule(d: any): any[] {
   const has = (arr: any[], v: any) => Array.isArray(arr) && arr.map(Number).includes(Number(v))
-  if (d.appliesTo === 'order') return state.cart
+  // الهديّةُ خارجَ كلّ نطاق: هي أثرُ عرضٍ لا صنفٌ اشتراه العميل
+  const paid = state.cart.filter((c: any) => !c.isGift)
+  if (d.appliesTo === 'order') return paid
   const excl = d.excludeProductIds || []
   if (d.appliesTo === 'product') {
-    return state.cart.filter((c: any) => {
+    return paid.filter((c: any) => {
       if (has(excl, c.itemId)) return false
       // أحجامٌ محدّدة: البند يوافق حجمَه هو؛ وقائمةٌ فارغة = كلُّ أحجام الصنف
       const vOk = !(d.variantIds || []).length || has(d.variantIds, c.variantId)
@@ -2543,7 +2552,7 @@ function cartLinesForRule(d: any): any[] {
     })
   }
   // فئة: الفرعيّة أوّلاً ثم الرئيسيّة — والمستثنى يخرج مهما شملته الفئة
-  return state.cart.filter((c: any) => {
+  return paid.filter((c: any) => {
     if (has(excl, c.itemId)) return false
     const it = state.menuItems.find((m: any) => Number(m.id) === Number(c.itemId))
     if (!it) return false
@@ -2787,6 +2796,9 @@ export async function submitOrder() {
       unitPrice: i.price,
       modifiers: Array.isArray(i.modifiers) && i.modifiers.length ? i.modifiers : undefined,
       notes: (i.note || '').trim() || null,
+      // الهديّةُ تُعلَن صراحةً: سعرُ صفرٍ وحده لا يميّزها عن صنفٍ مفتوح السعر صُفِّر بيد الوكيل
+      isGift: !!i.isGift,
+      promotionId: i.isGift ? (i.promotionId ?? null) : null,
     })),
   }
   if (state.isReservation && state.reservationTime) {
@@ -3855,6 +3867,8 @@ export async function saveOrderEdit() {
         unitPrice: i.price,
         modifiers: Array.isArray(i.modifiers) && i.modifiers.length ? i.modifiers : undefined,
         notes: (i.note || '').trim() || null,
+        isGift: !!i.isGift,
+        promotionId: i.isGift ? (i.promotionId ?? null) : null,
       })),
     })
     showToast(tx('تم حفظ التعديل — الفرع هيستلم الفرق', 'Saved — the branch will get the difference'), 'success')
@@ -4239,4 +4253,157 @@ export function submitComplaint(orderId: number, text: string, category: string 
 
   showToast(tx('تم تسجيل الشكوى بنجاح', 'Complaint recorded'), 'success')
   closeComplaintModal()
+}
+
+// ── عروض «اشترِ واحصل» ─────────────────────────────────────────────────────
+//
+// **لماذا محرّكٌ هنا لا حسابٌ على الخادم**: الاستحقاق يتغيّر مع كلّ ضغطة في السلّة،
+// ونداءٌ لكلّ ضغطة يُجلس الوكيلَ ينتظر والعميلُ على الهاتف. البياناتُ كلُّها عنده
+// أصلاً (الأصناف وفئاتها)، فالحسابُ محليٌّ وفوريّ.
+//
+// والقواعدُ هي التي يطبّقها الفرع نفسُها: أيُّ اختلافٍ هنا يعني طلباً بالتليفون
+// يخالف طلباً من المحلّ — وذلك يصل العميلَ شكوى.
+
+/** العروضُ الحيّة الآن: الفرع · يومُ الأسبوع · نافذةُ الصلاحية — كقواعد الخصم حرفاً بحرف. */
+export function promotionsForOrder(): any[] {
+  const branchId = getResolvedOrderBranchId()
+  const wall = toCompanyWall()
+  const [wy, wm, wd] = wall.slice(0, 10).split('-').map(Number)
+  const dow = new Date(Date.UTC(wy, wm - 1, wd)).getUTCDay()
+  const t = new Date(wall + ':00Z').getTime()
+  return (state.promotions || []).filter((p: any) => {
+    const scope = Array.isArray(p.scopeBranchIds) ? p.scopeBranchIds : []
+    if (scope.length && (!branchId || !scope.map(Number).includes(Number(branchId)))) return false
+    const days = Array.isArray(p.daysOfWeek) ? p.daysOfWeek : []
+    if (days.length && !days.map(Number).includes(dow)) return false
+    if (p.startsAt && t < new Date(p.startsAt).getTime()) return false
+    if (p.endsAt && t > new Date(p.endsAt).getTime()) return false
+    return true
+  })
+}
+
+/**
+ * أصنافُ الهديّة الممكنة — تُشتقّ من نوعها (صنف · فئة فرعية · فئة رئيسية).
+ *
+ * **يُحسَب هنا لا على الخادم**: الفئةُ تتغيّر أصنافُها، والمتاحُ منها يتغيّر خلال
+ * الوردية. الحسابُ من قائمة الوكيل يعطي ما هو ظاهرٌ ومتاحٌ الآن، لا ما كان كذلك
+ * لحظةَ الاستعلام.
+ */
+export function promotionRewardProducts(p: any): any[] {
+  const all: any[] = Array.isArray(state.menuItems) ? state.menuItems : []
+  // المتاحُ وحده يُهدى: صنفٌ نفد لا يُوعَد به العميل
+  const live = all.filter((x: any) => x.isAvailable !== false)
+  const has = (ids: any[], v: any) => (ids || []).map(String).includes(String(v))
+  if (p.rewardScope === 'category') return live.filter((x: any) => has(p.rewardCategoryIds, x.subCategoryId))
+  if (p.rewardScope === 'maincategory') return live.filter((x: any) => has(p.rewardMainCategoryIds, x.categoryId))
+  return live.filter((x: any) => has(p.rewardProductIds, x.id))
+}
+
+/** كم هديّةً تستحقّ السلّةُ من هذا العرض؟ صفرٌ = لا تستحقّ. */
+export function promotionGiftQty(p: any): number {
+  const need = Number(p.triggerQty) || 0
+  if (need <= 0) return 0
+  const has = (ids: any[], v: any) => (ids || []).map(String).includes(String(v))
+  let count = 0
+  // الهديّةُ لا تُحفِّز عرضاً: وإلّا وَلَدت هديّةٌ هديّةً بلا شراء
+  for (const c of state.cart.filter((x: any) => !x.isGift)) {
+    const prod = (state.menuItems || []).find((x: any) => String(x.id) === String(c.itemId))
+    const hit = p.triggerScope === 'category'
+      ? !!prod && has(p.triggerCategoryIds, prod.subCategoryId)
+      : has(p.triggerProductIds, c.itemId)
+    if (hit) count += Number(c.quantity) || 0
+  }
+  if (count < need) return 0
+  let apps = Math.floor(count / need)
+  if (p.maxApplications) apps = Math.min(apps, Number(p.maxApplications))
+  return apps * (Number(p.rewardQty) || 1)
+}
+
+/** العروضُ المستحقّة على السلّة الآن، ومعها كميّةُ الهديّة وأصنافُها الممكنة. */
+export function earnedPromotions(): any[] {
+  const out: any[] = []
+  for (const p of promotionsForOrder()) {
+    const giftQty = promotionGiftQty(p)
+    if (giftQty <= 0) continue
+    const rewards = promotionRewardProducts(p)
+    if (!rewards.length) continue   // هديّةٌ لا صنفَ لها = عرضٌ لا يُطبَّق
+    out.push({ promo: p, giftQty, rewards })
+  }
+  return out
+}
+
+const giftLinesOf = (promoId: any) =>
+  state.cart.filter((c: any) => c.isGift && String(c.promotionId) === String(promoId))
+
+/** وضعُ الهديّة (أو استبدالُها) لعرضٍ بعينه — لا تمسّ هدايا العروض الأخرى. */
+export function applyPromotionGift(promoId: any, productId: any, qty: number) {
+  const p = (state.promotions || []).find((x: any) => String(x.id) === String(promoId))
+  if (!p || qty <= 0) return
+  const prod = promotionRewardProducts(p).find((x: any) => String(x.id) === String(productId))
+  if (!prod) return
+  state.cart = state.cart.filter((c: any) => !(c.isGift && String(c.promotionId) === String(promoId)))
+  state.cart.push({
+    cartItemId: 'gift-' + promoId + '-' + Date.now(),
+    itemId: prod.id,
+    name: prod.name,
+    nameEn: prod.nameEn || null,
+    size: null,
+    quantity: qty,
+    price: 0,
+    extras: [],
+    variantId: null,
+    sizeAr: null,
+    sizeEn: null,
+    modifiers: [],
+    extrasPrice: 0,
+    note: null,
+    isGift: true,
+    promotionId: p.id,
+    promotionName: p.nameAr || p.name,
+  })
+}
+
+/** رفعُ الهديّة — العميلُ قد يرفضها فلا تُفرَض عليه. */
+export function removePromotionGift(promoId: any) {
+  state.cart = state.cart.filter((c: any) => !(c.isGift && String(c.promotionId) === String(promoId)))
+}
+
+/**
+ * ضبطُ الهدايا بعد كلّ تغيير في السلّة.
+ *
+ * **تلقائيٌّ حيث يصحّ الحسمُ وحده**: عرضٌ هديّتُه صنفٌ واحد يُطبَّق بلا سؤال. أمّا إن
+ * كانت الهديّةُ فئةً فيها أصناف، فأيُّها يأخذ العميلُ قرارُه هو — وإهداءُ عصيرٍ لم
+ * يطلبه أسوأُ من سؤاله عنه. فتُعرَض ليختار الوكيل.
+ *
+ * وتسقط الهديّةُ من تلقاء نفسها متى سقط استحقاقُها: حذفُ صنفٍ يُنقص المحفِّز،
+ * فتبقى الهديّةُ سطراً مجّانياً بلا سببٍ لولا المراجعة.
+ */
+export function syncPromotionGifts() {
+  const earned = earnedPromotions()
+  const ids = new Set(earned.map((e: any) => String(e.promo.id)))
+  state.cart = state.cart.filter((c: any) => !c.isGift || ids.has(String(c.promotionId)))
+  for (const e of earned) {
+    const cur = giftLinesOf(e.promo.id)[0]
+    if (e.rewards.length === 1) {
+      const only = e.rewards[0]
+      if (!cur || String(cur.itemId) !== String(only.id) || Number(cur.quantity) !== e.giftQty) {
+        applyPromotionGift(e.promo.id, only.id, e.giftQty)
+      }
+    } else if (cur && Number(cur.quantity) !== e.giftQty) {
+      // اختيارُ الوكيل يبقى، والكميّةُ وحدها تُصحَّح
+      cur.quantity = e.giftQty
+    }
+  }
+}
+
+/** عروضٌ مستحقّةٌ تنتظر اختيارَ الوكيل (هديّتُها أكثرُ من صنف ولم يُختَر بعد). */
+export function promotionsAwaitingChoice(): any[] {
+  return earnedPromotions().filter((e: any) => e.rewards.length > 1 && !giftLinesOf(e.promo.id).length)
+}
+
+/** الهدايا الموضوعة في السلّة الآن — لعرضها ورفعها. */
+export function appliedGifts(): any[] {
+  return state.cart
+    .filter((c: any) => c.isGift)
+    .map((c: any) => ({ promotionId: c.promotionId, promotionName: c.promotionName || null, name: c.name, qty: c.quantity }))
 }
