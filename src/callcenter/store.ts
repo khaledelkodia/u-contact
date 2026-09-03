@@ -247,6 +247,8 @@ export async function loadLiveData() {
       ready: b.ready !== false,          // خادم أقدم بلا الحقل ⇒ لا نُقلق الوكيل بلا داعٍ
       hold: b.hold ?? null,
       holdMessage: b.holdMessage ?? null,
+      // نسبةُ ضريبة الفرع — يحسب بها الوكيلُ ما سيحاسب به الفرعُ لا رقماً آخر
+      taxRate: Number(b.taxRate) || 0,
     }))
     state.regions = regions
 
@@ -2684,9 +2686,35 @@ export function getAppliedDeliveryFee(): number {
   return state.currentCustomer ? getEffectiveDeliveryFee() : 0
 }
 
+/**
+ * نسبةُ الضريبة السارية على الطلب الحالي.
+ *
+ * **نفسُ ترتيب الفرع**: نسبةُ نوع الطلب إن وُجدت، وإلّا نسبةُ الفرع، وإلّا صفر —
+ * `COALESCE(ot.tax_rate, br.tax_rate, 0)` حرفاً بحرف. وأيُّ اختلافٍ هنا يعني أنّ
+ * الوكيل يقول للعميل رقماً والفرعُ يحاسبه بآخر.
+ *
+ * وبلا فرعٍ بعد: صفر. النسبةُ نسبةُ فرعٍ لم يُختَر، وتخمينُها من فرعٍ آخر يُحاسِب
+ * العميلَ على ما لم يُقرَّر — والرقمُ يُصحَّح لحظةَ إسناد الفرع.
+ */
+export function orderTaxRate(): number {
+  const ot: any = state.selectedOrderType
+  if (ot && ot.taxRate != null && Number.isFinite(Number(ot.taxRate))) return Number(ot.taxRate)
+  const bid = getResolvedOrderBranchId()
+  if (!bid) return 0
+  const b: any = (state.branches || []).find((x: any) => String(x.id) === String(bid))
+  return b ? Number(b.taxRate) || 0 : 0
+}
+
+/** الضريبةُ على الأصناف بعد الخصم — لا على رسم التوصيل (الفرع لا يضرّبه). */
+export function getCartTax(): number {
+  const net = Math.max(0, getCartSubtotal() - computeDiscount().amount)
+  return Math.round(net * orderTaxRate() * 100) / 100
+}
+
 export function getCartTotal(): number {
-  // الخصم يُطرَح من الأصناف لا من الرسوم: رسمُ التوصيل خدمةٌ تُحصَّل كاملةً
-  return Math.max(0, getCartSubtotal() - computeDiscount().amount) + getAppliedDeliveryFee()
+  // الخصم يُطرَح من الأصناف لا من الرسوم: رسمُ التوصيل خدمةٌ تُحصَّل كاملةً.
+  // والضريبةُ على المتبقّي بعد الخصم، ورسمُ التوصيل بعدها فلا يُضرَّب فيها.
+  return Math.max(0, getCartSubtotal() - computeDiscount().amount) + getCartTax() + getAppliedDeliveryFee()
 }
 
 export function canSubmitOrder(): boolean {
@@ -3138,6 +3166,8 @@ export function reviewSummary(): any {
     // الخصمُ يُعرَض في المراجعة كما يُعرَض في السلّة: شاشةُ التأكيد هي آخرُ ما
     // يقرؤه الوكيل للعميل، ومجموعٌ ينزل من ٣٧٥ إلى ٣١٨٫٧٥ بلا سطرٍ يفسّره يُقرَأ خطأً.
     discount: computeDiscount(),
+    taxRate: orderTaxRate(),
+    tax: getCartTax(),
     deliveryFee: getAppliedDeliveryFee(),
     feeIsOpen: deliveryFeeIsOpen(),
     total: getCartTotal(),

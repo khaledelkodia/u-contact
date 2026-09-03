@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, getCartTax, orderTaxRate, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
   earnedPromotions, promotionsAwaitingChoice, promotionsChosen, giftChosenQty, giftQtyOfProduct,
   addPromotionGiftUnit, removePromotionGiftUnit, removePromotionGift, appliedGifts, giftPicksOf, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
@@ -310,6 +310,12 @@ const resLabel = computed(() => {
         <span class="cart-disc-n">{{ tx('خصم', 'Discount') }} · {{ l.name }}</span>
         <span class="cart-disc-v">− {{ formatCurrency(l.amount) }}</span>
       </div>
+      <!-- الضريبةُ سطرٌ بنسبتها: رقمٌ يظهر بلا نسبةٍ تُفسّره يُسأل عنه ولا جواب.
+           ولا يُعرَض السطرُ أصلاً بلا ضريبة — شركةٌ معفاةٌ لا تقرأ صفراً. -->
+      <div v-if="getCartTax() > 0" class="summary-row cart-tax-row">
+        <span>{{ tx('الضريبة', 'Tax') }} <em class="cart-tax-p">{{ Math.round(orderTaxRate() * 1000) / 10 }}%</em></span>
+        <span>{{ formatCurrency(getCartTax()) }}</span>
+      </div>
       <div class="summary-row summary-row-delivery">
         <span class="summary-row-label">
           <span>{{ t('delivery_fee') }}</span>
@@ -554,4 +560,6 @@ body.dark-mode .cp-pick.has { background: rgba(16, 185, 129, .18); }
 .cp-add:disabled { opacity: .4; cursor: default; }
 .cp-chosen { margin-block-start: 6px; }
 body.dark-mode .cp-sel-i { background: #131c2c; }
+
+.cart-tax-row em { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--text-muted, #94a3b8); }
 </style>

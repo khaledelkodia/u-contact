@@ -70,6 +70,9 @@ const kpis = computed(() => {
     { k: 'sales', label: tx('إجمالي المبيعات', 'Total sales'), value: formatCurrency(r.sales), tone: 'green', ico: 'banknote' },
     // متوسّطُ قيمة الطلب على غير الملغيّ — الملغيّ ليس بيعاً
     { k: 'aov', label: tx('متوسّط قيمة الطلب', 'Avg. order value'), value: formatCurrency(r.aov), tone: 'sky', ico: 'shopping-cart' },
+    // الضريبةُ داخلةٌ في «إجمالي المبيعات» (كما يحاسب الفرع) — فتُفصَل هنا ليُعرَف
+    // صافي البيع من المُحصَّل للدولة. ولا تُعرَض لشركةٍ بلا ضريبة: صفرٌ لا يُقرأ.
+    ...(Number(r.tax) > 0 ? [{ k: 'tax', label: tx('الضريبة المُحصَّلة', 'Tax collected'), value: formatCurrency(r.tax), tone: 'amber', ico: 'tag' }] : []),
     { k: 'cancel', label: tx('نسبة الإلغاء', 'Cancellation rate'), value: r.cancelRate + '%', tone: r.cancelRate > 10 ? 'rose' : 'amber', ico: 'ban' },
     { k: 'edited', label: tx('طلبات عُدِّلت', 'Edited orders'), value: String(r.edited), tone: 'amber', ico: 'edit' },
   ]

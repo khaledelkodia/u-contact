@@ -314,9 +314,19 @@ function itemMods(i: any): { name: string; price: number }[] {
             <span class="rv-sum-v">− {{ formatCurrency(l.amount) }}</span>
           </div>
           <!-- العرضُ سطرٌ باسمه كالخصم: لا يُنقص رقماً، لكنّه يقول ما أُعطي مجّاناً -->
-          <div v-for="g in reviewGifts" :key="'rg' + g.key" class="rv-sum-row rv-promo">
-            <span>{{ tx('عرض', 'Offer') }} · {{ g.promotionName }}</span>
-            <span class="rv-sum-v">{{ g.text }} — {{ tx('مجّاناً', 'free') }}</span>
+          <div v-for="g in reviewGifts" :key="'rg' + g.key" class="rv-promo">
+            <div class="rv-sum-row rv-promo-h">
+              <span>{{ tx('عرض', 'Offer') }} · {{ g.promotionName }}</span>
+              <span class="rv-sum-v">{{ tx('مجّاناً', 'free') }}</span>
+            </div>
+            <div class="rv-promo-g">
+              <span v-for="(p, k) in g.parts" :key="k" class="rv-promo-i">{{ p }}</span>
+            </div>
+          </div>
+          <!-- الضريبةُ بنسبتها، ولا تُعرَض بلا ضريبة -->
+          <div v-if="review.tax > 0" class="rv-sum-row">
+            <span>{{ tx('الضريبة', 'Tax') }} <em class="rv-tax-p">{{ Math.round(review.taxRate * 1000) / 10 }}%</em></span>
+            <span class="rv-sum-v">{{ formatCurrency(review.tax) }}</span>
           </div>
           <div v-if="review.orderType === 'delivery'" class="rv-sum-row">
             <span>
@@ -677,5 +687,21 @@ body.dark-mode .rv-sum { background: var(--bg-card, #1e293b); }
 .rv-gift-of { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); margin-block-start: 2px; }
 .rv-line-total.free { color: #0f766e; }
 .rv-promo { color: #0f766e; }
+.rv-promo-h { padding-block-end: 0; }
 .rv-promo .rv-sum-v { color: #0f766e; font-weight: 800; }
+/* أسماءُ الهدايا شرائحُ صغيرة تلتفّ: نصٌّ واحدٌ طويلٌ بفواصل لا يُمسَح بالعين */
+.rv-promo-g { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 2px 0 6px; }
+.rv-promo-i {
+  padding: 1px 8px; border-radius: 999px; background: rgba(16, 185, 129, .12);
+  color: #0f766e; font-size: 11px; font-weight: 700; white-space: nowrap;
+}
+
+/* الأخضر الغامق يخبو على أرضيّةٍ داكنة — يُرفَع في الوضع الليليّ ليُقرأ */
+body.dark-mode .rv-promo,
+body.dark-mode .rv-promo .rv-sum-v,
+body.dark-mode .rv-line-total.free { color: #5eead4; }
+body.dark-mode .rv-promo-i { background: rgba(16, 185, 129, .18); color: #5eead4; }
+body.dark-mode .rv-gift { background: rgba(16, 185, 129, .22); color: #5eead4; }
+
+.rv-tax-p { font-style: normal; font-size: 10.5px; font-weight: 700; color: var(--text-muted, #94a3b8); }
 </style>
