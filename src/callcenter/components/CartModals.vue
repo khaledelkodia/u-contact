@@ -324,9 +324,13 @@ function itemMods(i: any): { name: string; price: number }[] {
             </div>
           </div>
           <!-- الضريبةُ بنسبتها، ولا تُعرَض بلا ضريبة -->
-          <div v-if="review.tax > 0" class="rv-sum-row">
+          <div v-if="review.vat > 0" class="rv-sum-row">
             <span>{{ tx('الضريبة', 'Tax') }} <em class="rv-tax-p">{{ Math.round(review.taxRate * 1000) / 10 }}%</em></span>
-            <span class="rv-sum-v">{{ formatCurrency(review.tax) }}</span>
+            <span class="rv-sum-v">{{ formatCurrency(review.vat) }}</span>
+          </div>
+          <div v-for="l in (review.taxRules?.lines || [])" :key="'tr' + l.id" class="rv-sum-row">
+            <span>{{ tx('ضريبة/رسوم', 'Tax/fee') }} · {{ l.name }}</span>
+            <span class="rv-sum-v">+ {{ formatCurrency(l.amount) }}</span>
           </div>
           <div v-if="review.orderType === 'delivery'" class="rv-sum-row">
             <span>

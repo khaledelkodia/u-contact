@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
-import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, getCartTax, orderTaxRate, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
+import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, getCartVat, orderTaxRate, computeTaxRules, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
   earnedPromotions, promotionsAwaitingChoice, promotionsChosen, giftChosenQty, giftQtyOfProduct,
   addPromotionGiftUnit, removePromotionGiftUnit, removePromotionGift, appliedGifts, giftPicksOf, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
@@ -312,9 +312,15 @@ const resLabel = computed(() => {
       </div>
       <!-- الضريبةُ سطرٌ بنسبتها: رقمٌ يظهر بلا نسبةٍ تُفسّره يُسأل عنه ولا جواب.
            ولا يُعرَض السطرُ أصلاً بلا ضريبة — شركةٌ معفاةٌ لا تقرأ صفراً. -->
-      <div v-if="getCartTax() > 0" class="summary-row cart-tax-row">
+      <!-- ضريبةُ النسبة (نسبة الفرع/النوع) — بنسبتها -->
+      <div v-if="getCartVat() > 0" class="summary-row cart-tax-row">
         <span>{{ tx('الضريبة', 'Tax') }} <em class="cart-tax-p">{{ Math.round(orderTaxRate() * 1000) / 10 }}%</em></span>
-        <span>{{ formatCurrency(getCartTax()) }}</span>
+        <span>{{ formatCurrency(getCartVat()) }}</span>
+      </div>
+      <!-- وقواعدُ «ضريبة على فئة» — سطرٌ لكلٍّ باسمه كسطر الخصم -->
+      <div v-for="l in computeTaxRules().lines" :key="'tr' + l.id" class="summary-row cart-tax-row">
+        <span>{{ tx('ضريبة/رسوم', 'Tax/fee') }} · {{ l.name }}</span>
+        <span>+ {{ formatCurrency(l.amount) }}</span>
       </div>
       <div class="summary-row summary-row-delivery">
         <span class="summary-row-label">

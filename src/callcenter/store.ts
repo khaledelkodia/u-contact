@@ -2575,6 +2575,7 @@ export function computeDiscount(): { amount: number; lines: any[] } {
   if (!subtotal || !state.cart.length) return { amount: 0, lines: [] }
   const picked = state.pickedDiscountIds || []
   const rules = discountsForOrder()
+    .filter((d: any) => d.kind !== 'tax')       // الضريبةُ تُضاف لا تُنقص — محرّكُها أدناه
     .filter((d: any) => d.isAuto || picked.map(Number).includes(Number(d.id)))
     .sort((a: any, b: any) => (a.sortOrder - b.sortOrder) || (a.id - b.id))
   let taken = 0
@@ -2594,6 +2595,43 @@ export function computeDiscount(): { amount: number; lines: any[] } {
     lines.push({ id: d.id, name: d.name, type: d.type, value: Number(d.value), appliesTo: d.appliesTo, amount })
   }
   return { amount: round2(Math.min(taken, subtotal)), lines }
+}
+
+/**
+ * قواعدُ «ضريبة على فئة أو صنف» — تُضاف فوق الإجماليّ لا تُنقص منه.
+ *
+ * **نسخةٌ من محرّك الكاشير** (`src/lib/adjustments.ts`) لا اجتهادٌ موازٍ: نطاقُ
+ * «الطلب» يُحسب على القاعدة المتبقّية بعد الخصم، ونطاقُ الفئة/الصنف على مجموعة
+ * أصنافه دائماً، والترتيبُ بـ`sortOrder`، والمستثنى يخرج مهما شملته الفئة.
+ *
+ * وترتيبُ التطبيق (`discount_first`) هو إعدادُ الفرع الافتراضيّ — والخصمُ يُطبَّق
+ * أوّلاً فتُحسب الضريبةُ على المتبقّي بعده. الإعدادُ محليٌّ في الفرع ولا يصل
+ * الكلاود، فلو غُيّر إلى `tax_first` اختلف الرقمان.
+ */
+export function computeTaxRules(): { amount: number; lines: any[] } {
+  const subtotal = getCartSubtotal()
+  if (!subtotal || !state.cart.length) return { amount: 0, lines: [] }
+  const rules = discountsForOrder()
+    .filter((d: any) => d.kind === 'tax')
+    .sort((a: any, b: any) => (a.sortOrder - b.sortOrder) || (a.id - b.id))
+  if (!rules.length) return { amount: 0, lines: [] }
+  // القاعدةُ بعد الخصم — `discount_first`
+  let orderBase = Math.max(0, round2(subtotal - computeDiscount().amount))
+  let total = 0
+  const lines: any[] = []
+  for (const d of rules) {
+    const base = d.appliesTo === 'order'
+      ? orderBase
+      : cartLinesForRule(d).reduce((s: number, c: any) => s + c.price * c.quantity, 0)
+    if (base <= 0) continue
+    const raw = d.type === 'percent' ? base * (Number(d.value) || 0) / 100 : Number(d.value) || 0
+    const amount = round2(Math.max(0, raw))
+    if (amount <= 0) continue
+    total = round2(total + amount)
+    if (d.appliesTo === 'order') orderBase = round2(orderBase + amount)
+    lines.push({ id: d.id, name: d.name, type: d.type, value: Number(d.value), appliesTo: d.appliesTo, amount })
+  }
+  return { amount: round2(total), lines }
 }
 
 const DOW_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
@@ -2705,10 +2743,20 @@ export function orderTaxRate(): number {
   return b ? Number(b.taxRate) || 0 : 0
 }
 
-/** الضريبةُ على الأصناف بعد الخصم — لا على رسم التوصيل (الفرع لا يضرّبه). */
-export function getCartTax(): number {
+/** ضريبةُ النسبة (نسبة الفرع/النوع) على الأصناف بعد الخصم — لا على رسم التوصيل. */
+export function getCartVat(): number {
   const net = Math.max(0, getCartSubtotal() - computeDiscount().amount)
-  return Math.round(net * orderTaxRate() * 100) / 100
+  return round2(net * orderTaxRate())
+}
+
+/**
+ * كلُّ ما يُضاف ضريبةً: نسبةُ الفرع/النوع + قواعدُ «ضريبة على فئة أو صنف».
+ *
+ * الاثنتان تُجمعان لأنّ العميل يدفعهما معاً، والفرعُ يضيفهما معاً
+ * (`calculateOrder` تأخذ النسبةَ والرسوم كطرفين مستقلَّين فوق المتبقّي بعد الخصم).
+ */
+export function getCartTax(): number {
+  return round2(getCartVat() + computeTaxRules().amount)
 }
 
 export function getCartTotal(): number {
@@ -2804,6 +2852,9 @@ export async function submitOrder() {
     // **الخصم بمبلغه واسمه وتفصيله**: المبلغ وحده يقول «اتخصم ٢٠» ولا يقول لماذا،
     // فلا يُراجَع ولا يُحاسَب عليه أحد. والتفصيل يُعيد بناء الحسبة في التقارير.
     discountAmount: dsc.amount || 0,
+    // قواعدُ «ضريبة على فئة» — تُحسَب هنا وتُرسَل، والخادمُ يسقّفها كما يسقّف الخصم
+    surchargeAmount: computeTaxRules().amount,
+    surchargeName: computeTaxRules().lines.map((l: any) => l.name).join(' + ') || null,
     discountName: dsc.lines.map((l: any) => l.name).join(' + ') || null,
     discountBreakdown: dsc.lines.length ? dsc.lines : undefined,
     notes: (state.orderNotes || '').trim() || null,
@@ -3167,6 +3218,8 @@ export function reviewSummary(): any {
     // يقرؤه الوكيل للعميل، ومجموعٌ ينزل من ٣٧٥ إلى ٣١٨٫٧٥ بلا سطرٍ يفسّره يُقرَأ خطأً.
     discount: computeDiscount(),
     taxRate: orderTaxRate(),
+    vat: getCartVat(),
+    taxRules: computeTaxRules(),
     tax: getCartTax(),
     deliveryFee: getAppliedDeliveryFee(),
     feeIsOpen: deliveryFeeIsOpen(),

@@ -472,6 +472,8 @@ export interface ContactOrderInput {
   externalPlatformId?: number | null
   paymentMode: 'cash_on_delivery' | 'prepaid_online'; paymentMethodId?: number | null
   discountAmount?: number; discountName?: string | null; discountBreakdown?: any[]; notes?: string | null
+  // رسومُ قواعد «ضريبة على فئة أو صنف» — تُضاف لا تُنقص
+  surchargeAmount?: number; surchargeName?: string | null
   // سجلّ عمليات الوكيل على السلّة — يُخزَّن مع الطلب ويظهر في خطّه الزمنيّ
   events?: any[]
   // رقم الطلب على المنصّة الخارجية (طلبات/جاهز/كاريدج…)
