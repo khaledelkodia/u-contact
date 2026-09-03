@@ -64,6 +64,33 @@ const agents = computed<any[]>(() => (rep.value?.byAgent || []).filter((a: any) 
 const maxAgentOrders = computed(() => Math.max(...agents.value.map((a) => a.orders), 1))
 const agentName = (a: any) => a.name || tx('غير منسوب', 'Unattributed')
 
+// زمنُ أخذ الطلب: من أوّل حركةٍ للوكيل حتى الإرسال. يُقاس على الطلبات التي سجّلت
+// حركاتِها فقط — وهي التي أُنشئت بعد تفعيل سجلّ العمليات.
+const fmtMin = (m: number | null) => (m == null ? '—'
+  : m < 1 ? tx('أقل من دقيقة', 'under a minute')
+  : tx(`${m} دقيقة`, `${m} min`))
+
+// توزيعُ أنواع الطلبات: شريطٌ مركَّب صغير — الأرقامُ في التلميحة لا في الصفّ
+const TYPE_TONE: Record<string, { c: string; ar: string; en: string }> = {
+  '5': { c: '#2563eb', ar: 'توصيل', en: 'Delivery' },
+  '6': { c: '#64748b', ar: 'استلام', en: 'Pickup' },
+  '9': { c: '#7c3aed', ar: 'خارجي', en: 'External' },
+}
+function typeMix(a: any): any[] {
+  const t = a?.types || {}
+  const total = Object.values(t).reduce((x: number, y: any) => x + (Number(y) || 0), 0) as number
+  if (!total) return []
+  return Object.entries(t)
+    .map(([code, n]) => ({
+      code, n: Number(n) || 0, pct: ((Number(n) || 0) / total) * 100,
+      color: TYPE_TONE[code]?.c || '#94a3b8',
+      label: TYPE_TONE[code] ? tx(TYPE_TONE[code].ar, TYPE_TONE[code].en) : tx('أخرى', 'Other'),
+    }))
+    .filter((x) => x.n > 0)
+    .sort((a2, b2) => b2.n - a2.n)
+}
+const mixTitle = (a: any) => typeMix(a).map((x) => `${x.label}: ${x.n}`).join(' · ')
+
 // ── خريطة الضغط: يومُ الأسبوع × الساعة ─────────────────────────────────────
 // الذروةُ اليوميّة متوسّطٌ يخفي أن ضغط الخميس ليس كضغط الاثنين في الساعة نفسها،
 // والتغطية تُجدوَل بالاثنين لا بالمتوسّط.
@@ -191,6 +218,9 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 <span class="ag-x">{{ tx('بلا فرع', 'Held') }}</span>
                 <span class="ag-s">{{ tx('خصومات', 'Discounts') }}</span>
                 <span class="ag-x">{{ tx('شكاوى', 'Complaints') }}</span>
+                <span class="ag-t">{{ tx('زمن الأخذ', 'Handling') }}</span>
+                <span class="ag-n2">{{ tx('عملاء جدد', 'New customers') }}</span>
+                <span class="ag-mix">{{ tx('الأنواع', 'Types') }}</span>
               </div>
               <div v-for="a in agents" :key="String(a.agentId)" class="cr-row ag-row">
                 <span class="ag-n">{{ agentName(a) }}</span>
@@ -206,9 +236,17 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 <span class="ag-x" :class="{ bad: (a.held || 0) > 0 }">{{ a.held || 0 }}</span>
                 <span class="ag-s">{{ formatCurrency(a.discount || 0) }}</span>
                 <span class="ag-x" :class="{ bad: a.complaints > 0 }">{{ a.complaints }}</span>
+                <!-- زمنُ الأخذ: مقياسُ سرعةٍ حقيقيّ لا عددُ طلبات -->
+                <span class="ag-t">{{ fmtMin(a.handleMin ?? null) }}</span>
+                <!-- عميلٌ جديد = هذا الطلب أوّلُ طلبٍ له على الإطلاق: كسبٌ لا خدمة -->
+                <span class="ag-n2"><b>{{ a.newCustomers || 0 }}</b> / {{ a.servedCustomers || 0 }}</span>
+                <span class="ag-mix" :title="mixTitle(a)">
+                  <i v-for="(x, k) in typeMix(a)" :key="k"
+                     :style="{ inlineSize: x.pct + '%', background: x.color }"></i>
+                </span>
               </div>
               <p class="cr-foot">
-                {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى. و«بلا فرع» طلبٌ لم يصل أيَّ فرع فوقف — أخطرُ من الإلغاء لأن أحداً لا يعلم به.', 'Complaints are counted against the agent who took the order, not whoever logged it. “Held” means the order reached no branch at all — worse than a cancellation, because nobody knows about it.') }}
+                {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى. و«بلا فرع» طلبٌ لم يصل أيَّ فرع فوقف — أخطرُ من الإلغاء لأن أحداً لا يعلم به. و«زمن الأخذ» من أوّل حركةٍ في السلّة حتى الإرسال، ويُحسَب على الطلبات المسجَّلة حركاتُها فقط. و«عملاء جدد» = طلبُه هذا أوّلُ طلبٍ له على الإطلاق.', 'Complaints are counted against the agent who took the order, not whoever logged it. “Held” means the order reached no branch at all — worse than a cancellation, because nobody knows about it. “Handling” is from the first cart action to sending, over orders whose actions were recorded. “New customers” means this was the customer’s very first order.') }}
               </p>
             </section>
 
@@ -294,6 +332,14 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
 }
 .hm-head .hm-c { background: transparent; }
 .hm-lab { color: var(--text-muted, #94a3b8); font-size: 9.5px; }
+
+/* الجدول يمرّر أفقيّاً بدل أن تنكمش أعمدتُه إلى ما لا يُقرأ */
+.ag-t { inline-size: 92px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
+.ag-n2 { inline-size: 74px; text-align: end; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-muted, #94a3b8); }
+.ag-n2 b { color: var(--text-primary, #1f2937); font-weight: 800; }
+/* شريطٌ مركَّب: النسبةُ تُرى والأرقامُ في التلميحة — الصفّ لا يتّسع لثلاثة أرقامٍ أخرى */
+.ag-mix { inline-size: 86px; flex: 0 0 auto; display: flex; block-size: 8px; border-radius: 4px; overflow: hidden; background: rgba(148, 163, 184, .22); }
+.ag-mix i { display: block; block-size: 100%; }
 
 .cr-peak-note { font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
 .cr-htick { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
