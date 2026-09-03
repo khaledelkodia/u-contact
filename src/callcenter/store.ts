@@ -4084,6 +4084,54 @@ export function phoneShow(raw: any): string {
 export function canViewComplaints(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('complaints.view')
 }
+/**
+ * مُدَدٌ جاهزة للتقارير.
+ *
+ * اختيارُ يومين من نتيجتين منفصلتين لقراءة «آخر أسبوع» عملٌ يدويٌّ يتكرّر كلَّ مرّة،
+ * وخطؤه صامت (شهرٌ خطأ يُقرأ تقريراً صحيحاً). الأزرارُ تحسبها ولا تُخطئ.
+ */
+export const PERIOD_KEYS = [
+  'today', 'yesterday', 'd7', 'd30', 'month', 'prevMonth',
+] as const
+
+export function periodRange(key: string): { from: string; to: string } {
+  // بساعة حائط الشركة لا بساعة الجهاز: وكيلٌ في بلدٍ آخر يقرأ «اليوم» ليلاً
+  // فيرى يوماً غير يوم شركته.
+  const iso = (d: Date) => toCompanyWall(d).slice(0, 10)
+  const now = new Date(fromCompanyWall(toCompanyWall()).getTime())
+  const day = 864e5
+  const at = (offset: number) => iso(new Date(now.getTime() + offset * day))
+  const wall = toCompanyWall().slice(0, 10)
+  const [y, m] = wall.split('-').map(Number)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const lastDay = (yy: number, mm: number) => new Date(Date.UTC(yy, mm, 0)).getUTCDate()
+  switch (key) {
+    case 'today': return { from: at(0), to: at(0) }
+    case 'yesterday': return { from: at(-1), to: at(-1) }
+    case 'd7': return { from: at(-6), to: at(0) }
+    case 'd30': return { from: at(-29), to: at(0) }
+    case 'month': return { from: `${y}-${pad(m)}-01`, to: at(0) }
+    case 'prevMonth': {
+      const py = m === 1 ? y - 1 : y
+      const pm = m === 1 ? 12 : m - 1
+      return { from: `${py}-${pad(pm)}-01`, to: `${py}-${pad(pm)}-${pad(lastDay(py, pm))}` }
+    }
+    default: return { from: at(-6), to: at(0) }
+  }
+}
+
+export function periodLabel(key: string): string {
+  switch (key) {
+    case 'today': return tx('اليوم', 'Today')
+    case 'yesterday': return tx('أمس', 'Yesterday')
+    case 'd7': return tx('آخر ٧ أيام', 'Last 7 days')
+    case 'd30': return tx('آخر ٣٠ يوماً', 'Last 30 days')
+    case 'month': return tx('هذا الشهر', 'This month')
+    case 'prevMonth': return tx('الشهر الماضي', 'Last month')
+    default: return key
+  }
+}
+
 /** صلاحيةُ تقارير مركز الاتصال — أرقامُ الوكلاء والمبيعات ليست لكلّ من يأخذ طلباً. */
 export function canViewCcReports(): boolean {
   return !state.live || (currentCompany()?.permissions || []).includes('callcenter.reports')

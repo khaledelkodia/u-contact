@@ -4,13 +4,35 @@
 //
 // الأنماط `cr-*` عامّةٌ في `style.css` — تشترك فيها شاشتا التقارير فتُقرآن كنظامٍ واحد،
 // ولا تُنسَخ مرّتين فتنحرفا.
-import { computed, onMounted } from 'vue'
-import { state, loadCcReport, canViewCcReports } from '../store'
+import { computed, onMounted, ref } from 'vue'
+import { state, loadCcReport, canViewCcReports, PERIOD_KEYS, periodRange, periodLabel } from '../store'
 import { formatCurrency } from '../utils'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
 
 const rep = computed<any>(() => state.ccReport)
+
+// ── التبويبات: التقريرُ طويل، والانتقالُ بضغطةٍ لا بنزولٍ إلى آخر الصفحة ──────
+const tab = ref<'agents' | 'load' | 'cancels' | 'branches'>('agents')
+const TABS = computed(() => [
+  { k: 'agents' as const, label: tx('الوكلاء', 'Agents') },
+  { k: 'load' as const, label: tx('الضغط والذروة', 'Load & peaks') },
+  { k: 'cancels' as const, label: tx('الإلغاءات', 'Cancellations') },
+  { k: 'branches' as const, label: tx('الفروع', 'Branches') },
+])
+
+// ── المدّة: زرٌّ واحدٌ بدل تقويمين ──────────────────────────────────────────
+const period = ref<string>('')
+function applyPeriod(k: string) {
+  const r = periodRange(k)
+  state.ccReportFrom = r.from
+  state.ccReportTo = r.to
+  period.value = k
+  void loadCcReport()
+}
+// تعديلُ التاريخ بيده يُلغي تمييزَ الزرّ — وإلا بدا مدىً مختارٌ وهو ليس المعروض
+const clearPreset = () => { period.value = '' }
+const showCustom = ref(false)
 
 // «الأفضل» يتبع المعنى لا إشارةَ الرقم: طلباتٌ أكثر خيرٌ، وإلغاءٌ أقلّ خيرٌ.
 function delta(now: number | null, before: number | null, higherIsBetter = true) {
@@ -72,9 +94,10 @@ const fmtMin = (m: number | null) => (m == null ? '—'
 
 // توزيعُ أنواع الطلبات: شريطٌ مركَّب صغير — الأرقامُ في التلميحة لا في الصفّ
 const TYPE_TONE: Record<string, { c: string; ar: string; en: string }> = {
-  '5': { c: '#2563eb', ar: 'توصيل', en: 'Delivery' },
-  '6': { c: '#64748b', ar: 'استلام', en: 'Pickup' },
-  '9': { c: '#7c3aed', ar: 'خارجي', en: 'External' },
+  // ثلاثيّةٌ مُتحقَّقٌ منها على اللوحين: الرماديّ السابق كان يُقرأ «معطَّلاً» لا فئةً
+  '5': { c: '#1f7aa3', ar: 'توصيل', en: 'Delivery' },
+  '6': { c: '#d97706', ar: 'استلام', en: 'Pickup' },
+  '9': { c: '#0f8a6a', ar: 'خارجي', en: 'External' },
 }
 function typeMix(a: any): any[] {
   const t = a?.types || {}
@@ -99,7 +122,7 @@ const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const heat = computed<number[][]>(() => (rep.value?.heat || []))
 const heatMax = computed(() => Math.max(1, ...heat.value.flat()))
 // تدرّجٌ بلونٍ واحد (لا قوس قزح): الشدّة تقول المقدار، والصفرُ يبقى سطحاً فارغاً
-const heatBg = (v: number) => (v ? `rgba(99, 102, 241, ${0.12 + 0.88 * (v / heatMax.value)})` : 'transparent')
+const heatBg = (v: number) => (v ? `rgba(66, 109, 161, ${0.12 + 0.88 * (v / heatMax.value)})` : 'transparent')
 const heatFg = (v: number) => (v / heatMax.value > 0.55 ? '#fff' : 'var(--text-secondary, #64748b)')
 const heatPeak = computed(() => {
   let best: any = null
@@ -123,7 +146,7 @@ const maxBranch = computed(() => Math.max(...branches.value.map((b) => b.orders)
 const branchName = (r: any) =>
   (lang.value === 'en' ? (r.nameEn || r.name) : (r.name || r.nameEn)) || tx('بلا فرع', 'No branch')
 
-onMounted(() => { if (!rep.value) void loadCcReport() })
+onMounted(() => { if (!rep.value) applyPeriod('d7') })   // مدىً معقولٌ يفتح به التقرير
 </script>
 
 <template>
@@ -144,17 +167,26 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
 
       <div v-else class="cr">
         <div class="cr-bar">
-          <label class="cr-f">
-            <span>{{ tx('من', 'From') }}</span>
-            <input type="date" v-model="state.ccReportFrom">
-          </label>
-          <label class="cr-f">
-            <span>{{ tx('إلى', 'To') }}</span>
-            <input type="date" v-model="state.ccReportTo">
-          </label>
-          <button class="btn btn-primary cr-go" :disabled="state.ccReportBusy" @click="loadCcReport()">
-            {{ state.ccReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
-          </button>
+          <!-- مُدَدٌ جاهزة: اختيارُ يومين من تقويمين لقراءة «آخر أسبوع» عملٌ يدويٌّ
+               يتكرّر، وخطؤه صامتٌ — شهرٌ خطأ يُقرأ تقريراً صحيحاً. -->
+          <div class="cr-per">
+            <button v-for="k in PERIOD_KEYS" :key="k" :class="{ on: period === k }"
+              :disabled="state.ccReportBusy" @click="applyPeriod(k)">{{ periodLabel(k) }}</button>
+            <button :class="{ on: showCustom }" @click="showCustom = !showCustom">{{ tx('مخصّص', 'Custom') }}</button>
+          </div>
+          <template v-if="showCustom">
+            <label class="cr-f">
+              <span>{{ tx('من', 'From') }}</span>
+              <input type="date" v-model="state.ccReportFrom" @change="clearPreset()">
+            </label>
+            <label class="cr-f">
+              <span>{{ tx('إلى', 'To') }}</span>
+              <input type="date" v-model="state.ccReportTo" @change="clearPreset()">
+            </label>
+            <button class="btn btn-primary cr-go" :disabled="state.ccReportBusy" @click="loadCcReport()">
+              {{ state.ccReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
+            </button>
+          </template>
           <span v-if="rep?.sampled" class="cr-warn">
             {{ tx('المدى كبير — السلاسل على أحدث ٥٠٠٠ طلب', 'Wide range — series use the latest 5,000 orders') }}
           </span>
@@ -183,28 +215,13 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
             </div>
 
             <!-- أوقات الذروة: الرقم الذي تُبنى عليه التغطية -->
-            <section class="cr-card">
-              <div class="cr-head">
-                <h3 class="cr-h">{{ tx('الطلبات على مدار اليوم', 'Orders through the day') }}</h3>
-                <span v-if="peakHour" class="cr-peak-note">
-                  {{ tx('الذروة', 'Peak') }} {{ hourLabel(peakHour.h) }} — {{ peakHour.orders }} {{ tx('طلب', 'orders') }}
-                </span>
-              </div>
-              <svg class="cr-svg" :viewBox="`0 0 ${HW} ${HH}`" role="img"
-                   :aria-label="tx('عدد الطلبات لكل ساعة من اليوم', 'Orders per hour of day')">
-                <line :x1="HP.l" :y1="hBase" :x2="HW - HP.r" :y2="hBase" class="cr-axis" />
-                <text :x="HP.l - 6" :y="HP.t + 4" class="cr-htick">{{ hourMax }}</text>
-                <g v-for="x in (rep.byHour || [])" :key="x.h">
-                  <title>{{ hourLabel(x.h) }} — {{ x.orders }}</title>
-                  <path :d="hPath(x.h, x.orders)" class="cr-b-t" :class="{ pk: peakHour && x.h === peakHour.h }" />
-                </g>
-                <g class="cr-xlab">
-                  <text v-for="h in [0, 6, 12, 18, 23]" :key="'h' + h" :x="hX(h) + hBarW / 2" :y="hBase + 16">{{ hourLabel(h) }}</text>
-                </g>
-              </svg>
-            </section>
+            <!-- تبويبات: الانتقال بضغطةٍ بدل النزول لآخر الصفحة لرؤية آخر تقرير -->
+            <div class="cr-tabs">
+              <button v-for="t in TABS" :key="t.k" class="cr-tab" :class="{ on: tab === t.k }"
+                @click="tab = t.k">{{ t.label }}</button>
+            </div>
 
-            <!-- الوكلاء: العدد والمبيعات والجودة في صفٍّ واحد -->
+            <template v-if="tab === 'agents'">
             <section class="cr-card">
               <h3 class="cr-h">{{ tx('أداء الوكلاء', 'Agent performance') }}</h3>
               <div class="cr-th">
@@ -249,7 +266,29 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى. و«بلا فرع» طلبٌ لم يصل أيَّ فرع فوقف — أخطرُ من الإلغاء لأن أحداً لا يعلم به. و«زمن الأخذ» من أوّل حركةٍ في السلّة حتى الإرسال، ويُحسَب على الطلبات المسجَّلة حركاتُها فقط. و«عملاء جدد» = طلبُه هذا أوّلُ طلبٍ له على الإطلاق.', 'Complaints are counted against the agent who took the order, not whoever logged it. “Held” means the order reached no branch at all — worse than a cancellation, because nobody knows about it. “Handling” is from the first cart action to sending, over orders whose actions were recorded. “New customers” means this was the customer’s very first order.') }}
               </p>
             </section>
+            </template>
 
+            <template v-else-if="tab === 'load'">
+            <section class="cr-card">
+              <div class="cr-head">
+                <h3 class="cr-h">{{ tx('الطلبات على مدار اليوم', 'Orders through the day') }}</h3>
+                <span v-if="peakHour" class="cr-peak-note">
+                  {{ tx('الذروة', 'Peak') }} {{ hourLabel(peakHour.h) }} — {{ peakHour.orders }} {{ tx('طلب', 'orders') }}
+                </span>
+              </div>
+              <svg class="cr-svg" :viewBox="`0 0 ${HW} ${HH}`" role="img"
+                   :aria-label="tx('عدد الطلبات لكل ساعة من اليوم', 'Orders per hour of day')">
+                <line :x1="HP.l" :y1="hBase" :x2="HW - HP.r" :y2="hBase" class="cr-axis" />
+                <text :x="HP.l - 6" :y="HP.t + 4" class="cr-htick">{{ hourMax }}</text>
+                <g v-for="x in (rep.byHour || [])" :key="x.h">
+                  <title>{{ hourLabel(x.h) }} — {{ x.orders }}</title>
+                  <path :d="hPath(x.h, x.orders)" class="cr-b-t" :class="{ pk: peakHour && x.h === peakHour.h }" />
+                </g>
+                <g class="cr-xlab">
+                  <text v-for="h in [0, 6, 12, 18, 23]" :key="'h' + h" :x="hX(h) + hBarW / 2" :y="hBase + 16">{{ hourLabel(h) }}</text>
+                </g>
+              </svg>
+            </section>
             <!-- خريطة الضغط: الجدولةُ تُبنى عليها لا على المتوسّط -->
             <section class="cr-card">
               <div class="cr-head">
@@ -271,8 +310,9 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 </div>
               </div>
             </section>
+            </template>
 
-            <!-- الإلغاءات: النسبةُ تُنبّه، والسببُ يُدار -->
+            <template v-else-if="tab === 'cancels'">
             <section class="cr-card">
               <div class="cr-head">
                 <h3 class="cr-h">{{ tx('الإلغاءات وأسبابها', 'Cancellations and reasons') }}</h3>
@@ -288,7 +328,9 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
               </div>
               <p v-if="reasons.length" class="cr-foot">{{ tx('«بلا سبب مكتوب» معلومةٌ بذاتها: إلغاءٌ لا يُدرَس، وكثرتُه مسألةُ انضباطٍ لا تشغيل.', '“No reason given” is itself a finding: such cancellations cannot be studied, and many of them is a discipline issue, not an operations one.') }}</p>
             </section>
+            </template>
 
+            <template v-else>
             <section class="cr-card">
               <h3 class="cr-h">{{ tx('الطلبات حسب الفرع', 'Orders by branch') }}</h3>
               <div v-for="b in branches" :key="String(b.branchId)" class="cr-row">
@@ -298,6 +340,7 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 <span class="cr-row-x">{{ formatCurrency(b.sales) }}</span>
               </div>
             </section>
+            </template>
           </template>
         </template>
       </div>
@@ -314,7 +357,7 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
 .ag-row { gap: 10px; }
 .ag-n { inline-size: 21%; font-weight: 700; color: var(--text-primary, #1f2937); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ag-bar { flex: 1; block-size: 8px; border-radius: 4px; background: rgba(148, 163, 184, .22); overflow: hidden; min-inline-size: 40px; }
-.ag-bar i { display: block; block-size: 100%; background: linear-gradient(90deg, #6366f1, #7c3aed); border-radius: 4px; }
+.ag-bar i { display: block; block-size: 100%; background: linear-gradient(90deg, #648cbd, #305584); border-radius: 4px; }
 .ag-c { inline-size: 52px; text-align: end; font-weight: 800; font-variant-numeric: tabular-nums; }
 .ag-s, .ag-a { inline-size: 92px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
 .ag-x { inline-size: 78px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
@@ -343,5 +386,5 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
 
 .cr-peak-note { font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
 .cr-htick { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
-.cr-b-t.pk { fill: #7c3aed; }
+.cr-b-t.pk { fill: #305584; }
 </style>

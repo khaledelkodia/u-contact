@@ -6,15 +6,27 @@
 // **الهيئة تحاكي تقارير داشبورد السوبر أدمن**: رقاقةٌ متدرّجة لكلّ مؤشّر، بطاقاتٌ
 // بزوايا ١٦px وظلٍّ ناعم، ومرشّحاتٌ داخل بطاقة — فالشاشتان تُقرآن كنظامٍ واحد.
 //
-// **لونا السلسلتين (#2563eb الوارد · #16a34a المحلول) مُتحقَّقٌ منهما**: يمرّان فحوص
+// **لونا السلسلتين (#1f7aa3 الوارد · #16a34a المحلول) مُتحقَّقٌ منهما**: يمرّان فحوص
 // نطاق الإضاءة والتشبّع وفصلِ عمى الألوان والتباين على لوحَي النهار والليل معاً — فلا
 // يُستبدلان بالتقدير. ولا يُعتمَد اللون وحده: لكلّ سلسلةٍ مفتاحٌ مكتوب.
-import { computed, onMounted } from 'vue'
-import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel } from '../store'
+import { computed, onMounted, ref } from 'vue'
+import { state, loadComplaintsReport, complaintStatusLabel, complaintCategoryLabel, PERIOD_KEYS, periodRange, periodLabel } from '../store'
 import { tx, lang } from '../lang'
 import { icon } from '../icons'
 
 const rep = computed<any>(() => state.complaintsReport)
+
+// مُدَدٌ جاهزة — اختيارُ يومين من تقويمين عملٌ يدويٌّ يتكرّر وخطؤه صامت
+const period = ref<string>('')
+const showCustom = ref(false)
+function applyPeriod(k: string) {
+  const r = periodRange(k)
+  state.complaintsReportFrom = r.from
+  state.complaintsReportTo = r.to
+  period.value = k
+  void loadComplaintsReport()
+}
+const clearPreset = () => { period.value = '' }
 
 // ── مؤشّرات الرأس ───────────────────────────────────────────────────────────
 const countOf = (k: string) =>
@@ -41,7 +53,7 @@ const dAvg = computed(() => delta(rep.value?.avgResolutionHours ?? null, rep.val
 const PRIO: Record<string, { ar: string; en: string; c: string }> = {
   urgent: { ar: 'عاجلة', en: 'Urgent', c: '#dc2626' },
   high: { ar: 'عالية', en: 'High', c: '#d97706' },
-  normal: { ar: 'عادية', en: 'Normal', c: '#2563eb' },
+  normal: { ar: 'عادية', en: 'Normal', c: '#1f7aa3' },
   low: { ar: 'منخفضة', en: 'Low', c: '#64748b' },
 }
 const prioLabel = (k: string) => (PRIO[k] ? tx(PRIO[k].ar, PRIO[k].en) : k)
@@ -82,7 +94,7 @@ const kpis = computed(() => {
 // ── الحالات: حلقةٌ واحدة تقول التوزيع ───────────────────────────────────────
 // ألوانُ حالةٍ محجوزة (لا تُعاد استعمالاً لسلسلةٍ عادية)، ومعها الاسمُ مكتوباً.
 const STATUS_TONE: Record<string, string> = {
-  open: '#2563eb', in_progress: '#d97706', resolved: '#16a34a', closed: '#64748b',
+  open: '#1f7aa3', in_progress: '#d97706', resolved: '#16a34a', closed: '#64748b',
 }
 const R = 52, CIRC = 2 * Math.PI * R
 const donut = computed(() => {
@@ -196,24 +208,31 @@ const branchRows = computed(() => (rep.value?.byBranch || []).slice(0, 8))
 const branchName = (r: any) =>
   (lang.value === 'en' ? (r.nameEn || r.name) : (r.name || r.nameEn)) || tx('بلا فرع', 'No branch')
 
-onMounted(() => { if (!rep.value) void loadComplaintsReport() })
+onMounted(() => { if (!rep.value) applyPeriod('d30') })   // الشكاوى أبطأُ إيقاعاً من الطلبات
 </script>
 
 <template>
   <div class="cr">
     <!-- المرشّحات داخل بطاقة — نفس شريط تقارير الداشبورد -->
     <div class="cr-bar">
-      <label class="cr-f">
-        <span>{{ tx('من', 'From') }}</span>
-        <input type="date" v-model="state.complaintsReportFrom">
-      </label>
-      <label class="cr-f">
-        <span>{{ tx('إلى', 'To') }}</span>
-        <input type="date" v-model="state.complaintsReportTo">
-      </label>
-      <button class="btn btn-primary cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
-        {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
-      </button>
+      <div class="cr-per">
+        <button v-for="k in PERIOD_KEYS" :key="k" :class="{ on: period === k }"
+          :disabled="state.complaintsReportBusy" @click="applyPeriod(k)">{{ periodLabel(k) }}</button>
+        <button :class="{ on: showCustom }" @click="showCustom = !showCustom">{{ tx('مخصّص', 'Custom') }}</button>
+      </div>
+      <template v-if="showCustom">
+        <label class="cr-f">
+          <span>{{ tx('من', 'From') }}</span>
+          <input type="date" v-model="state.complaintsReportFrom" @change="clearPreset()">
+        </label>
+        <label class="cr-f">
+          <span>{{ tx('إلى', 'To') }}</span>
+          <input type="date" v-model="state.complaintsReportTo" @change="clearPreset()">
+        </label>
+        <button class="btn btn-primary cr-go" :disabled="state.complaintsReportBusy" @click="loadComplaintsReport()">
+          {{ state.complaintsReportBusy ? tx('جارٍ التحميل…', 'Loading…') : tx('تطبيق', 'Apply') }}
+        </button>
+      </template>
       <span v-if="rep?.sampled" class="cr-warn">
         {{ tx('المدى كبير — السلسلة والمتوسّط على أحدث ٥٠٠٠ شكوى', 'Wide range — series and average use the latest 5,000 complaints') }}
       </span>
@@ -386,17 +405,17 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 /* ── المؤشّرات: رقاقةٌ متدرّجة ثم تسمية ورقم — تشريحُ `StatCard` نفسه ── */
 .cr-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .cr-kpi { display: flex; align-items: center; gap: 13px; padding: 17px 18px; transition: transform .16s, box-shadow .16s; }
-.cr-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(79, 70, 229, .12); }
+.cr-kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(48, 85, 132, .16); }
 .cr-chip {
   inline-size: 46px; block-size: 46px; flex: 0 0 auto; border-radius: 15px;
   display: inline-flex; align-items: center; justify-content: center;
   color: #fff; box-shadow: 0 4px 10px rgba(16, 24, 40, .14);
 }
-.g-brand  { background: linear-gradient(135deg, #6366f1, #7c3aed); }
+.g-brand  { background: linear-gradient(135deg, #648cbd, #305584); }
 .g-green  { background: linear-gradient(135deg, #34d399, #14b8a6); }
 .g-amber  { background: linear-gradient(135deg, #fbbf24, #f97316); }
 .g-rose   { background: linear-gradient(135deg, #fb7185, #db2777); }
-.g-violet { background: linear-gradient(135deg, #8b5cf6, #c026d3); }
+.g-violet { background: linear-gradient(135deg, #56b6d8, #305584); }
 .cr-kpi-b { min-inline-size: 0; display: flex; flex-direction: column; }
 .cr-kpi-l { font-size: 12.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-kpi-v { font-size: 22px; font-weight: 800; line-height: 1.25; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
@@ -440,7 +459,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 .cr-legend { display: flex; gap: 12px; font-size: 11.5px; font-weight: 600; color: var(--text-secondary, #64748b); }
 .cr-legend span { display: inline-flex; align-items: center; gap: 5px; }
 .sw { inline-size: 9px; block-size: 9px; border-radius: 2px; display: inline-block; flex: 0 0 auto; }
-.sw-t { background: #2563eb; }
+.sw-t { background: #1f7aa3; }
 .sw-r { background: #16a34a; }
 
 /* ── الرسم اليوميّ ── */
@@ -449,7 +468,7 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 .cr-axis { stroke: var(--border, #e5e7eb); stroke-width: 1; }
 .cr-tick text { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
 .cr-xlab text { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: middle; }
-.cr-b-t { fill: #2563eb; }
+.cr-b-t { fill: #1f7aa3; }
 .cr-b-r { fill: #16a34a; }
 .cr-peak-l { font-size: 10.5px; font-weight: 800; fill: var(--text-secondary, #64748b); text-anchor: middle; }
 
@@ -472,6 +491,6 @@ onMounted(() => { if (!rep.value) void loadComplaintsReport() })
 .cr-row + .cr-row { margin-top: 6px; }
 .cr-row-l { inline-size: 36%; font-weight: 600; color: var(--text-secondary, #64748b); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cr-row-t { flex: 1; block-size: 8px; border-radius: 4px; background: rgba(148, 163, 184, .22); overflow: hidden; }
-.cr-row-t i { display: block; block-size: 100%; background: linear-gradient(90deg, #6366f1, #7c3aed); border-radius: 4px; }
+.cr-row-t i { display: block; block-size: 100%; background: linear-gradient(90deg, #648cbd, #305584); border-radius: 4px; }
 .cr-row-v { inline-size: 40px; text-align: end; font-weight: 800; color: var(--text-primary, #1f2937); font-variant-numeric: tabular-nums; }
 </style>
