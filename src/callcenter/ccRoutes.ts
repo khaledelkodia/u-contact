@@ -21,12 +21,12 @@ export const CC_ROUTES: CcRoute[] = [
   { view: 'orders',           path: '/app/orders',           anyOf: ['callcenter.view'] },
   { view: 'scheduled-orders', path: '/app/scheduled-orders', anyOf: ['callcenter.view', 'callcenter.create'] },
   { view: 'complaints',       path: '/app/complaints',       anyOf: ['complaints.view', 'complaints.manage'] },
-  { view: 'settings',         path: '/app/settings',         anyOf: ['callcenter.manage', 'callcenter.open', 'callcenter.close'] },
+  { view: 'settings',         path: '/app/settings',         anyOf: ['callcenter.settings', 'callcenter.manage', 'callcenter.open', 'callcenter.close'] },
   { view: 'day-settings',     path: '/app/day-settings',     anyOf: ['callcenter.day_settings'] },
   { view: 'cc-roles',         path: '/app/roles',            anyOf: ['callcenter.roles'] },
   { view: 'users',            path: '/app/users',            anyOf: ['callcenter.users'] },
   // شاشةٌ يُدخَل إليها من الإعدادات لا من القائمة — ولها مسارُها كالبقيّة
-  { view: 'stopped-items',    path: '/app/stopped-items',    anyOf: ['callcenter.stop_items', 'callcenter.manage'] },
+  { view: 'stopped-items',    path: '/app/stopped-items',    anyOf: ['callcenter.view_stopped', 'callcenter.stop_items', 'callcenter.manage'] },
 ]
 
 const BY_VIEW = new Map(CC_ROUTES.map((r) => [r.view, r] as const))

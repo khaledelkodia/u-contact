@@ -3449,6 +3449,24 @@ export function canOrderSettings(): boolean {
   return (currentCompany()?.permissions || []).includes('callcenter.order_settings')
 }
 
+/**
+ * مراحلُ السماح بتعديل الطلب — مفتاحٌ مستقلّ عن سياسة الدفع.
+ *
+ * **ومَن كان يملك سياسةَ أخذ الطلب يبقى مالكاً لها**: البطاقتان كانتا على مفتاحٍ
+ * واحد، فسلبُها منه عند الفصل عقوبةٌ على تحسينٍ لم يطلبه.
+ */
+export function canEditStages(): boolean {
+  const p: string[] = currentCompany()?.permissions || []
+  return p.includes('callcenter.edit_stages') || p.includes('callcenter.order_settings')
+}
+
+/** قراءةُ الأصناف الموقوفة عبر الفروع — من يوقف الأصناف يقرؤها بالبداهة. */
+export function canViewStopped(): boolean {
+  const p: string[] = currentCompany()?.permissions || []
+  return p.includes('callcenter.view_stopped') || p.includes('callcenter.stop_items')
+    || p.includes('callcenter.manage')
+}
+
 export function canManageItemAvailability(): boolean {
   const perms: string[] = currentCompany()?.permissions || []
   return !state.live || perms.includes('callcenter.stop_items')

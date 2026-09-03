@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import {
   state, availabilityGroups, toggleBranchItemAvailability,
   onAvailabilityBranchChange, onAvailabilityCategoryChange, onAvailabilitySearchChange,
-  canOrderSettings, showToast,
+  canOrderSettings, canManageItemAvailability, canEditStages, canViewStopped, showToast,
 } from '../store'
 import { contactSetOrderPolicy } from '../../api'
 import { tx, lang, nameOf, altNameOf } from '../lang'
@@ -70,9 +70,14 @@ function onToggle(row: any, ev: Event) {
   <section id="view-settings" class="view active">
     <div class="settings-section">
       <h2 class="dashboard-title" style="margin-bottom: 24px;">{{ tx('الإعدادات', 'Settings') }}</h2>
+      <!-- شاشةٌ بلا بطاقةٍ واحدة: تُقال صراحةً بدل بياضٍ يُقرأ خطأً -->
+      <p v-if="!canOrderSettings() && !canEditStages() && !canViewStopped() && !canManageItemAvailability()"
+        class="settings-none">
+        {{ tx('لا تملك صلاحية أيٍّ من إعدادات مركز الاتصال.', 'You have no permission for any call-center setting.') }}
+      </p>
 
       <!-- سياسة أخذ الطلب — بمفتاحها المستقلّ: من يفتح اليوم لا يغيّر سياسة التحصيل -->
-      <div v-if="canOrderSettings()" class="settings-card">
+      <div v-if="canOrderSettings() || canEditStages()" class="settings-card">
         <h3 class="settings-card-title">{{ tx('سياسة أخذ الطلب', 'Order-taking policy') }}</h3>
         <p style="color: var(--text-secondary); margin-bottom: 16px;">
           {{ tx('طريقة الدفع اختياريّة افتراضياً — الوكيل يبعت الطلب للفرع ويُحدَّد التحصيل عند التسليم. فعّل الإلزام لو شركتك تريد الطريقة محدَّدةً قبل نزول الطلب.', 'The payment method is optional by default — the agent sends the order and collection is decided on delivery. Turn on the requirement if your company wants it set before the order reaches the branch.') }}
@@ -93,6 +98,7 @@ function onToggle(row: any, ev: Event) {
         <p v-if="payErr" class="pay-req-err">{{ payErr }}</p>
 
         <!-- مراحل التعديل: أسطرٌ لا حبّات — كلُّ سطرٍ قرارٌ مستقلّ يُقرأ وحده -->
+        <template v-if="canEditStages()">
         <h4 class="stages-title">{{ tx('مراحل السماح بتعديل الطلب', 'Stages where editing is allowed') }}</h4>
         <p class="stages-hint">
           {{ tx('الوكيل يقدر يعدّل الطلب في المراحل المختارة فقط. وما بعد التسليم أو الإقفال لا يُعدَّل مهما اخترت.', 'Agents can edit an order only in the selected stages. After delivery or closing it cannot be edited whatever you pick.') }}
@@ -106,9 +112,10 @@ function onToggle(row: any, ev: Event) {
         </div>
         <p v-if="!(state.editStages || []).length" class="stages-none">{{ tx('لا تعديل بعد إرسال الطلب إطلاقاً.', 'No editing at all once the order is sent.') }}</p>
         <p v-if="stagesErr" class="pay-req-err">{{ stagesErr }}</p>
+        </template>
       </div>
 
-      <div class="settings-card">
+      <div v-if="canViewStopped()" class="settings-card">
         <h3 class="settings-card-title">{{ tx('إدارة الأصناف', 'Item management') }}</h3>
         <p style="color: var(--text-secondary); margin-bottom: 16px;">{{ tx('عرض الأصناف الموقوفة في كل الفروع', 'View stopped items across all branches') }}</p>
         <div style="display:flex; gap:12px; flex-wrap:wrap;">
@@ -119,7 +126,7 @@ function onToggle(row: any, ev: Event) {
         </div>
       </div>
 
-      <div class="settings-card">
+      <div v-if="canManageItemAvailability()" class="settings-card">
         <h3 class="settings-card-title">{{ tx('إدارة توفر الأصناف بالفروع', 'Item availability per branch') }}</h3>
         <p v-if="lang === 'ar'" style="color: var(--text-secondary); margin-bottom: 16px;">اختر فرعاً وتصنيف الأصناف لتعطيل أو تنشيط الأصناف لموظفي مركز الاتصال. الإيقاف من هنا <strong>لا يصل الفرع</strong> — الكاشير يبيع الصنف عادي. أما الموقوف من مطبخ الفرع فمفتاحه مقفول وتشغيله يكون من الفرع.</p>
           <p v-else style="color: var(--text-secondary); margin-bottom: 16px;">Pick a branch and a category to stop or resume items for call-center agents. Stopping here <strong>never reaches the branch</strong> — the cashier still sells the item. Items stopped by the branch kitchen are locked here and can only be resumed at the branch.</p>
@@ -211,4 +218,6 @@ function onToggle(row: any, ev: Event) {
   background: var(--danger-light); color: var(--danger);
   font-size: 12px; font-weight: 700;
 }
+
+.settings-none { font-size: 13px; font-weight: 700; color: var(--text-muted, #94a3b8); }
 </style>

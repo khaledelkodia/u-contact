@@ -9,6 +9,7 @@ export const PERM_GROUPS = [
   { key: 'catalog',    ar: 'الأصناف والرسوم', en: 'Items & fees' },
   { key: 'admin',      ar: 'الإدارة',         en: 'Administration' },
   { key: 'complaints', ar: 'الشكاوى',         en: 'Complaints' },
+  { key: 'reports',    ar: 'التقارير',        en: 'Reports' },
 ]
 
 export const PERMS = [
@@ -31,7 +32,7 @@ export const PERMS = [
   // «قفل اليوم»: ذاك عملٌ يوميّ، وهذا يقفل **ويحرّك طلبات** فيقرّره من يفهم أثره.
   { key: 'callcenter.carry_stuck', group: 'day', ar: 'ترحيل الطلبات الواقفة', en: 'Carry stuck orders' },
   { key: 'callcenter.users', group: 'admin', ar: 'إدارة المستخدمين', en: 'Manage users' },
-  { key: 'callcenter.manage', group: 'admin', ar: 'إدارة كاملة', en: 'Full manage' },
+  { key: 'callcenter.manage', group: 'admin', ar: 'إدارة كاملة (مظلّة: تشمل ما تحتها)', en: 'Full manage (umbrella)' },
   // مفتاحان مستقلّان لزرَّين مختلفين — كانا محكومَين بـ`manage` معاً.
   // غيابهما عن هذه القائمة كان يمنع منحهما أصلاً: الشاشة تبنى منها، فما ليس فيها
   // لا يظهر ولا يُختار ولا يدخل سقف الشركة — فيبقى الزرّ معطّلاً للجميع بلا سبب ظاهر.
@@ -46,13 +47,19 @@ export const PERMS = [
   // سياسة أخذ الطلب (إلزام طريقة الدفع) — قرارٌ تشغيليٌّ مستقلّ عن إعدادات اليوم
   { key: 'callcenter.order_settings', group: 'admin', ar: 'سياسة أخذ الطلب', en: 'Order-taking policy' },
   { key: 'callcenter.roles', group: 'admin', ar: 'إدارة الأدوار', en: 'Manage roles' },
+  // دخولُ شاشة الإعدادات نفسها — كان يُورَث من «إدارة كاملة» أو من فتح/قفل اليوم
+  { key: 'callcenter.settings', group: 'admin', ar: 'دخول شاشة الإعدادات', en: 'Open the settings screen' },
+  // مراحلُ التعديل: كانت على مفتاح «سياسة أخذ الطلب» نفسِه وهما قراران مختلفان
+  { key: 'callcenter.edit_stages', group: 'admin', ar: 'مراحل السماح بتعديل الطلب', en: 'Editing-stage policy' },
+  // قراءةُ الموقوف عبر الفروع — مستقلّةٌ عن إيقافه
+  { key: 'callcenter.view_stopped', group: 'catalog', ar: 'عرض الأصناف الموقوفة', en: 'View stopped items' },
   // قيمة الطلب النهائية في القائمة — مفتاحٌ مستقلّ: من يتابع الحالات ليس بالضرورة
   // من يرى الأرقام. ولا يُمنَح لأحدٍ افتراضياً.
   { key: 'callcenter.view_totals', group: 'admin', ar: 'عرض قيمة الطلب', en: 'View order value' },
   { key: 'complaints.view', group: 'complaints', ar: 'عرض الشكاوى', en: 'View complaints' },
   { key: 'complaints.manage', group: 'complaints', ar: 'إدارة الشكاوى', en: 'Manage complaints' },
-  { key: 'complaints.report', group: 'complaints', ar: 'تقرير الشكاوى', en: 'Complaints report' },
-  { key: 'callcenter.reports', group: 'callcenter', ar: 'تقارير مركز الاتصال', en: 'Call-center reports' },
+  { key: 'complaints.report', group: 'reports', ar: 'تقرير الشكاوى', en: 'Complaints report' },
+  { key: 'callcenter.reports', group: 'reports', ar: 'تقارير التشغيل والوكلاء', en: 'Operations & agent reports' },
 ]
 
 /** مفاتيح مجموعةٍ بعينها بترتيبها في `PERMS`. */
