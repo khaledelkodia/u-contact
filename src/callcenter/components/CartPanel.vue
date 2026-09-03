@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, nextTick, ref } from 'vue'
 import { state, clearCart, removeCartItem, updateCartItemQty, openItemModal, openOrderNotesModal, openPaymentModal, checkout, getResolvedOrderBranchId, getCartSubtotal, getAppliedDeliveryFee, getCartTotal, computeDiscount, discountsForOrder, toggleDiscount, discountAppliesNow, discountScopeText,
-  earnedPromotions, promotionsAwaitingChoice, applyPromotionGift, removePromotionGift, appliedGifts, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
+  earnedPromotions, promotionsAwaitingChoice, promotionsChosen, giftChosenQty, giftQtyOfProduct,
+  addPromotionGiftUnit, removePromotionGiftUnit, removePromotionGift, appliedGifts, canSubmitOrder, toggleReservation, earliestReservationTime, openCartItemNote, saveOrderEdit, cancelOrderEdit } from '../store'
 import { PAYMENT_CHANNELS, PAYMENT_METHODS } from '../data'
 import { formatCurrency } from '../utils'
 import { tx, nameOf } from '../lang'
@@ -11,10 +12,13 @@ import { icon } from '../icons'
 // الخصومات: المطبَّق فعلاً (تلقائيّ + ما اختاره الوكيل) وقائمةُ اليدويّ المتاح.
 // تُحسَب من السلّة نفسها فتتغيّر معها بلا زرّ «أعد الحساب».
 const dsc = computed<any>(() => computeDiscount())
-// العروضُ: المستحقُّ المطبَّق، والمستحقُّ الذي ينتظر اختيارَ صنف الهديّة
-const gifts = computed(() => appliedGifts())
-const awaiting = computed(() => promotionsAwaitingChoice())
-const earnedCount = computed(() => earnedPromotions().length)
+// العروض: ما هديّتُه صنفٌ واحد (يُملأ تلقائياً)، وما يُوزَّع على أصناف
+const autoGifts = computed(() => {
+  const multi = new Set(earnedPromotions().filter((e: any) => e.rewards.length > 1).map((e: any) => String(e.promo.id)))
+  return appliedGifts().filter((g: any) => !multi.has(String(g.promotionId)))
+})
+// المُوزَّعة: الناقصةُ والمكتملةُ معاً — تبقى معروضةً ليغيّر الوكيلُ التوزيع
+const spreadGifts = computed(() => [...promotionsAwaitingChoice(), ...promotionsChosen()])
 
 const manualRules = computed<any[]>(() => discountsForOrder().filter((d: any) => !d.isAuto))
 const pickedIds = computed<number[]>(() => (state.pickedDiscountIds || []).map(Number))
@@ -112,11 +116,19 @@ const resLabel = computed(() => {
       </div>
       <div v-else v-for="item in state.cart" :key="item.cartItemId" class="cart-item" :class="{ 'cart-item-disabled': disabledItems.includes(item.itemId) }">
         <div class="cart-item-top">
-          <div class="cart-item-name">{{ nameOf(item) }}</div>
-          <div class="cart-item-price">{{ formatCurrency(item.price * item.quantity) }}</div>
+          <div class="cart-item-name">
+            <span v-if="item.isGift" class="ci-gift">{{ tx('هديّة', 'Free') }}</span>
+            {{ nameOf(item) }}
+          </div>
+          <div class="cart-item-price">{{ item.isGift ? tx('مجّاناً', 'Free') : formatCurrency(item.price * item.quantity) }}</div>
         </div>
         <div v-if="itemDetails(item)" class="cart-item-details" v-html="itemDetails(item)"></div>
-        <div class="cart-item-bottom">
+        <!-- الهديّةُ تُدار من لوحة العروض: تعديلُها هنا يفكّ ارتباطَها بالعرض -->
+        <div v-if="item.isGift" class="cart-item-bottom">
+          <span class="ci-gift-of">{{ item.promotionName || tx('من عرض', 'From an offer') }}</span>
+          <div class="qty-control qty-static">{{ item.quantity }}</div>
+        </div>
+        <div v-else class="cart-item-bottom">
           <div class="cart-item-actions">
             <button class="cart-item-edit" @click="openItemModal(item.itemId, item.cartItemId)">{{ tx('تعديل', 'Edit') }}</button>
             <!-- الملاحظة بزرٍّ يقول ما يفعل: الصنف البسيط لا يفتح مودالاً عند الإضافة،
@@ -200,21 +212,39 @@ const resLabel = computed(() => {
 
     <!-- العروض: الهديّةُ ذاتُ الصنف الواحد تُوضَع وحدها، وما كانت هديّتُه فئةً
          يُعرَض ليختار الوكيل — أيُّ عصيرٍ يأخذ العميلُ قرارُه هو. -->
-    <div v-if="(gifts.length || awaiting.length) && state.cart.length" class="cart-promos">
+    <div v-if="(autoGifts.length || spreadGifts.length) && state.cart.length" class="cart-promos">
       <div class="cart-disc-h">{{ tx('عروض على الطلب', 'Offers on this order') }}</div>
-      <div v-for="g in gifts" :key="'g' + g.promotionId" class="cp-row on">
+
+      <!-- هديّةٌ بصنفٍ واحد: وُضعت وحدها، ولا شيء يُختار -->
+      <div v-for="g in autoGifts" :key="'g' + g.promotionId" class="cp-row on">
         <span class="cp-n">{{ g.promotionName || tx('عرض', 'Offer') }}</span>
         <span class="cp-g">{{ g.name }} × {{ g.qty }} — {{ tx('هديّة', 'free') }}</span>
         <button type="button" class="cp-x" @click="removePromotionGift(g.promotionId)"
           :title="tx('رفع الهديّة', 'Remove the gift')">×</button>
       </div>
-      <div v-for="a in awaiting" :key="'a' + a.promo.id" class="cp-row pick">
-        <span class="cp-n">{{ a.promo.nameAr || a.promo.name }}</span>
-        <span class="cp-ask">{{ tx('اختر الهديّة', 'Pick the gift') }} × {{ a.giftQty }}</span>
-        <span class="cp-opts">
-          <button v-for="r in a.rewards" :key="r.id" type="button" class="cp-opt"
-            @click="applyPromotionGift(a.promo.id, r.id, a.giftQty)">{{ r.name }}</button>
-        </span>
+
+      <!-- هديّةٌ من فئة: تُوزَّع على أكثر من صنف — العميل قد يريد واحداً من كلٍّ
+           لا اثنين متطابقَين. كلُّ صنفٍ بعدّاده، والمجموعُ هو المستحقّ. -->
+      <div v-for="a in spreadGifts" :key="'s' + a.promo.id" class="cp-spread">
+        <div class="cp-shead">
+          <span class="cp-n">{{ a.promo.nameAr || a.promo.name }}</span>
+          <span class="cp-count" :class="{ done: giftChosenQty(a.promo.id) >= a.giftQty }">
+            {{ tx('اخترت', 'Picked') }} {{ giftChosenQty(a.promo.id) }} {{ tx('من', 'of') }} {{ a.giftQty }}
+          </span>
+          <button v-if="giftChosenQty(a.promo.id)" type="button" class="cp-x"
+            @click="removePromotionGift(a.promo.id)" :title="tx('رفع الهديّة', 'Remove the gift')">×</button>
+        </div>
+        <div class="cp-opts">
+          <span v-for="r in a.rewards" :key="r.id" class="cp-pick"
+            :class="{ has: giftQtyOfProduct(a.promo.id, r.id) > 0 }">
+            <button type="button" class="cp-b" :disabled="!giftQtyOfProduct(a.promo.id, r.id)"
+              @click="removePromotionGiftUnit(a.promo.id, r.id)">−</button>
+            <span class="cp-pn">{{ r.name }}</span>
+            <span v-if="giftQtyOfProduct(a.promo.id, r.id)" class="cp-pq">{{ giftQtyOfProduct(a.promo.id, r.id) }}</span>
+            <button type="button" class="cp-b" :disabled="giftChosenQty(a.promo.id) >= a.giftQty"
+              @click="addPromotionGiftUnit(a.promo.id, r.id)">+</button>
+          </span>
+        </div>
       </div>
     </div>
 
@@ -453,4 +483,29 @@ body.dark-mode .cart-note-body { color: #fcd34d; }
 .cp-opt:hover { background: rgba(16, 185, 129, .12); }
 .cp-x { margin-inline-start: auto; inline-size: 22px; block-size: 22px; border: 0; border-radius: 6px; background: transparent; color: var(--text-muted, #94a3b8); font-size: 16px; line-height: 1; cursor: pointer; }
 .cp-x:hover { background: rgba(239, 68, 68, .12); color: #b91c1c; }
+
+/* هديّةٌ تُوزَّع: عدّادٌ لكلّ صنف، ومجموعٌ ظاهرٌ حتى يكتمل */
+.cp-spread { padding-block: 6px; border-block-start: 1px dashed rgba(16, 185, 129, .3); }
+.cp-spread:first-of-type { border-block-start: 0; }
+.cp-shead { display: flex; align-items: center; gap: 8px; margin-block-end: 6px; }
+.cp-count { font-size: 11px; font-weight: 800; color: #b45309; }
+.cp-count.done { color: #0f766e; }
+.cp-shead .cp-x { margin-inline-start: auto; }
+.cp-pick { display: inline-flex; align-items: center; gap: 4px; padding: 2px 4px; border-radius: 999px; border: 1px solid rgba(16, 185, 129, .35); background: var(--bg-card, #fff); }
+.cp-pick.has { border-color: #0f766e; background: rgba(16, 185, 129, .12); }
+.cp-pn { font-size: 11.5px; font-weight: 700; color: var(--text-primary, #1f2937); padding-inline: 2px; }
+.cp-pq { min-inline-size: 18px; text-align: center; font-size: 11.5px; font-weight: 900; color: #0f766e; font-variant-numeric: tabular-nums; }
+.cp-b { inline-size: 20px; block-size: 20px; border: 0; border-radius: 50%; background: rgba(16, 185, 129, .16); color: #0f766e; font-size: 13px; font-weight: 900; line-height: 1; cursor: pointer; font-family: inherit; }
+.cp-b:disabled { opacity: .35; cursor: default; }
+.cp-b:not(:disabled):hover { background: rgba(16, 185, 129, .3); }
+body.dark-mode .cp-pick { background: #182235; }
+body.dark-mode .cp-pick.has { background: rgba(16, 185, 129, .18); }
+
+/* سطرُ الهديّة في السلّة: يُقرأ هديّةً بلا قراءة السعر */
+.ci-gift {
+  display: inline-block; padding: 1px 7px; margin-inline-end: 5px; border-radius: 999px;
+  background: rgba(16, 185, 129, .16); color: #0f766e; font-size: 10px; font-weight: 900;
+}
+.ci-gift-of { font-size: 11px; font-weight: 700; color: var(--text-muted, #94a3b8); }
+.qty-static { min-inline-size: 34px; text-align: center; font-weight: 800; color: var(--text-secondary, #64748b); font-variant-numeric: tabular-nums; }
 </style>

@@ -4335,20 +4335,40 @@ export function earnedPromotions(): any[] {
 const giftLinesOf = (promoId: any) =>
   state.cart.filter((c: any) => c.isGift && String(c.promotionId) === String(promoId))
 
-/** وضعُ الهديّة (أو استبدالُها) لعرضٍ بعينه — لا تمسّ هدايا العروض الأخرى. */
-export function applyPromotionGift(promoId: any, productId: any, qty: number) {
+/** كم وحدةَ هديّةٍ اختِيرت لهذا العرض حتى الآن. */
+export function giftChosenQty(promoId: any): number {
+  return giftLinesOf(promoId).reduce((n: number, c: any) => n + (Number(c.quantity) || 0), 0)
+}
+
+/** كميّةُ صنفٍ بعينه ضمن هديّة العرض. */
+export function giftQtyOfProduct(promoId: any, productId: any): number {
+  const l = giftLinesOf(promoId).find((c: any) => String(c.itemId) === String(productId))
+  return l ? Number(l.quantity) || 0 : 0
+}
+
+/**
+ * زيادةُ وحدةٍ من صنفِ هديّةٍ بعينه.
+ *
+ * **الهديّةُ تُوزَّع لا تُوحَّد**: «٢ عصير» من فئة العصائر لا تعني عصيرين متطابقَين —
+ * قد يريد العميلُ برتقالاً وليموناً. فكلُّ صنفٍ سطرٌ بكميّته، ومجموعُها هو المستحقّ.
+ */
+export function addPromotionGiftUnit(promoId: any, productId: any) {
   const p = (state.promotions || []).find((x: any) => String(x.id) === String(promoId))
-  if (!p || qty <= 0) return
-  const prod = promotionRewardProducts(p).find((x: any) => String(x.id) === String(productId))
+  if (!p) return
+  const e = earnedPromotions().find((x: any) => String(x.promo.id) === String(promoId))
+  if (!e) return
+  if (giftChosenQty(promoId) >= e.giftQty) return       // لا تتجاوز المستحقّ
+  const prod = e.rewards.find((x: any) => String(x.id) === String(productId))
   if (!prod) return
-  state.cart = state.cart.filter((c: any) => !(c.isGift && String(c.promotionId) === String(promoId)))
+  const line = giftLinesOf(promoId).find((c: any) => String(c.itemId) === String(productId))
+  if (line) { line.quantity = (Number(line.quantity) || 0) + 1; return }
   state.cart.push({
-    cartItemId: 'gift-' + promoId + '-' + Date.now(),
+    cartItemId: 'gift-' + promoId + '-' + productId + '-' + Date.now(),
     itemId: prod.id,
     name: prod.name,
     nameEn: prod.nameEn || null,
     size: null,
-    quantity: qty,
+    quantity: 1,
     price: 0,
     extras: [],
     variantId: null,
@@ -4363,7 +4383,17 @@ export function applyPromotionGift(promoId: any, productId: any, qty: number) {
   })
 }
 
-/** رفعُ الهديّة — العميلُ قد يرفضها فلا تُفرَض عليه. */
+/** إنقاصُ وحدةٍ من صنفِ هديّة — والسطرُ يُحذف عند الصفر. */
+export function removePromotionGiftUnit(promoId: any, productId: any) {
+  const i = state.cart.findIndex((c: any) =>
+    c.isGift && String(c.promotionId) === String(promoId) && String(c.itemId) === String(productId))
+  if (i < 0) return
+  const q = (Number(state.cart[i].quantity) || 0) - 1
+  if (q <= 0) state.cart.splice(i, 1)
+  else state.cart[i].quantity = q
+}
+
+/** رفعُ هديّة العرض كلِّها — العميلُ قد يرفضها فلا تُفرَض عليه. */
 export function removePromotionGift(promoId: any) {
   state.cart = state.cart.filter((c: any) => !(c.isGift && String(c.promotionId) === String(promoId)))
 }
@@ -4371,36 +4401,55 @@ export function removePromotionGift(promoId: any) {
 /**
  * ضبطُ الهدايا بعد كلّ تغيير في السلّة.
  *
- * **تلقائيٌّ حيث يصحّ الحسمُ وحده**: عرضٌ هديّتُه صنفٌ واحد يُطبَّق بلا سؤال. أمّا إن
- * كانت الهديّةُ فئةً فيها أصناف، فأيُّها يأخذ العميلُ قرارُه هو — وإهداءُ عصيرٍ لم
- * يطلبه أسوأُ من سؤاله عنه. فتُعرَض ليختار الوكيل.
+ * **تلقائيٌّ حيث يصحّ الحسمُ وحده**: عرضٌ هديّتُه صنفٌ واحد يُملأ بلا سؤال. وإن كانت
+ * الهديّةُ فئةً فيها أصناف فالتوزيعُ قرارُ العميل — يأخذ عصيرين متطابقَين أو واحداً
+ * من كلٍّ، وإهداءُ ما لم يطلبه أسوأُ من سؤاله عنه.
  *
- * وتسقط الهديّةُ من تلقاء نفسها متى سقط استحقاقُها: حذفُ صنفٍ يُنقص المحفِّز،
- * فتبقى الهديّةُ سطراً مجّانياً بلا سببٍ لولا المراجعة.
+ * **ولا يزيد التلقائيُّ اختياراً قائماً**: لو ارتفع المستحقُّ من ٢ إلى ٤ لا نضاعف ما
+ * اختاره الوكيل — الوحدتان الجديدتان قد يريدهما العميلُ صنفاً آخر. تُعرَض ليكملها.
+ * أمّا النقصانُ فيُقلَّم فوراً: هديّةٌ فوق المستحقّ خسارةٌ صامتة.
  */
 export function syncPromotionGifts() {
   const earned = earnedPromotions()
   const ids = new Set(earned.map((e: any) => String(e.promo.id)))
   state.cart = state.cart.filter((c: any) => !c.isGift || ids.has(String(c.promotionId)))
   for (const e of earned) {
-    const cur = giftLinesOf(e.promo.id)[0]
+    const pid = e.promo.id
+    const lines = giftLinesOf(pid)
+    // صنفٌ واحد ⇒ يُملأ تلقائياً بكلّ المستحقّ
     if (e.rewards.length === 1) {
       const only = e.rewards[0]
+      const cur = lines[0]
       if (!cur || String(cur.itemId) !== String(only.id) || Number(cur.quantity) !== e.giftQty) {
-        applyPromotionGift(e.promo.id, only.id, e.giftQty)
+        removePromotionGift(pid)
+        for (let i = 0; i < e.giftQty; i++) addPromotionGiftUnit(pid, only.id)
       }
-    } else if (cur && Number(cur.quantity) !== e.giftQty) {
-      // اختيارُ الوكيل يبقى، والكميّةُ وحدها تُصحَّح
-      cur.quantity = e.giftQty
+      continue
+    }
+    // أصنافٌ متعدّدة ⇒ تقليمُ الزائد فقط، من آخر ما اختِير
+    let over = giftChosenQty(pid) - e.giftQty
+    for (let i = lines.length - 1; i >= 0 && over > 0; i--) {
+      const take = Math.min(over, Number(lines[i].quantity) || 0)
+      for (let k = 0; k < take; k++) removePromotionGiftUnit(pid, lines[i].itemId)
+      over -= take
     }
   }
 }
 
-/** عروضٌ مستحقّةٌ تنتظر اختيارَ الوكيل (هديّتُها أكثرُ من صنف ولم يُختَر بعد). */
+/**
+ * عروضٌ مستحقّةٌ لم يكتمل اختيارُها بعد — تبقى معروضةً حتى تُستوفى.
+ *
+ * الشرطُ «لم يُختَر شيءٌ بعد» كان خطأً: وكيلٌ اختار عصيراً واحداً من اثنين مستحقَّين
+ * كانت اللوحةُ تختفي عنه، فيضيع نصفُ الهديّة بلا أثرٍ يقول إنّ شيئاً نقص.
+ */
 export function promotionsAwaitingChoice(): any[] {
-  return earnedPromotions().filter((e: any) => e.rewards.length > 1 && !giftLinesOf(e.promo.id).length)
+  return earnedPromotions().filter((e: any) => e.rewards.length > 1 && giftChosenQty(e.promo.id) < e.giftQty)
 }
 
+/** عروضٌ هديّتُها أكثرُ من صنفٍ واستُوفيت — لعرض ما اختير مع إمكان تغييره. */
+export function promotionsChosen(): any[] {
+  return earnedPromotions().filter((e: any) => e.rewards.length > 1 && giftChosenQty(e.promo.id) >= e.giftQty)
+}
 /** الهدايا الموضوعة في السلّة الآن — لعرضها ورفعها. */
 export function appliedGifts(): any[] {
   return state.cart
