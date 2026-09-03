@@ -64,6 +64,33 @@ const agents = computed<any[]>(() => (rep.value?.byAgent || []).filter((a: any) 
 const maxAgentOrders = computed(() => Math.max(...agents.value.map((a) => a.orders), 1))
 const agentName = (a: any) => a.name || tx('غير منسوب', 'Unattributed')
 
+// ── خريطة الضغط: يومُ الأسبوع × الساعة ─────────────────────────────────────
+// الذروةُ اليوميّة متوسّطٌ يخفي أن ضغط الخميس ليس كضغط الاثنين في الساعة نفسها،
+// والتغطية تُجدوَل بالاثنين لا بالمتوسّط.
+const DOW_AR = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت']
+const DOW_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const heat = computed<number[][]>(() => (rep.value?.heat || []))
+const heatMax = computed(() => Math.max(1, ...heat.value.flat()))
+// تدرّجٌ بلونٍ واحد (لا قوس قزح): الشدّة تقول المقدار، والصفرُ يبقى سطحاً فارغاً
+const heatBg = (v: number) => (v ? `rgba(99, 102, 241, ${0.12 + 0.88 * (v / heatMax.value)})` : 'transparent')
+const heatFg = (v: number) => (v / heatMax.value > 0.55 ? '#fff' : 'var(--text-secondary, #64748b)')
+const heatPeak = computed(() => {
+  let best: any = null
+  heat.value.forEach((row, d) => row.forEach((v, h) => { if (!best || v > best.v) best = { d, h, v } }))
+  return best && best.v ? best : null
+})
+
+// ── الإلغاءات: النسبةُ تُنبّه، والسببُ يُدار ────────────────────────────────
+const reasons = computed<any[]>(() => (rep.value?.cancelReasons || []).slice(0, 8))
+const reasonMax = computed(() => Math.max(1, ...reasons.value.map((r: any) => r.count)))
+const reasonLabel = (r: any) => (r.reason || tx('(بلا سبب مكتوب)', '(no reason given)'))
+const cancelPeak = computed(() => {
+  const rows = rep.value?.cancelByHour || []
+  let best: any = null
+  rows.forEach((x: any) => { if (!best || x.orders > best.orders) best = x })
+  return best && best.orders ? best : null
+})
+
 const branches = computed<any[]>(() => (rep.value?.byBranch || []).slice(0, 8))
 const maxBranch = computed(() => Math.max(...branches.value.map((b) => b.orders), 1))
 const branchName = (r: any) =>
@@ -160,6 +187,9 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 <span class="ag-s">{{ tx('مبيعات', 'Sales') }}</span>
                 <span class="ag-a">{{ tx('متوسّط الطلب', 'AOV') }}</span>
                 <span class="ag-x">{{ tx('إلغاء', 'Cancels') }}</span>
+                <span class="ag-x">{{ tx('تعديل', 'Edits') }}</span>
+                <span class="ag-x">{{ tx('بلا فرع', 'Held') }}</span>
+                <span class="ag-s">{{ tx('خصومات', 'Discounts') }}</span>
                 <span class="ag-x">{{ tx('شكاوى', 'Complaints') }}</span>
               </div>
               <div v-for="a in agents" :key="String(a.agentId)" class="cr-row ag-row">
@@ -170,11 +200,55 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
                 <span class="ag-a">{{ formatCurrency(a.aov) }}</span>
                 <!-- الإلغاء بالنسبة لا بالعدد: وكيلٌ بمئة طلبٍ وخمسِ إلغاءات أفضل من وكيلٍ بعشرةٍ وثلاث -->
                 <span class="ag-x" :class="{ bad: a.cancelRate > 10 }">{{ a.cancelled }} <em>({{ a.cancelRate }}%)</em></span>
+                <!-- رَجْعُ العمل: تعديلٌ بعد الإرسال، وطلبٌ وقف بلا فرع. عددٌ صغيرٌ
+                     طبيعيّ، وكثرتُه عند وكيلٍ بعينه تدريبٌ لا عقوبة. -->
+                <span class="ag-x">{{ a.edited || 0 }}</span>
+                <span class="ag-x" :class="{ bad: (a.held || 0) > 0 }">{{ a.held || 0 }}</span>
+                <span class="ag-s">{{ formatCurrency(a.discount || 0) }}</span>
                 <span class="ag-x" :class="{ bad: a.complaints > 0 }">{{ a.complaints }}</span>
               </div>
               <p class="cr-foot">
-                {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى.', 'Complaints are counted against the agent who took the order, not whoever logged the complaint.') }}
+                {{ tx('الشكاوى محسوبة على طلبات الوكيل نفسه لا على من كتب الشكوى. و«بلا فرع» طلبٌ لم يصل أيَّ فرع فوقف — أخطرُ من الإلغاء لأن أحداً لا يعلم به.', 'Complaints are counted against the agent who took the order, not whoever logged it. “Held” means the order reached no branch at all — worse than a cancellation, because nobody knows about it.') }}
               </p>
+            </section>
+
+            <!-- خريطة الضغط: الجدولةُ تُبنى عليها لا على المتوسّط -->
+            <section class="cr-card">
+              <div class="cr-head">
+                <h3 class="cr-h">{{ tx('خريطة الضغط — اليوم × الساعة', 'Pressure map — day × hour') }}</h3>
+                <span v-if="heatPeak" class="cr-peak-note">
+                  {{ tx('الأشدّ', 'Busiest') }}: {{ tx(DOW_AR[heatPeak.d], DOW_EN[heatPeak.d]) }} {{ hourLabel(heatPeak.h) }} — {{ heatPeak.v }}
+                </span>
+              </div>
+              <div class="hm">
+                <div class="hm-row hm-head">
+                  <span class="hm-d"></span>
+                  <span v-for="h in 24" :key="'hh' + h" class="hm-c hm-lab">{{ (h - 1) % 3 === 0 ? (h - 1) : '' }}</span>
+                </div>
+                <div v-for="(row, d) in heat" :key="'d' + d" class="hm-row">
+                  <span class="hm-d">{{ tx(DOW_AR[d], DOW_EN[d]) }}</span>
+                  <span v-for="(v, h) in row" :key="'c' + d + '-' + h" class="hm-c"
+                        :style="{ background: heatBg(v), color: heatFg(v) }"
+                        :title="`${tx(DOW_AR[d], DOW_EN[d])} ${hourLabel(h)} — ${v}`">{{ v || '' }}</span>
+                </div>
+              </div>
+            </section>
+
+            <!-- الإلغاءات: النسبةُ تُنبّه، والسببُ يُدار -->
+            <section class="cr-card">
+              <div class="cr-head">
+                <h3 class="cr-h">{{ tx('الإلغاءات وأسبابها', 'Cancellations and reasons') }}</h3>
+                <span v-if="cancelPeak" class="cr-peak-note">
+                  {{ tx('أكثرها في', 'Most at') }} {{ hourLabel(cancelPeak.h) }} — {{ cancelPeak.orders }}
+                </span>
+              </div>
+              <p v-if="!reasons.length" class="cr-foot">{{ tx('لا إلغاءات في هذا المدى', 'No cancellations in this range') }}</p>
+              <div v-for="(r, k) in reasons" :key="k" class="cr-row">
+                <span class="cr-row-l">{{ reasonLabel(r) }}</span>
+                <span class="cr-row-t"><i :style="{ inlineSize: (r.count / reasonMax) * 100 + '%' }"></i></span>
+                <span class="cr-row-v">{{ r.count }}</span>
+              </div>
+              <p v-if="reasons.length" class="cr-foot">{{ tx('«بلا سبب مكتوب» معلومةٌ بذاتها: إلغاءٌ لا يُدرَس، وكثرتُه مسألةُ انضباطٍ لا تشغيل.', '“No reason given” is itself a finding: such cancellations cannot be studied, and many of them is a discipline issue, not an operations one.') }}</p>
             </section>
 
             <section class="cr-card">
@@ -208,6 +282,19 @@ onMounted(() => { if (!rep.value) void loadCcReport() })
 .ag-x { inline-size: 78px; text-align: end; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text-secondary, #64748b); }
 .ag-x em { font-style: normal; font-size: 10.5px; opacity: .8; }
 .ag-x.bad { color: #b91c1c; }
+/* خريطة الضغط: شبكةٌ تمرّر أفقيّاً على الشاشات الضيّقة بدل أن تنكمش خلاياها */
+.hm { overflow-x: auto; padding-block-end: 4px; }
+.hm-row { display: flex; gap: 2px; margin-bottom: 2px; align-items: center; }
+.hm-d { inline-size: 62px; flex: 0 0 auto; font-size: 11px; font-weight: 700; color: var(--text-secondary, #64748b); }
+.hm-c {
+  inline-size: 26px; block-size: 22px; flex: 0 0 auto; border-radius: 4px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums;
+  background: rgba(148, 163, 184, .1);
+}
+.hm-head .hm-c { background: transparent; }
+.hm-lab { color: var(--text-muted, #94a3b8); font-size: 9.5px; }
+
 .cr-peak-note { font-size: 11.5px; font-weight: 700; color: var(--text-secondary, #64748b); }
 .cr-htick { font-size: 10px; font-weight: 700; fill: var(--text-muted, #94a3b8); text-anchor: end; }
 .cr-b-t.pk { fill: #7c3aed; }
