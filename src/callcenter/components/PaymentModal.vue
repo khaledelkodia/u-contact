@@ -1,16 +1,18 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { tx, nameOf } from '../lang'
-import { state, setPaymentChannel, setPaymentMethod, resetPaymentSelection, confirmPaymentSelection, closePaymentModal, getPaymentLabel, companyPaymentMethods } from '../store'
-import { PAYMENT_CHANNELS } from '../data'
+import { state, setPaymentMethod, resetPaymentSelection, confirmPaymentSelection, closePaymentModal, getPaymentLabel, companyPaymentMethods } from '../store'
 import { icon } from '../icons'
 
-const channel = computed(() => PAYMENT_CHANNELS.find((c: any) => c.id === state.paymentChannel) || null)
 // طرق الدفع **من الشركة**: كانت ثلاثاً مكتوبةً في `data.ts` (كاش/كي‑نت/رابط)، فشركةٌ
 // تحصّل بـ«مدى» أو «STC Pay» لا تجدهما ويُسجَّل طلبها بطريقةٍ لا وجود لها عندها.
-// المصدر (الهاتف/طلبات/كاري…) يبقى من `data.ts` — هو صفةُ قناةٍ لا إعدادَ شركة.
+//
+// **والمصدر أُزيل**: «الهاتف/طلبات/جاهز/كاري/ديليفرو» كانت قائمةً ثابتةً في الكود،
+// وهي نفسُها معنى «الطلب الخارجي» الذي تعرّفه الشركة بمنصّاتها من لوحة التحكّم.
+// سؤالان عن شيءٍ واحد: الوكيل يختار المنصّة مرّةً في نوع الطلب ثم يُسأل عنها ثانيةً
+// هنا بأسماءٍ قد لا تطابقها. والقائمةُ الثابتة لا تعرف منصّةَ شركةٍ أضافتها اليوم.
+// (`state.paymentChannel` يبقى في المخزن: طلباتٌ قديمة سجّلته وتُقرأ به.)
 const methods = computed<any[]>(() => companyPaymentMethods())
-// المصدر اختياريّ: عميلٌ يدفع كاشاً على الباب لا مصدرَ له. الطريقة وحدها إلزامية.
 const canConfirm = computed(() => !!state.paymentMethod)
 const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paymentChannel, state.paymentMethod) : '')
 </script>
@@ -23,24 +25,10 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
         <button class="modal-close" @click="closePaymentModal()">×</button>
       </div>
       <div class="modal-body" style="padding:18px 22px;">
-        <!-- 1) المصدر -->
-        <div class="pm-step">
-          <div class="pm-step-label">
-            <span class="pm-step-num">1</span> {{ tx('اختر المصدر', 'Choose the source') }}
-            <span class="pm-opt">{{ tx('اختياري', 'Optional') }}</span>
-          </div>
-          <div class="pm-channels" id="pm-channels">
-            <button v-for="ch in PAYMENT_CHANNELS" :key="ch.id" type="button" class="pm-channel" :class="{ active: state.paymentChannel === ch.id }" @click="setPaymentChannel(ch.id)">
-              <span v-if="ch.logo" class="pm-channel-logo" v-html="ch.logo"></span>
-              <span v-else class="pm-channel-icon" :style="{ color: state.paymentChannel === ch.id ? '#fff' : (ch.color || 'var(--primary)') }" v-html="icon(ch.icon, { size: 18 })"></span>
-              <span class="pm-channel-name">{{ ch.name }}</span>
-            </button>
-          </div>
-        </div>
-        <!-- 2) طريقة الدفع -->
+        <!-- طريقة الدفع وحدها: المصدر يُعرَّف بمنصّات الشركة في «الطلب الخارجي» -->
         <div class="pm-step pm-step-methods">
           <div class="pm-step-label">
-            <span class="pm-step-num">2</span> {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}
+            {{ tx('اختر طريقة الدفع', 'Choose the payment method') }}
             <span class="pm-req">{{ tx('مطلوب', 'Required') }}</span>
           </div>
           <div class="pm-methods">
@@ -68,14 +56,13 @@ const summaryText = computed(() => canConfirm.value ? getPaymentLabel(state.paym
 </template>
 
 <style scoped>
-/* أيُّ الخطوتين إلزاميّ — يُقرأ قبل الضغط لا بعد رفضٍ مفاجئ */
-.pm-req, .pm-opt {
+/* الإلزام يُقرأ قبل الضغط لا بعد رفضٍ مفاجئ */
+.pm-req {
   margin-inline-start: auto;
   padding: 2px 8px; border-radius: 999px;
   font-size: 10.5px; font-weight: 800;
+  background: var(--danger-light, #fee2e2); color: var(--danger, #dc2626);
 }
-.pm-req { background: var(--danger-light, #fee2e2); color: var(--danger, #dc2626); }
-.pm-opt { background: var(--bg, #f1f5f9); color: var(--text-muted, #94a3b8); }
 .pm-step-label { display: flex; align-items: center; gap: 8px; }
 
 .pm-empty {
