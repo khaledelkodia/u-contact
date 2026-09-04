@@ -1,5 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import { session, isAuthed, scopeIncomplete, currentCompany } from './api'
+import { session, isAuthed, scopeIncomplete, currentCompany, hasStoredSession } from './api'
 import Login from './views/Login.vue'
 import Agents from './views/admin/Agents.vue'
 import Companies from './views/admin/Companies.vue'
@@ -51,7 +51,18 @@ router.beforeEach((to) => {
     return session.mode === 'admin' ? '/admin/agents' : '/app'
   }
   if (!isAuthed()) return to.path.startsWith('/admin') ? '/admin' : '/login'
-  if (to.meta.mode && to.meta.mode !== session.mode) return '/' // منع خلط الأدوار
+  // ── وضعٌ مخالف ─────────────────────────────────────────────────────────
+  // كان يُعيد إلى `/`، والجذرُ يقذف صاحبَ جلسة المشرف إلى صفحته الرئيسية. فوكيلٌ
+  // في مركز الاتصال يفتح لوحة المشرف في تبويبٍ آخر (نفس المتصفّح، نفس المفاتيح
+  // قديماً) ثم يُحدِّث تبويبَه فيجد نفسه في تطبيقٍ آخر بلا سببٍ ظاهر.
+  //
+  // الجلسات صارت منفصلةً بأوضاعها، فالمسارُ يُفتَح بجلسته هو: تحميلٌ كاملٌ للصفحة
+  // ليُقرأ المخزَّنُ تحت بادئة وضعها. وبلا جلسةٍ لذلك الوضع ⇒ شاشةُ دخوله.
+  const want = to.meta.mode as string | undefined
+  if (want && want !== session.mode) {
+    if (hasStoredSession(want as any)) { location.assign(to.fullPath); return false }
+    return want === 'admin' ? '/admin' : '/login'
+  }
   if (needsScope()) return '/login'
   // ── صلاحية الشاشة ──────────────────────────────────────────────────────
   // القائمة تُخفي ما لا يملكه الوكيل، لكن الرابط المباشر كان يفتحه: شاشةٌ بلا

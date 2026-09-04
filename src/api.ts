@@ -102,30 +102,85 @@ export function phoneDisplay(raw: any, dial?: string | null): string {
   return `(+${code}) ${d.slice(code.length).replace(/^0+/, '')}`
 }
 export interface Franchise { id: number; name: string; nameAr?: string }
+/**
+ * **جلسةٌ لكلّ وضع، لا جلسةٌ واحدةٌ للمتصفّح.**
+ *
+ * كانت المفاتيح مشتركة (`uc_token` · `uc_mode` …)، فدخولُ المشرف العام يكتب فوق
+ * جلسة الوكيل في نفس المتصفّح. تبويبُ مركز الاتصال يظلّ معروضاً (الصفحة مُحمَّلةٌ
+ * أصلاً) حتى يُحدَّث — فيقرأ الموجّهُ وضعاً «admin» على مسار وكيل، ويقذفه إلى
+ * الصفحة الرئيسية للمشرف العام. والمستخدم لم يخرج ولم يُطرَد: جلستُه دُهست.
+ *
+ * الآن لكلّ وضعٍ بادئتُه، والوضعُ يُقرأ **من المسار** لا من مفتاحٍ مشترك — فالتبويبان
+ * يعيشان معاً، وتحديثُ أيٍّ منهما يبقيه مكانه.
+ */
+export const modeOfPath = (p: string): Mode => (p === '/admin' || p.startsWith('/admin/') ? 'admin' : 'agent')
+const K = (mode: Mode, k: string) => `uc_${mode}_${k}`
+
+/**
+ * ترحيلُ الجلسة القديمة (المفاتيح المشتركة) إلى بادئة وضعها — مرّةً واحدة.
+ *
+ * بدونه يجد كلُّ مستخدمٍ نفسَه مطروداً لحظةَ النشر: المفاتيح تغيّرت أسماؤها فلا
+ * يقرأ الكودُ الجديد شيئاً. والطردُ الجماعيُّ ثمنٌ لا داعي له لإصلاحٍ داخليّ.
+ */
+;(() => {
+  try {
+    const old = localStorage.getItem('uc_token')
+    if (!old) return
+    const m: Mode = (localStorage.getItem('uc_mode') as Mode) || 'agent'
+    const move = (from: string, to: string) => {
+      const v = localStorage.getItem(from)
+      if (v != null && localStorage.getItem(K(m, to)) == null) localStorage.setItem(K(m, to), v)
+    }
+    move('uc_token', 'token'); move('uc_refresh', 'refresh'); move('uc_name', 'name')
+    move('uc_companies', 'companies'); move('uc_company', 'company')
+    move('uc_franchises', 'franchises'); move('uc_franchise', 'franchise')
+    move('uc_scope', 'scope')
+    ;['uc_token', 'uc_refresh', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise', 'uc_scope']
+      .forEach((k) => localStorage.removeItem(k))
+  } catch { /* تخزينٌ محجوب: يُطلَب الدخول من جديد ولا شيء ينكسر */ }
+})()
+const readSession = (mode: Mode) => ({
+  mode: localStorage.getItem(K(mode, 'token')) ? mode : null,
+  token: localStorage.getItem(K(mode, 'token')),
+  refreshToken: localStorage.getItem(K(mode, 'refresh')),
+  name: localStorage.getItem(K(mode, 'name')) || '',
+  companies: JSON.parse(localStorage.getItem(K(mode, 'companies')) || '[]') as Company[],
+  companyId: Number(localStorage.getItem(K(mode, 'company'))) || null,
+  franchises: JSON.parse(localStorage.getItem(K(mode, 'franchises')) || '[]') as Franchise[],
+  franchiseId: Number(localStorage.getItem(K(mode, 'franchise'))) || null,
+})
+/** هل لهذا الوضع جلسةٌ محفوظة؟ — يقرؤه الموجّه ليعرف أيقدر أن يفتحها. */
+export const hasStoredSession = (mode: Mode) => !!localStorage.getItem(K(mode, 'token'))
+
+// وضعُ هذه الصفحة: من مسارها. وعلى الجذر تُفتَح جلسةٌ موجودة — الوكيل أوّلاً لأنه
+// الاستعمال اليوميّ، والمشرف العام يُفتَح من `/admin` صراحةً.
+const bootMode: Mode = (() => {
+  const p = location.pathname
+  if (p === '/' || p === '') return hasStoredSession('agent') ? 'agent' : 'admin'
+  return modeOfPath(p)
+})()
+
 export const session = reactive<{
   mode: Mode | null; token: string | null; refreshToken: string | null; name: string;
   companies: Company[]; companyId: number | null;
   franchises: Franchise[]; franchiseId: number | null;
-}>({
-  mode: (localStorage.getItem('uc_mode') as Mode) || null,
-  token: localStorage.getItem('uc_token'),
-  refreshToken: localStorage.getItem('uc_refresh'),
-  name: localStorage.getItem('uc_name') || '',
-  companies: JSON.parse(localStorage.getItem('uc_companies') || '[]'),
-  companyId: Number(localStorage.getItem('uc_company')) || null,
-  franchises: JSON.parse(localStorage.getItem('uc_franchises') || '[]'),
-  franchiseId: Number(localStorage.getItem('uc_franchise')) || null,
-})
+}>(readSession(bootMode))
+
+// الوضعُ الذي تُكتَب تحته المفاتيح — يبقى بادئةَ الصفحة حتى بعد الخروج، فلا تُمحى
+// جلسةُ الوضع الآخر بالخطأ.
+let storeMode: Mode = bootMode
 
 function persist() {
-  if (session.token) localStorage.setItem('uc_token', session.token); else localStorage.removeItem('uc_token')
-  if (session.refreshToken) localStorage.setItem('uc_refresh', session.refreshToken); else localStorage.removeItem('uc_refresh')
-  if (session.mode) localStorage.setItem('uc_mode', session.mode); else localStorage.removeItem('uc_mode')
-  localStorage.setItem('uc_name', session.name)
-  localStorage.setItem('uc_companies', JSON.stringify(session.companies))
-  localStorage.setItem('uc_franchises', JSON.stringify(session.franchises))
-  if (session.companyId) localStorage.setItem('uc_company', String(session.companyId)); else localStorage.removeItem('uc_company')
-  if (session.franchiseId) localStorage.setItem('uc_franchise', String(session.franchiseId)); else localStorage.removeItem('uc_franchise')
+  const m = session.mode || storeMode
+  storeMode = m
+  const set = (k: string, v: string | null) => (v ? localStorage.setItem(K(m, k), v) : localStorage.removeItem(K(m, k)))
+  set('token', session.token)
+  set('refresh', session.refreshToken)
+  set('name', session.name || '')
+  localStorage.setItem(K(m, 'companies'), JSON.stringify(session.companies))
+  localStorage.setItem(K(m, 'franchises'), JSON.stringify(session.franchises))
+  set('company', session.companyId ? String(session.companyId) : null)
+  set('franchise', session.franchiseId ? String(session.franchiseId) : null)
 }
 export const isAuthed = () => !!session.token
 
@@ -134,7 +189,7 @@ export const isAuthed = () => !!session.token
 // بالفعل، فأيّ ريفريش كان يراه الحارسُ داخلاً فيقذفه إلى التطبيق بشركةٍ وفرنشايز
 // لم يؤكّدهما — يعمل على «كل الفروع» وهو كان في طريقه لاختيار فرعٍ بعينه. تُرفَع
 // هذه الراية عند ضغط «دخول» وحده (أو حين لا يكون هناك ما يُختار أصلاً).
-export const scopeConfirmed = () => localStorage.getItem('uc_scope') === '1'
+export const scopeConfirmed = () => localStorage.getItem(K(storeMode, 'scope')) === '1'
 /**
  * النطاق ناقص: لم يُؤكَّد بعد، **أو** للشركة امتيازات ولم يُختَر واحد.
  * مصدرٌ واحد يقرؤه الحارس وشاشةُ الاختيار معاً فلا يفترقان.
@@ -142,8 +197,8 @@ export const scopeConfirmed = () => localStorage.getItem('uc_scope') === '1'
 export const scopeIncomplete = () =>
   session.mode === 'agent' &&
   (!scopeConfirmed() || (session.franchises.length > 0 && !session.franchiseId))
-export const confirmScope = () => localStorage.setItem('uc_scope', '1')
-export const resetScope = () => localStorage.removeItem('uc_scope')
+export const confirmScope = () => localStorage.setItem(K(storeMode, 'scope'), '1')
+export const resetScope = () => localStorage.removeItem(K(storeMode, 'scope'))
 export const currentCompany = () => session.companies.find((c) => c.id === session.companyId) || null
 export const currentFranchise = () => session.franchises.find((f) => f.id === session.franchiseId) || null
 export function setFranchise(id: number | null) { session.franchiseId = id; persist() }
@@ -159,10 +214,13 @@ export function setCompany(id: number) {
   session.companyId = id; session.franchiseId = null; session.franchises = []; persist()
   void loadFranchises()   // الفرنشايزات تختلف بين الشركات → أعد تحميلها
 }
+/** خروجٌ من **هذا الوضع وحده** — جلسةُ الوضع الآخر في نفس المتصفّح لا تُمَسّ. */
 export function logout() {
+  const m = session.mode || storeMode
   session.mode = null; session.token = null; session.refreshToken = null; session.name = ''; session.companies = []; session.companyId = null
   session.franchises = []; session.franchiseId = null
-  ;['uc_token', 'uc_refresh', 'uc_mode', 'uc_name', 'uc_companies', 'uc_company', 'uc_franchises', 'uc_franchise', 'uc_scope'].forEach((k) => localStorage.removeItem(k))
+  ;['token', 'refresh', 'name', 'companies', 'company', 'franchises', 'franchise', 'scope']
+    .forEach((k) => localStorage.removeItem(K(m, k)))
 }
 
 api.interceptors.request.use((cfg) => {
