@@ -28,24 +28,43 @@ npm run build
 - الباك‑إند بتاعه كله جوّه U‑Serve (`cloud/api` — وحدة `contact`).
 - Endpoints المستخدمة: `POST /auth/admin/login` · `GET/POST/PATCH /contact/admin/agents…` · `PUT /contact/admin/agents/:id/companies` · `GET /contact/admin/companies` · `GET /contact/admin/reports/agents`.
 
-## النشر على Vercel
+## النشر — على خادم U‑Serve نفسِه
 
-المشروع مضبوط للنشر مباشرةً (`vercel.json`): إطار Vite، البناء `npm run build`،
-والمخرجات `dist`. وفيه **rewrite** يوجّه كل المسارات إلى `index.html` — لازمٌ لأن
-الراوتر يعمل بـ`history mode`، فبدونه أي رابط داخلي (`/app/callcenter`) يعطي 404
-عند التحديث أو الفتح المباشر.
+الإنتاج على `https://u-contact.uisapp.com`، على نفس صندوق EC2 الذي يحمل الـAPI.
 
-### خطوات الربط
-1. [vercel.com/new](https://vercel.com/new) → استورد مستودع `U-Contact` من GitHub.
-2. اترك إعدادات البناء كما اكتشفها (Vite · `npm run build` · `dist`).
-3. Deploy. أي `git push` بعدها ينشر تلقائياً.
+```bash
+export GIT_SSH_COMMAND='ssh -i "/c/Users/UIS-Wesam/Desktop/server linux/uiscom.pem" -o StrictHostKeyChecking=no'
+git push production main
+```
 
-### متغيّر البيئة (اختياري)
-`VITE_API_BASE` — عنوان API الخاص بـU‑Serve. **غير مطلوب**: الكود يرتدّ إلى
-`https://u-serve.uisapp.com/api` إن غاب. اضبطه من Vercel → Settings → Environment
-Variables فقط إن أردت توجيه النسخة المنشورة لخادم آخر.
+الدفعُ يُشغّل خطّافاً على الخادم: سحبٌ ← `npm ci` ← بناء ← نسخُ `dist/` إلى جذر
+الموقع. مخرجاتُه تظهر في نتيجة الدفع، وآخرُها «تم النشر بنجاح».
 
-### ⚠️ خطوة لا غنى عنها بعد أول نشر
-الـAPI يقبل الطلبات من الأصول المسجَّلة في `CORS_ORIGIN` ومن `localhost` وحدها.
-فور ظهور دومين Vercel أضِفه إلى `CORS_ORIGIN` على خادم U‑Serve وأعد تشغيل الـAPI —
-قبل ذلك تفتح الواجهة ويُرفَض كل نداء (تسجيل الدخول لن يعمل).
+### الـAPI من نفس الأصل — لا CORS
+
+nginx يمرّر `/api/` من هذا الدومين إلى الـAPI نفسِه، والبناءُ على الخادم يستعمل
+`VITE_API_BASE=/api`. فالطلبُ من نفس الأصل، ولا حاجةَ لإضافة الدومين إلى
+`CORS_ORIGIN` ولا لإعادة تشغيل الـAPI.
+
+> **لذلك يختلف هاشُ بندل الخادم عن أيّ بناءٍ محليّ افتراضيّ** — قاعدةُ الـAPI
+> مختلفة. عند التحقّق ابنِ محلياً بنفس المتغيّر أو قارن بمحتوى الملفّ لا باسمه.
+
+### قطعُ الإعداد على الخادم
+
+| ماذا | أين |
+|---|---|
+| موقع nginx | `/etc/nginx/sites-available/ucontact` |
+| جذر الموقع | `/var/www/ucontact` |
+| مستودع النشر | `/srv/ucontact.git` (خطّاف `post-receive`) |
+| نسخة العمل والبناء | `/srv/ucontact` |
+| الشهادة | Let's Encrypt، تجديدٌ تلقائيّ بـcertbot |
+
+> الصندوق يستضيف مشاريع عملاء آخرين: `sudo nginx -t` قبل أيّ `reload`، ولا تُمَسّ
+> ملفاتُ مواقعَ أخرى.
+
+### Vercel (قديم — للاختبار)
+
+`https://u-contact.vercel.app` مربوطةٌ بـ`origin` على GitHub وتنشر تلقائياً مع كلّ
+دفع. كانت للاختبار قبل الانتقال، وتُركت شغّالةً كاحتياطٍ مؤقّت. بناؤها يستعمل
+القاعدة المطلقة `https://u-serve.uisapp.com/api`، فيلزمه بقاءُ الدومين في
+`CORS_ORIGIN`.
